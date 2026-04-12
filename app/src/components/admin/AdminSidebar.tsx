@@ -3,6 +3,7 @@ import {
   LayoutDashboard, Users, Image, Flag, CreditCard, 
   DollarSign, Settings, LogOut, X 
 } from 'lucide-react';
+import BrandLogo from '@/components/BrandLogo';
 
 interface AdminSidebarProps {
   onClose?: () => void;
@@ -26,20 +27,15 @@ export default function AdminSidebar({ onClose }: AdminSidebarProps) {
   };
 
   return (
-    <div className="w-64 h-full bg-gray-900 text-white flex flex-col">
+    <div className="h-full w-72 max-w-[85vw] bg-gray-900 text-white flex flex-col">
       {/* Logo */}
-      <div className="p-4 border-b border-gray-800 flex items-center justify-between">
-        <Link to="/admin" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
-            <LayoutDashboard className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <span className="font-bold text-lg">Admin</span>
-            <span className="text-xs text-gray-400 block">Panel</span>
-          </div>
+      <div className="relative border-b border-gray-800 p-4">
+        <Link to="/admin" className="flex min-w-0 flex-col gap-3">
+          <BrandLogo size="sm" tone="light" className="shrink-0" />
+          <span className="min-w-0 text-lg font-semibold text-white">Admin Panel</span>
         </Link>
         {onClose && (
-          <button onClick={onClose} className="lg:hidden p-1 hover:bg-gray-800 rounded">
+          <button onClick={onClose} className="absolute right-4 top-4 rounded p-1 hover:bg-gray-800 lg:hidden">
             <X className="w-5 h-5" />
           </button>
         )}

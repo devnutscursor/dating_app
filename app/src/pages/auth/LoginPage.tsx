@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Eye, EyeOff, Mail, Lock } from 'lucide-react';
+import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import BrandLogo from '@/components/BrandLogo';
 
 export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
@@ -13,11 +14,8 @@ export default function LoginPage() {
       <div className="w-full max-w-md">
         {/* Logo */}
         <div className="text-center mb-8">
-          <Link to="/" className="inline-flex items-center gap-2">
-            <div className="w-10 h-10 bg-green-500 rounded-lg flex items-center justify-center">
-              <Heart className="w-6 h-6 text-white" />
-            </div>
-            <span className="font-bold text-2xl text-gray-900">MemberDate</span>
+          <Link to="/" className="inline-flex">
+            <BrandLogo size="sm" tone="dark" />
           </Link>
         </div>
 

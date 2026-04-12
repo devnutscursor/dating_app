@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Heart, Users, MessageCircle, Video, Shield, Check, Star, ChevronDown, ChevronUp, Menu, X } from 'lucide-react';
+import { Users, MessageCircle, Video, Shield, Check, Star, ChevronDown, ChevronUp, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { coinPacks, mockUsers } from '@/data/mockData';
+import BrandLogo from '@/components/BrandLogo';
 
 const features = [
   {
@@ -91,17 +92,18 @@ export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const verifiedMembers = mockUsers.filter((user) => user.gender === 'female').slice(0, 6);
-  const heroGallery = mockUsers.filter((user) => user.gender === 'female').slice(0, 4);
-
+  const verifiedMemberCards = verifiedMembers.length
+    ? Array.from({ length: 5 }, (_, index) => verifiedMembers[index % verifiedMembers.length])
+    : [];
   return (
-    <div className="min-h-screen bg-white">
+    <div className="min-h-screen bg-[#0a0a0a] text-white">
       {/* Navigation */}
       <nav className="fixed top-0 left-0 right-0 bg-black/65 backdrop-blur-md z-50 border-b border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             {/* Logo */}
-            <Link to="/" className="flex items-center gap-2">
-              <span className="font-serif text-3xl tracking-wide text-amber-200">MemberDate</span>
+            <Link to="/" className="inline-flex">
+              <BrandLogo size="sm" tone="amber" />
             </Link>
 
             {/* Desktop Navigation */}
@@ -136,12 +138,12 @@ export default function LandingPage() {
 
         {/* Mobile Menu */}
         {mobileMenuOpen && (
-          <div className="md:hidden bg-white border-t border-gray-100">
+          <div className="md:hidden border-t border-white/10 bg-[#111111]/95 backdrop-blur-xl">
             <div className="px-4 py-4 space-y-3">
-              <a href="#features" className="block text-gray-600 py-2">Features</a>
-              <a href="#how-it-works" className="block text-gray-600 py-2">How It Works</a>
-              <a href="#pricing" className="block text-gray-600 py-2">Pricing</a>
-              <a href="#faq" className="block text-gray-600 py-2">FAQ</a>
+              <a href="#features" className="block py-2 text-amber-50/75">Features</a>
+              <a href="#how-it-works" className="block py-2 text-amber-50/75">How It Works</a>
+              <a href="#pricing" className="block py-2 text-amber-50/75">Pricing</a>
+              <a href="#faq" className="block py-2 text-amber-50/75">FAQ</a>
               <div className="pt-4 border-t border-white/10 space-y-2">
                 <Link to="/login" className="block w-full">
                   <Button variant="outline" className="w-full border-amber-200/40 bg-transparent text-amber-100 hover:bg-amber-100/10 hover:text-amber-50">Sign in</Button>
@@ -157,15 +159,23 @@ export default function LandingPage() {
 
       {/* Hero Section */}
       <section className="relative overflow-hidden bg-[#0b0b0b] px-4 pb-20 pt-28 text-white sm:px-6 lg:px-8">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(251,191,36,0.16),transparent_34%),radial-gradient(circle_at_left,rgba(255,255,255,0.06),transparent_28%)]" />
+        <div
+          className="absolute inset-0 bg-cover bg-center"
+          style={{ backgroundImage: "url('/assets/width_896.webp')" }}
+        />
+        <div className="absolute inset-0 bg-black/55" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,210,30,0.12),transparent_34%),linear-gradient(90deg,rgba(11,11,11,0.92)_0%,rgba(11,11,11,0.72)_42%,rgba(11,11,11,0.3)_100%)]" />
         <div className="max-w-7xl mx-auto">
-          <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_1fr]">
-            <div className="relative z-10">
+          <div className="relative min-h-[680px]">
+            <div className="relative z-10 max-w-3xl">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-200/20 bg-white/5 px-4 py-2 text-sm text-amber-100/80 backdrop-blur-sm">
                 <Check className="h-4 w-4 text-amber-200" />
                 100% verified members
               </div>
-              <h1 className="font-serif text-5xl leading-[0.95] text-amber-200 sm:text-6xl lg:text-7xl">
+              <h1
+                className="font-serif text-4xl leading-[0.9] sm:text-[52px] lg:text-[5.25rem]"
+                style={{ color: '#fde68a' }}
+              >
                 Date Free
                 <br />
                 With
@@ -207,47 +217,28 @@ export default function LandingPage() {
                 </div>
               </div>
             </div>
-            <div className="relative min-h-[520px]">
-              <div className="absolute inset-0 rounded-[2rem] border border-white/10 bg-white/[0.03] shadow-[0_40px_100px_rgba(0,0,0,0.45)] backdrop-blur-sm" />
-              <div className="absolute inset-4 grid grid-cols-2 gap-4 overflow-hidden rounded-[1.75rem]">
-                {heroGallery.map((member, index) => (
-                  <div
-                    key={member.id}
-                    className={`relative overflow-hidden rounded-[1.5rem] ${
-                      index === 0 ? 'col-span-2 row-span-2' : ''
-                    }`}
-                  >
-                    <img
-                      src={member.profilePicture}
-                      alt={member.name}
-                      className={`h-full w-full object-cover ${
-                        index === 0 ? 'blur-[1px] brightness-75' : 'blur-[3px] brightness-50'
-                      }`}
-                    />
-                    <div className="absolute inset-0 bg-black/25" />
-                  </div>
-                ))}
-              </div>
 
-              <div className="absolute bottom-6 left-6 right-6 rounded-[2rem] border border-white/10 bg-black/55 p-5 backdrop-blur-xl">
-                <div className="mb-5 flex items-center justify-between gap-4">
-                  <h3 className="font-serif text-3xl text-amber-100">Recently Verified Members</h3>
-                  <div className="hidden items-center gap-2 rounded-full border border-amber-200/25 bg-amber-200/10 px-4 py-2 text-sm text-amber-100 md:flex">
-                    <Users className="h-4 w-4" />
+            <div className="absolute top-[68%] left-1/2 z-10 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 px-2 lg:left-auto lg:right-4 lg:w-[44%] lg:max-w-xl lg:translate-x-0 lg:-translate-y-1/2 xl:right-8">
+              <div className="rounded-2xl border border-white/10 bg-black/45 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <h3 className="font-serif text-lg text-white sm:text-xl">Recently Verified Members</h3>
+                  <div className="hidden items-center gap-1.5 rounded-full border border-[#ffd21e]/30 bg-[#ffd21e]/10 px-3 py-1.5 text-xs text-[#ffe680] md:flex">
+                    <Users className="h-3 w-3" />
                     Live feed
                   </div>
                 </div>
-                <div className="grid grid-cols-3 gap-3 sm:grid-cols-6">
-                  {verifiedMembers.map((member, index) => (
+                <div className="grid grid-cols-5 gap-4">
+                  {verifiedMemberCards.map((member, index) => (
                     <div
-                      key={member.id}
-                      className={`relative overflow-hidden rounded-2xl border border-white/10 bg-white/5 ${
-                        index !== 2 ? 'blur-[1.5px]' : ''
+                      key={`${member.id}-${index}`}
+                      className={`relative overflow-hidden rounded-xl border border-white/10 bg-white/5 shadow-[0_6px_15px_rgba(0,0,0,0.25)] ${
+                        index !== 2 ? 'blur-[1.8px]' : ''
                       }`}
                     >
-                      <img src={member.profilePicture} alt={member.name} className="aspect-[3/4] w-full object-cover" />
-                      <div className="absolute bottom-2 right-2 flex h-6 w-6 items-center justify-center rounded-full bg-white shadow-lg">
-                        <Check className="h-4 w-4 text-green-500" />
+                      <img src={member.profilePicture} alt={member.name} className="aspect-square w-full object-cover" />
+                      <div className="absolute inset-0 bg-black/10" />
+                      <div className="absolute bottom-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-white shadow">
+                        <Check className="h-2.5 w-2.5 text-green-500" />
                       </div>
                     </div>
                   ))}
@@ -259,24 +250,24 @@ export default function LandingPage() {
       </section>
 
       {/* Features Section */}
-      <section id="features" className="py-20 bg-gray-50">
+      <section id="features" className="py-20 bg-[#0d0d0d]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="font-serif text-3xl sm:text-4xl text-amber-200 mb-4">
               Why Choose MemberDate?
             </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            <p className="text-lg text-amber-50/65 max-w-2xl mx-auto">
               We provide a safe and fun platform for you to meet new people and find meaningful connections.
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {features.map((feature, index) => (
-              <div key={index} className="bg-white rounded-2xl p-6 shadow-sm hover:shadow-md transition-shadow">
-                <div className="w-14 h-14 bg-green-100 rounded-xl flex items-center justify-center mb-4">
-                  <feature.icon className="w-7 h-7 text-green-500" />
+              <div key={index} className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] backdrop-blur-sm transition-transform hover:-translate-y-1">
+                <div className="mb-4 flex h-14 w-14 items-center justify-center rounded-xl bg-amber-200/10">
+                  <feature.icon className="w-7 h-7 text-amber-200" />
                 </div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">{feature.title}</h3>
-                <p className="text-gray-600">{feature.description}</p>
+                <h3 className="mb-2 text-xl font-semibold text-amber-100">{feature.title}</h3>
+                <p className="text-amber-50/60">{feature.description}</p>
               </div>
             ))}
           </div>
@@ -284,22 +275,22 @@ export default function LandingPage() {
       </section>
 
       {/* How It Works Section */}
-      <section id="how-it-works" className="py-20">
+      <section id="how-it-works" className="py-20 bg-[#090909]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="font-serif text-3xl sm:text-4xl text-amber-200 mb-4">
               How It Works
             </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            <p className="text-lg text-amber-50/65 max-w-2xl mx-auto">
               Getting started is easy. Follow these simple steps to find your match.
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8">
             {howItWorks.map((step, index) => (
-              <div key={index} className="relative">
-                <div className="text-6xl font-bold text-green-100 mb-4">{step.step}</div>
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">{step.title}</h3>
-                <p className="text-gray-600">{step.description}</p>
+              <div key={index} className="relative rounded-2xl border border-white/10 bg-white/[0.02] p-6">
+                <div className="mb-4 text-6xl font-bold text-amber-200/15">{step.step}</div>
+                <h3 className="mb-2 text-xl font-semibold text-amber-100">{step.title}</h3>
+                <p className="text-amber-50/60">{step.description}</p>
               </div>
             ))}
           </div>
@@ -307,13 +298,13 @@ export default function LandingPage() {
       </section>
 
       {/* Pricing Section */}
-      <section id="pricing" className="py-20 bg-gray-50">
+      <section id="pricing" className="py-20 bg-[#0d0d0d]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="font-serif text-3xl sm:text-4xl text-amber-200 mb-4">
               Coin Packs
             </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            <p className="text-lg text-amber-50/65 max-w-2xl mx-auto">
               Purchase coins to unlock premium features and enhance your experience.
             </p>
           </div>
@@ -321,39 +312,39 @@ export default function LandingPage() {
             {coinPacks.map((pack) => (
               <div 
                 key={pack.id} 
-                className={`bg-white rounded-2xl p-6 shadow-sm ${
-                  pack.isPopular ? 'ring-2 ring-green-500 relative' : ''
+                className={`rounded-2xl border border-white/10 bg-white/[0.03] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.25)] ${
+                  pack.isPopular ? 'ring-2 ring-amber-200/60 relative' : ''
                 }`}
               >
                 {pack.isPopular && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-green-500 text-white text-sm font-medium px-4 py-1 rounded-full">
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-amber-200 px-4 py-1 text-sm font-medium text-gray-950">
                     Most Popular
                   </div>
                 )}
-                <h3 className="text-xl font-semibold text-gray-900 mb-2">{pack.name}</h3>
+                <h3 className="mb-2 text-xl font-semibold text-amber-100">{pack.name}</h3>
                 <div className="flex items-baseline gap-1 mb-4">
-                  <span className="text-4xl font-bold text-gray-900">${pack.price}</span>
+                  <span className="text-4xl font-bold text-white">${pack.price}</span>
                   {pack.originalPrice && (
-                    <span className="text-gray-400 line-through">${pack.originalPrice}</span>
+                    <span className="text-amber-50/35 line-through">${pack.originalPrice}</span>
                   )}
                 </div>
                 <div className="flex items-center gap-2 mb-6">
-                  <div className="w-8 h-8 bg-yellow-100 rounded-full flex items-center justify-center">
-                    <span className="text-yellow-600 font-bold">C</span>
+                  <div className="flex h-8 w-8 items-center justify-center rounded-full bg-amber-200/10">
+                    <span className="font-bold text-amber-200">C</span>
                   </div>
-                  <span className="text-2xl font-bold text-gray-900">{pack.coins}</span>
-                  <span className="text-gray-500">coins</span>
+                  <span className="text-2xl font-bold text-white">{pack.coins}</span>
+                  <span className="text-amber-50/55">coins</span>
                 </div>
                 <ul className="space-y-2 mb-6">
                   {pack.features.map((feature, i) => (
-                    <li key={i} className="flex items-center gap-2 text-sm text-gray-600">
-                      <Check className="w-4 h-4 text-green-500" />
+                    <li key={i} className="flex items-center gap-2 text-sm text-amber-50/60">
+                      <Check className="w-4 h-4 text-amber-200" />
                       {feature}
                     </li>
                   ))}
                 </ul>
                 <Button 
-                  className={`w-full ${pack.isPopular ? 'bg-green-500 hover:bg-green-600' : ''}`}
+                  className={`w-full ${pack.isPopular ? 'bg-amber-200 text-gray-950 hover:bg-amber-100' : 'border-amber-200/30 bg-transparent text-amber-100 hover:bg-white/5'}`}
                   variant={pack.isPopular ? 'default' : 'outline'}
                 >
                   Purchase
@@ -365,26 +356,26 @@ export default function LandingPage() {
       </section>
 
       {/* Testimonials Section */}
-      <section className="py-20">
+      <section className="py-20 bg-[#090909]">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="font-serif text-3xl sm:text-4xl text-amber-200 mb-4">
               Success Stories
             </h2>
-            <p className="text-lg text-gray-600 max-w-2xl mx-auto">
+            <p className="text-lg text-amber-50/65 max-w-2xl mx-auto">
               Hear from couples who found love on MemberDate.
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
             {testimonials.map((testimonial, idx) => (
-              <div key={idx} className="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
+              <div key={idx} className="rounded-2xl border border-white/10 bg-white/[0.03] p-6 shadow-[0_20px_60px_rgba(0,0,0,0.22)]">
                 <div className="flex gap-1 mb-4">
                   {[...Array(testimonial.rating)].map((_, i) => (
-                    <Star key={i} className="w-5 h-5 text-yellow-400 fill-yellow-400" />
+                    <Star key={i} className="w-5 h-5 text-amber-200 fill-amber-200" />
                   ))}
                 </div>
-                <p className="text-gray-600 mb-4">"{testimonial.text}"</p>
-                <p className="font-semibold text-gray-900">- {testimonial.name}</p>
+                <p className="mb-4 text-amber-50/65">"{testimonial.text}"</p>
+                <p className="font-semibold text-amber-100">- {testimonial.name}</p>
               </div>
             ))}
           </div>
@@ -392,33 +383,33 @@ export default function LandingPage() {
       </section>
 
       {/* FAQ Section */}
-      <section id="faq" className="py-20 bg-gray-50">
+      <section id="faq" className="py-20 bg-[#0d0d0d]">
         <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-16">
-            <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+            <h2 className="font-serif text-3xl sm:text-4xl text-amber-200 mb-4">
               Frequently Asked Questions
             </h2>
-            <p className="text-lg text-gray-600">
+            <p className="text-lg text-amber-50/65">
               Got questions? We've got answers.
             </p>
           </div>
           <div className="space-y-4">
             {faqs.map((faq, index) => (
-              <div key={index} className="bg-white rounded-xl overflow-hidden">
+              <div key={index} className="overflow-hidden rounded-xl border border-white/10 bg-white/[0.03]">
                 <button
                   onClick={() => setOpenFaq(openFaq === index ? null : index)}
-                  className="w-full flex items-center justify-between p-4 text-left hover:bg-gray-50 transition-colors"
+                  className="w-full flex items-center justify-between p-4 text-left transition-colors hover:bg-white/5"
                 >
-                  <span className="font-medium text-gray-900">{faq.question}</span>
+                  <span className="font-medium text-amber-100">{faq.question}</span>
                   {openFaq === index ? (
-                    <ChevronUp className="w-5 h-5 text-gray-500" />
+                    <ChevronUp className="w-5 h-5 text-amber-100/60" />
                   ) : (
-                    <ChevronDown className="w-5 h-5 text-gray-500" />
+                    <ChevronDown className="w-5 h-5 text-amber-100/60" />
                   )}
                 </button>
                 {openFaq === index && (
                   <div className="px-4 pb-4">
-                    <p className="text-gray-600">{faq.answer}</p>
+                    <p className="text-amber-50/65">{faq.answer}</p>
                   </div>
                 )}
               </div>
@@ -428,65 +419,64 @@ export default function LandingPage() {
       </section>
 
       {/* CTA Section */}
-      <section className="py-20">
+      <section className="py-20 bg-[#090909]">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+          <div className="rounded-[2rem] border border-white/10 bg-white/[0.03] px-8 py-14 shadow-[0_30px_80px_rgba(0,0,0,0.3)]">
+          <h2 className="font-serif text-3xl sm:text-4xl text-amber-200 mb-4">
             Ready to Find Your Match?
           </h2>
-          <p className="text-lg text-gray-600 mb-8">
+          <p className="text-lg text-amber-50/65 mb-8">
             Join thousands of singles already finding love on MemberDate.
           </p>
           <Link to="/register">
-            <Button size="lg" className="bg-green-500 hover:bg-green-600 text-lg px-8">
+            <Button size="lg" className="bg-amber-200 text-gray-950 hover:bg-amber-100 text-lg px-8">
               Sign Up Now
             </Button>
           </Link>
+          </div>
         </div>
       </section>
 
       {/* Footer */}
-      <footer className="bg-gray-900 text-white py-12">
+      <footer className="border-t border-white/10 bg-[#050505] py-12 text-white">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-8 mb-8">
             <div>
               <div className="flex items-center gap-2 mb-4">
-                <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
-                  <Heart className="w-5 h-5 text-white" />
-                </div>
-                <span className="font-bold text-xl">MemberDate</span>
+                <BrandLogo size="sm" tone="amber" />
               </div>
-              <p className="text-gray-400">
+              <p className="text-amber-50/50">
                 Find your perfect match today. Safe, secure, and fun dating platform.
               </p>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Quick Links</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><Link to="/login" className="hover:text-white transition-colors">Log in</Link></li>
-                <li><Link to="/register" className="hover:text-white transition-colors">Sign up</Link></li>
-                <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
-                <li><a href="#pricing" className="hover:text-white transition-colors">Pricing</a></li>
+              <h4 className="mb-4 font-semibold text-amber-100">Quick Links</h4>
+              <ul className="space-y-2 text-amber-50/50">
+                <li><Link to="/login" className="transition-colors hover:text-amber-100">Log in</Link></li>
+                <li><Link to="/register" className="transition-colors hover:text-amber-100">Sign up</Link></li>
+                <li><a href="#features" className="transition-colors hover:text-amber-100">Features</a></li>
+                <li><a href="#pricing" className="transition-colors hover:text-amber-100">Pricing</a></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Legal</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><Link to="/terms" className="hover:text-white transition-colors">Terms of Service</Link></li>
-                <li><Link to="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
-                <li><Link to="/refund" className="hover:text-white transition-colors">Refund Policy</Link></li>
-                <li><Link to="/dmca" className="hover:text-white transition-colors">DMCA</Link></li>
+              <h4 className="mb-4 font-semibold text-amber-100">Legal</h4>
+              <ul className="space-y-2 text-amber-50/50">
+                <li><Link to="/terms" className="transition-colors hover:text-amber-100">Terms of Service</Link></li>
+                <li><Link to="/privacy" className="transition-colors hover:text-amber-100">Privacy Policy</Link></li>
+                <li><Link to="/refund" className="transition-colors hover:text-amber-100">Refund Policy</Link></li>
+                <li><Link to="/dmca" className="transition-colors hover:text-amber-100">DMCA</Link></li>
               </ul>
             </div>
             <div>
-              <h4 className="font-semibold mb-4">Support</h4>
-              <ul className="space-y-2 text-gray-400">
-                <li><Link to="/rules" className="hover:text-white transition-colors">Community Rules</Link></li>
-                <li><a href="#faq" className="hover:text-white transition-colors">FAQ</a></li>
-                <li><a href="#" className="hover:text-white transition-colors">Contact Us</a></li>
+              <h4 className="mb-4 font-semibold text-amber-100">Support</h4>
+              <ul className="space-y-2 text-amber-50/50">
+                <li><Link to="/rules" className="transition-colors hover:text-amber-100">Community Rules</Link></li>
+                <li><a href="#faq" className="transition-colors hover:text-amber-100">FAQ</a></li>
+                <li><a href="#" className="transition-colors hover:text-amber-100">Contact Us</a></li>
               </ul>
             </div>
           </div>
-          <div className="border-t border-gray-800 pt-8 text-center text-gray-400">
+          <div className="border-t border-white/10 pt-8 text-center text-amber-50/40">
             <p>&copy; 2026 MemberDate. All rights reserved.</p>
           </div>
         </div>

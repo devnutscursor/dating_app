@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
-import { ArrowLeft, Heart } from 'lucide-react';
+import { ArrowLeft } from 'lucide-react';
+import BrandLogo from '@/components/BrandLogo';
 
 export default function RefundPage() {
   return (
@@ -8,11 +9,8 @@ export default function RefundPage() {
       <header className="bg-white border-b border-gray-200">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-4">
           <div className="flex items-center justify-between">
-            <Link to="/" className="flex items-center gap-2">
-              <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
-                <Heart className="w-5 h-5 text-white" />
-              </div>
-              <span className="font-bold text-xl text-gray-900">MemberDate</span>
+            <Link to="/" className="inline-flex">
+              <BrandLogo size="sm" tone="dark" />
             </Link>
             <Link to="/" className="flex items-center gap-2 text-gray-600 hover:text-gray-900">
               <ArrowLeft className="w-4 h-4" />

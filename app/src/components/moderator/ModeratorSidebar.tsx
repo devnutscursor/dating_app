@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { 
   LayoutDashboard, Image, Flag, UserCheck, LogOut, X 
 } from 'lucide-react';
+import BrandLogo from '@/components/BrandLogo';
 
 interface ModeratorSidebarProps {
   onClose?: () => void;
@@ -22,20 +23,15 @@ export default function ModeratorSidebar({ onClose }: ModeratorSidebarProps) {
   };
 
   return (
-    <div className="w-64 h-full bg-blue-900 text-white flex flex-col">
+    <div className="h-full w-72 max-w-[85vw] bg-blue-900 text-white flex flex-col">
       {/* Logo */}
-      <div className="p-4 border-b border-blue-800 flex items-center justify-between">
-        <Link to="/moderator" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center">
-            <LayoutDashboard className="w-5 h-5 text-white" />
-          </div>
-          <div>
-            <span className="font-bold text-lg">Moderator</span>
-            <span className="text-xs text-blue-300 block">Panel</span>
-          </div>
+      <div className="relative border-b border-blue-800 p-4">
+        <Link to="/moderator" className="flex min-w-0 flex-col gap-3">
+          <BrandLogo size="sm" tone="light" className="shrink-0" />
+          <span className="min-w-0 text-lg font-semibold text-white">Moderator Panel</span>
         </Link>
         {onClose && (
-          <button onClick={onClose} className="lg:hidden p-1 hover:bg-blue-800 rounded">
+          <button onClick={onClose} className="absolute right-4 top-4 rounded p-1 hover:bg-blue-800 lg:hidden">
             <X className="w-5 h-5" />
           </button>
         )}

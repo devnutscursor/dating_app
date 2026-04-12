@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { navigationItems } from '@/config/design';
 import { currentUser } from '@/data/mockData';
+import BrandLogo from '@/components/BrandLogo';
 
 interface SidebarProps {
   userType: 'man' | 'woman';
@@ -40,11 +41,8 @@ export default function Sidebar({ userType, onClose }: SidebarProps) {
     <div className="w-64 h-full bg-white border-r border-gray-200 flex flex-col">
       {/* Logo */}
       <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-green-500 rounded-lg flex items-center justify-center">
-            <Heart className="w-5 h-5 text-white" />
-          </div>
-          <span className="font-bold text-xl text-gray-900">MemberDate</span>
+        <Link to="/" className="inline-flex">
+          <BrandLogo size="sm" tone="dark" />
         </Link>
         {onClose && (
           <button onClick={onClose} className="lg:hidden p-1 hover:bg-gray-100 rounded">
