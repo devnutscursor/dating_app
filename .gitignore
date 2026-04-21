@@ -20,6 +20,10 @@ pnpm-debug.log*
 app/node_modules/
 app/dist/
 
+# Backend API
+server/node_modules/
+server/.env
+
 # TypeScript / Vite cache
 app/.vite/
 app/*.tsbuildinfo

@@ -1,10 +1,18 @@
 import { useState } from 'react';
 import { Coins, CreditCard, History, Gift, Check, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { currentUser, coinPacks, mockTransactions } from '@/data/mockData';
+import { coinPacks, mockTransactions } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function ManWallet() {
+  const { user: currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'buy' | 'history'>('buy');
+
+  if (!currentUser) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-gray-500">Loading…</div>
+    );
+  }
 
   return (
     <div className="space-y-6">

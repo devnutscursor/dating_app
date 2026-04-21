@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, Bell, Search, Coins, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { currentUser } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
 import NotificationsModal from '@/components/modals/NotificationsModal';
 import SearchFilterModal from '@/components/modals/SearchFilterModal';
 
@@ -13,8 +13,12 @@ interface HeaderProps {
 }
 
 export default function Header({ userType, onMenuClick, onActivityClick }: HeaderProps) {
+  const { user } = useAuth();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const coins = user?.coins ?? 0;
+  const avatar = user?.profilePicture || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200';
+  const name = user?.name ?? 'Member';
 
   return (
     <>
@@ -91,17 +95,13 @@ export default function Header({ userType, onMenuClick, onActivityClick }: Heade
               className="flex items-center gap-2 border-green-500 text-green-600 hover:bg-green-50"
             >
               <Coins className="w-4 h-4" />
-              <span className="font-medium">{currentUser.coins}</span>
+              <span className="font-medium">{coins}</span>
             </Button>
           </Link>
 
           {/* Profile - Mobile */}
           <Link to={`/${userType}/profile`} className="lg:hidden">
-            <img 
-              src={currentUser.profilePicture} 
-              alt={currentUser.name}
-              className="w-8 h-8 rounded-full object-cover"
-            />
+            <img src={avatar} alt={name} className="w-8 h-8 rounded-full object-cover" />
           </Link>
         </div>
       </header>

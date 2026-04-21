@@ -1,13 +1,21 @@
 import { useState } from 'react';
 import { Coins, DollarSign, History, Gift, Video, CreditCard, Copy, Check, Wallet, TrendingUp, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { currentWomanUser, mockTransactions } from '@/data/mockData';
+import { mockTransactions } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function WomanPayouts() {
+  const { user: currentWomanUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'withdraw' | 'history'>('overview');
   const [walletAddress, setWalletAddress] = useState('');
   const [copied, setCopied] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
+
+  if (!currentWomanUser) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-gray-500">Loading…</div>
+    );
+  }
 
   const referralLink = `https://memberdate.com/ref/${currentWomanUser.id}`;
 

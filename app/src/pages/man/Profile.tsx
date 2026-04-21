@@ -2,15 +2,24 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Camera, MapPin, Edit, Image, Video, Lock, Settings, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { currentUser } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
 import AddMediaModal from '@/components/modals/AddMediaModal';
 
 export default function ManProfile() {
+  const { user: currentUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'photos' | 'videos'>('photos');
   const [addMediaModal, setAddMediaModal] = useState<{ open: boolean; type: 'photo' | 'video' }>({
     open: false,
     type: 'photo',
   });
+
+  if (!currentUser) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-gray-500">
+        Loading profile…
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">

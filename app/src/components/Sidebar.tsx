@@ -5,8 +5,8 @@ import {
   LogOut, X, ChevronDown, ChevronUp 
 } from 'lucide-react';
 import { navigationItems } from '@/config/design';
-import { currentUser } from '@/data/mockData';
 import BrandLogo from '@/components/BrandLogo';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SidebarProps {
   userType: 'man' | 'woman';
@@ -14,6 +14,7 @@ interface SidebarProps {
 }
 
 export default function Sidebar({ userType, onClose }: SidebarProps) {
+  const { user: sessionUser, logout } = useAuth();
   const location = useLocation();
   const [faqOpen, setFaqOpen] = useState(false);
   
@@ -53,19 +54,21 @@ export default function Sidebar({ userType, onClose }: SidebarProps) {
 
       {/* User Profile */}
       <div className="p-4 border-b border-gray-200">
-        <Link to={`${basePath}/profile`} className="flex items-center gap-3 hover:bg-gray-50 p-2 rounded-lg transition-colors">
-          <div className="relative">
-            <img 
-              src={currentUser.profilePicture} 
-              alt={currentUser.name}
-              className="w-12 h-12 rounded-full object-cover"
+        <Link
+          to={`${basePath}/profile`}
+          className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-gray-50"
+        >
+          <div className="relative shrink-0">
+            <img
+              src={sessionUser?.profilePicture || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200'}
+              alt={sessionUser?.name || 'Profile'}
+              className="h-12 w-12 rounded-full object-cover"
             />
-            <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
+            {sessionUser?.isOnline && (
+              <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
+            )}
           </div>
-          <div>
-            <p className="font-medium text-gray-900">{currentUser.name}</p>
-            <p className="text-sm text-gray-500">ID: {currentUser.id}</p>
-          </div>
+          <p className="min-w-0 truncate font-medium text-gray-900">{sessionUser?.name ?? 'Member'}</p>
         </Link>
       </div>
 
@@ -135,13 +138,17 @@ export default function Sidebar({ userType, onClose }: SidebarProps) {
 
       {/* Logout */}
       <div className="p-4 border-t border-gray-200">
-        <Link 
-          to="/login"
-          className="flex items-center gap-3 px-3 py-2.5 text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+        <button
+          type="button"
+          onClick={() => {
+            logout();
+            window.location.href = '/login';
+          }}
+          className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
         >
           <LogOut className="w-5 h-5" />
           <span className="font-medium">Log out</span>
-        </Link>
+        </button>
       </div>
     </div>
   );

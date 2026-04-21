@@ -1,6 +1,8 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
-import { mockChats } from '@/data/mockData';
+import { AuthProvider } from '@/contexts/AuthContext';
+import { ProtectedRoute } from '@/components/ProtectedRoute';
+import DefaultChatRedirect from '@/components/DefaultChatRedirect';
 
 // Landing Pages
 import LandingPage from '@/pages/landing/LandingPage';
@@ -59,87 +61,109 @@ import DMCAPage from '@/pages/legal/DMCAPage';
 import RulesPage from '@/pages/legal/RulesPage';
 
 function App() {
-  const firstChatId = mockChats[0]?.id;
-
   return (
     <Router>
-      <Routes>
-        {/* Landing & Auth Routes */}
-        <Route path="/" element={<LandingPage />} />
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
-        <Route path="/verify-email" element={<EmailVerificationPage />} />
-        <Route path="/profile-setup" element={<ProfileSetupPage />} />
+      <AuthProvider>
+        <Routes>
+          {/* Landing & Auth Routes */}
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/login" element={<LoginPage />} />
+          <Route path="/register" element={<RegisterPage />} />
+          <Route path="/verify-email" element={<EmailVerificationPage />} />
+          <Route path="/profile-setup" element={<ProfileSetupPage />} />
 
-        {/* Man User Routes */}
-        <Route path="/man" element={<ManLayout />}>
-          <Route index element={<Navigate to="/man/home" replace />} />
-          <Route path="home" element={<ManHome />} />
+          {/* Man User Routes */}
           <Route
-            path="chats"
-            element={<Navigate to={firstChatId ? `/man/chats/${firstChatId}` : '/man/home'} replace />}
-          />
-          <Route path="chats/:chatId" element={<ManChatDetail />} />
-          <Route path="likes" element={<ManLikes />} />
-          <Route path="online" element={<ManOnline />} />
-          <Route path="faq" element={<ManFAQ />} />
-          <Route path="wallet" element={<ManWallet />} />
-          <Route path="profile" element={<ManProfile />} />
-          <Route path="swipes" element={<ManSwipes />} />
-          <Route path="view-profile/:userId" element={<ManViewProfile />} />
-        </Route>
+            path="/man"
+            element={
+              <ProtectedRoute allowedRoles={['male']}>
+                <ManLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="/man/home" replace />} />
+            <Route path="home" element={<ManHome />} />
+            <Route path="chats" element={<DefaultChatRedirect area="man" />} />
+            <Route path="chats/:chatId" element={<ManChatDetail />} />
+            <Route path="likes" element={<ManLikes />} />
+            <Route path="online" element={<ManOnline />} />
+            <Route path="faq" element={<ManFAQ />} />
+            <Route path="wallet" element={<ManWallet />} />
+            <Route path="profile" element={<ManProfile />} />
+            <Route path="swipes" element={<ManSwipes />} />
+            <Route path="view-profile/:userId" element={<ManViewProfile />} />
+          </Route>
 
-        {/* Woman User Routes */}
-        <Route path="/woman" element={<WomanLayout />}>
-          <Route index element={<Navigate to="/woman/home" replace />} />
-          <Route path="home" element={<WomanHome />} />
+          {/* Woman User Routes */}
           <Route
-            path="chats"
-            element={<Navigate to={firstChatId ? `/woman/chats/${firstChatId}` : '/woman/home'} replace />}
-          />
-          <Route path="chats/:chatId" element={<WomanChatDetail />} />
-          <Route path="likes" element={<WomanLikes />} />
-          <Route path="online" element={<WomanOnline />} />
-          <Route path="faq" element={<WomanFAQ />} />
-          <Route path="wallet" element={<WomanWallet />} />
-          <Route path="profile" element={<WomanProfile />} />
-          <Route path="swipes" element={<WomanSwipes />} />
-          <Route path="view-profile/:userId" element={<WomanViewProfile />} />
-          <Route path="payouts" element={<WomanPayouts />} />
-        </Route>
+            path="/woman"
+            element={
+              <ProtectedRoute allowedRoles={['female']}>
+                <WomanLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="/woman/home" replace />} />
+            <Route path="home" element={<WomanHome />} />
+            <Route path="chats" element={<DefaultChatRedirect area="woman" />} />
+            <Route path="chats/:chatId" element={<WomanChatDetail />} />
+            <Route path="likes" element={<WomanLikes />} />
+            <Route path="online" element={<WomanOnline />} />
+            <Route path="faq" element={<WomanFAQ />} />
+            <Route path="wallet" element={<WomanWallet />} />
+            <Route path="profile" element={<WomanProfile />} />
+            <Route path="swipes" element={<WomanSwipes />} />
+            <Route path="view-profile/:userId" element={<WomanViewProfile />} />
+            <Route path="payouts" element={<WomanPayouts />} />
+          </Route>
 
-        {/* Admin Routes */}
-        <Route path="/admin" element={<AdminLayout />}>
-          <Route index element={<Navigate to="/admin/dashboard" replace />} />
-          <Route path="dashboard" element={<AdminDashboard />} />
-          <Route path="users" element={<AdminUsers />} />
-          <Route path="content" element={<AdminContent />} />
-          <Route path="reports" element={<AdminReports />} />
-          <Route path="transactions" element={<AdminTransactions />} />
-          <Route path="payouts" element={<AdminPayouts />} />
-          <Route path="settings" element={<AdminSettings />} />
-        </Route>
+          {/* Admin Routes */}
+          <Route
+            path="/admin"
+            element={
+              <ProtectedRoute allowedRoles={['admin']}>
+                <AdminLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="/admin/dashboard" replace />} />
+            <Route path="dashboard" element={<AdminDashboard />} />
+            <Route path="users" element={<AdminUsers />} />
+            <Route path="content" element={<AdminContent />} />
+            <Route path="reports" element={<AdminReports />} />
+            <Route path="transactions" element={<AdminTransactions />} />
+            <Route path="payouts" element={<AdminPayouts />} />
+            <Route path="settings" element={<AdminSettings />} />
+          </Route>
 
-        {/* Moderator Routes */}
-        <Route path="/moderator" element={<ModeratorLayout />}>
-          <Route index element={<Navigate to="/moderator/dashboard" replace />} />
-          <Route path="dashboard" element={<ModeratorDashboard />} />
-          <Route path="content" element={<ModeratorContent />} />
-          <Route path="reports" element={<ModeratorReports />} />
-          <Route path="verifications" element={<ModeratorVerifications />} />
-        </Route>
+          {/* Moderator Routes */}
+          <Route
+            path="/moderator"
+            element={
+              <ProtectedRoute allowedRoles={['moderator']}>
+                <ModeratorLayout />
+              </ProtectedRoute>
+            }
+          >
+            <Route index element={<Navigate to="/moderator/dashboard" replace />} />
+            <Route path="dashboard" element={<ModeratorDashboard />} />
+            <Route path="content" element={<ModeratorContent />} />
+            <Route path="reports" element={<ModeratorReports />} />
+            <Route path="verifications" element={<ModeratorVerifications />} />
+          </Route>
 
-        {/* Legal Pages */}
-        <Route path="/terms" element={<TermsPage />} />
-        <Route path="/privacy" element={<PrivacyPage />} />
-        <Route path="/refund" element={<RefundPage />} />
-        <Route path="/dmca" element={<DMCAPage />} />
-        <Route path="/rules" element={<RulesPage />} />
+          {/* Legal Pages */}
+          <Route path="/terms" element={<TermsPage />} />
+          <Route path="/privacy" element={<PrivacyPage />} />
+          <Route path="/refund" element={<RefundPage />} />
+          <Route path="/dmca" element={<DMCAPage />} />
+          <Route path="/rules" element={<RulesPage />} />
 
-        {/* Fallback */}
-        <Route path="*" element={<Navigate to="/" replace />} />
-      </Routes>
-      <Toaster position="top-right" />
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/" replace />} />
+        </Routes>
+        <Toaster position="top-right" />
+      </AuthProvider>
     </Router>
   );
 }

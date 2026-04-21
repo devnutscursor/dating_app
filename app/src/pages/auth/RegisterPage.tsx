@@ -1,27 +1,57 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User, Calendar } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import BrandLogo from '@/components/BrandLogo';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [step, setStep] = useState(1);
+  const [submitting, setSubmitting] = useState(false);
+  const { register } = useAuth();
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
-    gender: '',
+    gender: '' as '' | 'male' | 'female',
     birthDate: '',
   });
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (step === 1) {
+      if (!formData.name.trim() || !formData.email.trim() || !formData.password) {
+        toast.error('Please fill in name, email, and password');
+        return;
+      }
+      if (formData.password.length < 8) {
+        toast.error('Password must be at least 8 characters');
+        return;
+      }
       setStep(2);
-    } else {
-      // Navigate to email verification
-      window.location.href = '/verify-email';
+      return;
+    }
+    if (!formData.gender || !formData.birthDate) {
+      toast.error('Please select gender and date of birth');
+      return;
+    }
+    setSubmitting(true);
+    try {
+      await register({
+        name: formData.name.trim(),
+        email: formData.email.trim(),
+        password: formData.password,
+        gender: formData.gender,
+        birthDate: formData.birthDate,
+      });
+      navigate('/verify-email', { replace: true });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Registration failed');
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -156,8 +186,8 @@ export default function RegisterPage() {
             )}
 
             {/* Submit */}
-            <Button type="submit" className="w-full bg-green-500 hover:bg-green-600 py-3">
-              {step === 1 ? 'Continue' : 'Create Account'}
+            <Button type="submit" disabled={submitting} className="w-full bg-green-500 hover:bg-green-600 py-3">
+              {step === 1 ? 'Continue' : submitting ? 'Creating account…' : 'Create Account'}
             </Button>
 
             {step === 2 && (

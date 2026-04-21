@@ -2,7 +2,9 @@ import { useState, useRef, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Phone, Video, MoreVertical, Send, Image, Gift, Smile, Lock, Flag, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { mockChats } from '@/data/mockData';
+import type { Chat } from '@/types';
+import { apiGet, apiPost } from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
 import BlockUserModal from '@/components/modals/BlockUserModal';
 import ReportUserModal from '@/components/modals/ReportUserModal';
 import SendGiftModal from '@/components/modals/SendGiftModal';
@@ -10,8 +12,12 @@ import VideoCallModal from '@/components/modals/VideoCallModal';
 
 export default function ManChatDetail() {
   const { chatId } = useParams();
+  const { user: me } = useAuth();
   const [message, setMessage] = useState('');
-  const [messages, setMessages] = useState(mockChats.find(c => c.id === chatId)?.messages || []);
+  const [threads, setThreads] = useState<Chat[]>([]);
+  const [chat, setChat] = useState<Chat | null>(null);
+  const [listLoading, setListLoading] = useState(true);
+  const [chatLoading, setChatLoading] = useState(true);
   const [blockModalOpen, setBlockModalOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [giftModalOpen, setGiftModalOpen] = useState(false);
@@ -19,32 +25,65 @@ export default function ManChatDetail() {
   const [menuOpen, setMenuOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const chat = mockChats.find(c => c.id === chatId);
   const user = chat?.participant;
+  const messages = chat?.messages ?? [];
 
   useEffect(() => {
-    setMessages(chat?.messages || []);
-    setMessage('');
-  }, [chatId, chat]);
+    let cancelled = false;
+    (async () => {
+      setListLoading(true);
+      try {
+        const data = await apiGet<{ chats: Chat[] }>('/chats');
+        if (!cancelled) setThreads(data.chats);
+      } catch {
+        if (!cancelled) setThreads([]);
+      } finally {
+        if (!cancelled) setListLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!chatId) return;
+    let cancelled = false;
+    (async () => {
+      setChatLoading(true);
+      try {
+        const data = await apiGet<{ chat: Chat }>(`/chats/${chatId}`);
+        if (!cancelled) {
+          setChat(data.chat);
+          setMessage('');
+        }
+      } catch {
+        if (!cancelled) setChat(null);
+      } finally {
+        if (!cancelled) setChatLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [chatId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = () => {
-    if (!message.trim()) return;
-    
-    const newMessage = {
-      id: `m${Date.now()}`,
-      senderId: '2398127', // Current user ID
-      content: message,
-      type: 'text' as const,
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      isRead: false,
-    };
-    
-    setMessages([...messages, newMessage]);
-    setMessage('');
+  const handleSend = async () => {
+    if (!message.trim() || !chatId) return;
+    try {
+      const data = await apiPost<{ chat: Chat }>(`/chats/${chatId}/messages`, {
+        content: message.trim(),
+        type: 'text',
+      });
+      setChat(data.chat);
+      setMessage('');
+    } catch {
+      /* toast optional */
+    }
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -54,7 +93,15 @@ export default function ManChatDetail() {
     }
   };
 
-  if (!user) {
+  if (listLoading || chatLoading) {
+    return (
+      <div className="flex h-full items-center justify-center text-gray-500">
+        Loading chat…
+      </div>
+    );
+  }
+
+  if (!user || !chat) {
     return (
       <div className="flex items-center justify-center h-full">
         <p className="text-gray-500">Chat not found</p>
@@ -78,7 +125,7 @@ export default function ManChatDetail() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {mockChats.map((thread) => {
+          {threads.map((thread) => {
             const isActive = thread.id === chatId;
             return (
               <Link
@@ -189,7 +236,7 @@ export default function ManChatDetail() {
         <div className="flex-1 overflow-auto p-4 bg-gray-50">
           <div className="space-y-4">
             {messages.map((msg, index) => {
-              const isMe = msg.senderId === '2398127';
+              const isMe = me?.id != null && msg.senderId === me.id;
               const showAvatar = !isMe && (index === 0 || messages[index - 1]?.senderId !== msg.senderId);
 
               return (

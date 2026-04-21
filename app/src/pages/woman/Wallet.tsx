@@ -1,10 +1,18 @@
 import { useState } from 'react';
 import { Coins, History, Gift, Video, TrendingUp, ArrowRight } from 'lucide-react';
 import { Link } from 'react-router-dom';
-import { currentWomanUser, mockTransactions } from '@/data/mockData';
+import { mockTransactions } from '@/data/mockData';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function WomanWallet() {
+  const { user: currentWomanUser } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'history'>('overview');
+
+  if (!currentWomanUser) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-gray-500">Loading…</div>
+    );
+  }
 
   // Calculate earnings
   const videoCallEarnings = 700;

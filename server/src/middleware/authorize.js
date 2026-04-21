@@ -1,0 +1,12 @@
+/** Call after `authenticate`. Usage: `authorize('admin')` or `authorize('admin', 'moderator')` */
+export function authorize(...allowedRoles) {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ error: 'Authentication required' });
+    }
+    if (!allowedRoles.includes(req.user.role)) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+    next();
+  };
+}

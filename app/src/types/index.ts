@@ -2,6 +2,10 @@
 
 export interface User {
   id: string;
+  /** Present when user is loaded from the API (auth + admin/moderator) */
+  role?: 'male' | 'female' | 'admin' | 'moderator';
+  /** Present for API-loaded users (admin list, profile, etc.) */
+  email?: string;
   name: string;
   age: number;
   gender: 'male' | 'female';
@@ -17,6 +21,9 @@ export interface User {
   lastActive?: string;
   coins: number;
   isVerified: boolean;
+  isBlocked?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
   profilePicture?: string;
 }
 

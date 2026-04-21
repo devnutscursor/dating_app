@@ -1,9 +1,10 @@
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, Users, Image, Flag, CreditCard, 
   DollarSign, Settings, LogOut, X 
 } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface AdminSidebarProps {
   onClose?: () => void;
@@ -20,6 +21,8 @@ const adminNavItems = [
 ];
 
 export default function AdminSidebar({ onClose }: AdminSidebarProps) {
+  const { logout } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
 
   const isActive = (href: string) => {
@@ -67,13 +70,17 @@ export default function AdminSidebar({ onClose }: AdminSidebarProps) {
 
       {/* Logout */}
       <div className="p-4 border-t border-gray-800">
-        <Link 
-          to="/login"
-          className="flex items-center gap-3 px-3 py-2.5 text-gray-300 hover:bg-gray-800 rounded-lg transition-colors"
+        <button
+          type="button"
+          onClick={() => {
+            logout();
+            navigate('/login');
+          }}
+          className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-gray-300 hover:bg-gray-800 rounded-lg transition-colors"
         >
           <LogOut className="w-5 h-5" />
           <span className="font-medium">Log out</span>
-        </Link>
+        </button>
       </div>
     </div>
   );
