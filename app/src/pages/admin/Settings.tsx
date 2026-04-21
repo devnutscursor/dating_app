@@ -10,6 +10,8 @@ export default function AdminSettings() {
       videoCallPerMinute: 10,
       messagePriority: 5,
       profileBoost: 100,
+      /** Per-message coin cost when enabled (0 = free messaging) */
+      messageCost: 0,
     },
     videoCall: {
       minDuration: 1,
@@ -119,6 +121,22 @@ export default function AdminSettings() {
               })}
               className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
             />
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Message cost (coins)</label>
+            <input
+              type="number"
+              min={0}
+              value={settings.coinPricing.messageCost}
+              onChange={(e) => setSettings({
+                ...settings,
+                coinPricing: { ...settings.coinPricing, messageCost: Number(e.target.value) }
+              })}
+              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+            />
+            <p className="mt-1 text-xs text-gray-500">
+              Set to 0 for free messaging. Use this later if you want to charge coins per message.
+            </p>
           </div>
         </div>
       </div>

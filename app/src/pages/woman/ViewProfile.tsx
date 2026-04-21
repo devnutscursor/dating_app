@@ -71,13 +71,13 @@ export default function WomanViewProfile() {
               </>
             )}
 
-            {/* Online Status */}
-            {user.isOnline && (
-              <div className="absolute top-4 left-4 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-full px-3 py-1">
-                <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                <span className="text-xs text-white font-medium">Online</span>
-              </div>
-            )}
+            {/* Online / offline status */}
+            <div className="absolute top-4 left-4 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 backdrop-blur-sm">
+              <div
+                className={`h-2 w-2 rounded-full ${user.isOnline ? 'animate-pulse bg-green-500' : 'bg-gray-400'}`}
+              />
+              <span className="text-xs font-medium text-white">{user.isOnline ? 'Online' : 'Offline'}</span>
+            </div>
 
             {/* Photo Counter */}
             <div className="absolute top-4 right-4 bg-black/50 backdrop-blur-sm rounded-full px-3 py-1">

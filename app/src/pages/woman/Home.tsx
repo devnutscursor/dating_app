@@ -45,13 +45,13 @@ export default function WomanHome() {
                 className="h-full w-full"
               />
               
-              {/* Online Status */}
-              {user.isOnline && (
-                <div className="absolute top-3 left-3 flex items-center gap-1.5 bg-black/50 backdrop-blur-sm rounded-full px-2 py-1">
-                  <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
-                  <span className="text-xs text-white">Online</span>
-                </div>
-              )}
+              {/* Online / offline status */}
+              <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 backdrop-blur-sm">
+                <div
+                  className={`h-2 w-2 rounded-full ${user.isOnline ? 'animate-pulse bg-green-500' : 'bg-gray-400'}`}
+                />
+                <span className="text-xs font-medium text-white">{user.isOnline ? 'Online' : 'Offline'}</span>
+              </div>
 
               {/* Private Content Indicator */}
               {user.photos.some(p => !p.isPublic) && (

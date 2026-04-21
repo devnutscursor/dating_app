@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Users, MessageCircle, Video, Shield, Check, Star, ChevronDown, ChevronUp, Menu, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -91,10 +91,14 @@ const faqs = [
 export default function LandingPage() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [openFaq, setOpenFaq] = useState<number | null>(null);
-  const verifiedMembers = mockUsers.filter((user) => user.gender === 'female').slice(0, 6);
-  const verifiedMemberCards = verifiedMembers.length
-    ? Array.from({ length: 5 }, (_, index) => verifiedMembers[index % verifiedMembers.length])
-    : [];
+  const memberFeedPhotos = useMemo(() => {
+    const urls = mockUsers.map((u) => u.profilePicture).filter(Boolean) as string[];
+    return urls.length ? urls : [];
+  }, []);
+  const marqueeTrack = useMemo(
+    () => (memberFeedPhotos.length ? [...memberFeedPhotos, ...memberFeedPhotos] : []),
+    [memberFeedPhotos]
+  );
   return (
     <div className="min-h-screen bg-[#0a0a0a] text-white">
       {/* Navigation */}
@@ -219,29 +223,38 @@ export default function LandingPage() {
             </div>
 
             <div className="absolute top-[68%] left-1/2 z-10 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 px-2 lg:left-auto lg:right-4 lg:w-[44%] lg:max-w-xl lg:translate-x-0 lg:-translate-y-1/2 xl:right-8">
-              <div className="rounded-2xl border border-white/10 bg-black/45 p-4 shadow-[0_20px_50px_rgba(0,0,0,0.45)] backdrop-blur-xl">
-                <div className="mb-4 flex items-center justify-between gap-3">
+              <div className="relative overflow-hidden rounded-2xl border border-white/12 bg-gradient-to-br from-white/[0.09] to-white/[0.02] p-3 shadow-[0_12px_48px_rgba(0,0,0,0.35)] backdrop-blur-xl antialiased sm:p-4">
+                <div className="pointer-events-none absolute inset-y-2 left-0 z-10 w-10 bg-gradient-to-r from-[#0b0b0b]/90 to-transparent sm:w-14" />
+                <div className="pointer-events-none absolute inset-y-2 right-0 z-10 w-10 bg-gradient-to-l from-[#0b0b0b]/90 to-transparent sm:w-14" />
+                <div className="mb-3 flex items-center justify-between gap-3 sm:mb-4">
                   <h3 className="font-serif text-lg text-white sm:text-xl">Recently Verified Members</h3>
                   <div className="hidden items-center gap-1.5 rounded-full border border-[#ffd21e]/30 bg-[#ffd21e]/10 px-3 py-1.5 text-xs text-[#ffe680] md:flex">
                     <Users className="h-3 w-3" />
                     Live feed
                   </div>
                 </div>
-                <div className="grid grid-cols-5 gap-4">
-                  {verifiedMemberCards.map((member, index) => (
-                    <div
-                      key={`${member.id}-${index}`}
-                      className={`relative overflow-hidden rounded-xl border border-white/10 bg-white/5 shadow-[0_6px_15px_rgba(0,0,0,0.25)] ${
-                        index !== 2 ? 'blur-[1.8px]' : ''
-                      }`}
-                    >
-                      <img src={member.profilePicture} alt={member.name} className="aspect-square w-full object-cover" />
-                      <div className="absolute inset-0 bg-black/10" />
-                      <div className="absolute bottom-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-white shadow">
-                        <Check className="h-2.5 w-2.5 text-green-500" />
+                <div className="relative overflow-hidden rounded-xl">
+                  <div className="flex w-max gap-3 py-0.5 motion-reduce:animate-none animate-member-feed-marquee will-change-transform">
+                    {marqueeTrack.map((src, index) => (
+                      <div
+                        key={`${src}-${index}`}
+                        className={`relative h-[4.25rem] w-[4.25rem] shrink-0 overflow-hidden rounded-xl border border-white/15 shadow-[0_4px_16px_rgba(0,0,0,0.35)] sm:h-[5.25rem] sm:w-[5.25rem] ${
+                          index % 7 !== 3 ? 'opacity-75 blur-[1px]' : 'opacity-100 blur-0 ring-1 ring-amber-200/35'
+                        }`}
+                      >
+                        <img
+                          src={src}
+                          alt=""
+                          className="h-full w-full object-cover antialiased [image-rendering:auto]"
+                          draggable={false}
+                        />
+                        <div className="absolute inset-0 bg-gradient-to-t from-black/25 to-transparent" />
+                        <div className="absolute bottom-1 right-1 flex h-4 w-4 items-center justify-center rounded-full bg-white/95 shadow">
+                          <Check className="h-2.5 w-2.5 text-green-600" />
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               </div>
             </div>

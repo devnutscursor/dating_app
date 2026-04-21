@@ -1,9 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, MapPin, HeartHandshake, ChevronRight, Check } from 'lucide-react';
+import { Camera, MapPin, HeartHandshake, ChevronRight, Check, WifiOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { datingGoals, countries, interestTags } from '@/config/design';
 import BrandLogo from '@/components/BrandLogo';
+
+const PROFILE_SETUP_DRAFT_KEY = 'memberdate_profile_setup_draft';
 
 export default function ProfileSetupPage() {
   const [step, setStep] = useState(1);
@@ -16,6 +18,30 @@ export default function ProfileSetupPage() {
     lookingFor: '',
     interests: [] as string[],
   });
+
+  useEffect(() => {
+    try {
+      const raw = localStorage.getItem(PROFILE_SETUP_DRAFT_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw) as { step?: number; profileData?: typeof profileData };
+      if (parsed.profileData) {
+        setProfileData((prev) => ({ ...prev, ...parsed.profileData }));
+      }
+      if (typeof parsed.step === 'number' && parsed.step >= 1 && parsed.step <= 4) {
+        setStep(parsed.step);
+      }
+    } catch {
+      /* ignore corrupt draft */
+    }
+  }, []);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(PROFILE_SETUP_DRAFT_KEY, JSON.stringify({ step, profileData }));
+    } catch {
+      /* ignore quota / private mode */
+    }
+  }, [step, profileData]);
 
   const handlePhotoUpload = () => {
     // Mock photo upload
@@ -36,7 +62,11 @@ export default function ProfileSetupPage() {
     if (step < 4) {
       setStep(step + 1);
     } else {
-      // Complete profile setup - redirect to home
+      try {
+        localStorage.removeItem(PROFILE_SETUP_DRAFT_KEY);
+      } catch {
+        /* ignore */
+      }
       window.location.href = '/man/home';
     }
   };
@@ -216,6 +246,15 @@ export default function ProfileSetupPage() {
 
         {/* Setup Form */}
         <div className="bg-white rounded-2xl shadow-sm p-8">
+          {step >= 3 && (
+            <div className="mb-6 flex gap-3 rounded-xl border border-emerald-200/80 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-950">
+              <WifiOff className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" aria-hidden />
+              <p>
+                <span className="font-semibold">Works offline.</span> You can complete this questionnaire without an
+                internet connection; your answers stay on this device and sync when you are back online.
+              </p>
+            </div>
+          )}
           {/* Progress */}
           <div className="flex items-center gap-2 mb-8">
             {[1, 2, 3, 4].map((s) => (
