@@ -245,6 +245,24 @@ export const interestTags = [
   'Music', 'Sports', 'Reading', 'Cooking', 'Gaming', 'Fitness',
 ];
 
+/** Sidebar logo row + main `Header` — identical height so the bottom border reads as one line. */
+export const layoutTopBarRowClass =
+  'flex h-16 shrink-0 items-center justify-between border-b border-gray-200 bg-white px-4 lg:px-6';
+
+/** Sidebar “You” row — same height as in-chat “Chats + search” header (`layoutChatsListColumnHeaderClass`). */
+export const layoutChatsListProfileBandClass =
+  'flex h-24 shrink-0 items-center border-b border-gray-200 bg-white px-4';
+
+/** In-chat left column: “Chats” title + search — matches sidebar profile strip height. */
+export const layoutChatsListColumnHeaderClass =
+  'flex h-24 shrink-0 flex-col justify-center gap-2 border-b border-gray-200 bg-white px-4';
+
+/**
+ * Partner row toolbar + Activity panel title — shorter than chats/profile strip (`h-24`); fits title + subtitle typography.
+ */
+export const layoutConversationToolbarClass =
+  'flex h-20 shrink-0 items-center border-b border-gray-200 bg-white px-4';
+
 export default {
   colors,
   typography,

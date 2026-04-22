@@ -205,3 +205,13 @@ export interface ActivityItem {
   timestamp: string;
   details?: string;
 }
+
+/** Row from GET /api/activities */
+export interface ActivityFeedItem {
+  id: string;
+  type: 'like' | 'view' | 'gift' | 'message';
+  actor: User;
+  createdAt: string;
+  details?: string;
+  giftAmount?: number;
+}

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, Bell, Search, Coins, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { layoutTopBarRowClass } from '@/config/design';
 import { useAuth } from '@/contexts/AuthContext';
 import NotificationsModal from '@/components/modals/NotificationsModal';
 import SearchFilterModal from '@/components/modals/SearchFilterModal';
@@ -22,7 +23,7 @@ export default function Header({ userType, onMenuClick, onActivityClick }: Heade
 
   return (
     <>
-      <header className="h-16 bg-white border-b border-gray-200 flex items-center justify-between px-4 lg:px-6">
+      <header className={layoutTopBarRowClass}>
         {/* Left Section */}
         <div className="flex items-center gap-4">
           <Button

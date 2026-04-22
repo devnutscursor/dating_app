@@ -4,7 +4,7 @@ import {
   House, User, Mail, Heart, ToggleLeft, Shield, Wallet, 
   LogOut, X, ChevronDown, ChevronUp 
 } from 'lucide-react';
-import { navigationItems } from '@/config/design';
+import { navigationItems, layoutTopBarRowClass, layoutChatsListProfileBandClass } from '@/config/design';
 import BrandLogo from '@/components/BrandLogo';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiGet } from '@/lib/api';
@@ -83,9 +83,9 @@ export default function Sidebar({ userType, onClose }: SidebarProps) {
   };
 
   return (
-    <div className="w-64 h-full bg-white border-r border-gray-200 flex flex-col">
-      {/* Logo */}
-      <div className="p-4 border-b border-gray-200 flex items-center justify-between">
+    <div className="flex h-full min-h-0 w-64 flex-col border-r border-gray-200 bg-white">
+      {/* Logo — height matches main Header for a continuous top border line */}
+      <div className={layoutTopBarRowClass}>
         <Link to="/" className="inline-flex">
           <BrandLogo size="sm" tone="dark" />
         </Link>
@@ -96,28 +96,30 @@ export default function Sidebar({ userType, onClose }: SidebarProps) {
         )}
       </div>
 
-      {/* User Profile */}
-      <div className="p-4 border-b border-gray-200">
+      {/* User Profile — height matches in-app “Chats + search” column header */}
+      <div className={layoutChatsListProfileBandClass}>
         <Link
           to={`${basePath}/profile`}
-          className="flex items-center gap-3 rounded-lg p-2 transition-colors hover:bg-gray-50"
+          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-0 transition-colors hover:bg-gray-50"
         >
           <div className="relative shrink-0">
             <img
               src={sessionUser?.profilePicture || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200'}
               alt={sessionUser?.name || 'Profile'}
-              className="h-12 w-12 rounded-full object-cover"
+              className="h-14 w-14 rounded-full object-cover"
             />
             {sessionUser?.isOnline && (
-              <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
+              <div className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-green-500" />
             )}
           </div>
-          <p className="min-w-0 truncate font-medium text-gray-900">{sessionUser?.name ?? 'Member'}</p>
+          <p className="min-w-0 truncate text-lg font-semibold leading-none tracking-tight text-gray-900">
+            {sessionUser?.name ?? 'Member'}
+          </p>
         </Link>
       </div>
 
       {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1 overflow-auto">
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-4">
         {navItems.map((item) => {
           const href = item.href;
           const active = isActive(href);
@@ -180,8 +182,8 @@ export default function Sidebar({ userType, onClose }: SidebarProps) {
         })}
       </nav>
 
-      {/* Logout */}
-      <div className="p-4 border-t border-gray-200">
+      {/* Logout — pinned to bottom of sidebar (nav scrolls above) */}
+      <div className="shrink-0 border-t border-gray-200 bg-white p-4">
         <button
           type="button"
           onClick={() => {

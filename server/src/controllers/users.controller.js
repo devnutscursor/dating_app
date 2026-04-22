@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { User } from '../models/User.model.js';
 import { Like } from '../models/Like.model.js';
 import { serializeUser } from '../utils/serializeUser.js';
+import { createActivity, recordProfileViewIfFresh } from '../services/activityLog.js';
 
 const PUBLIC_USER_SELECT =
   '-password -email -emailVerificationOtpHash -emailVerificationOtpExpires';
@@ -48,6 +49,14 @@ export async function getUserById(req, res) {
   const user = await User.findById(req.params.id).select(PUBLIC_USER_SELECT);
   if (!user || ['admin', 'moderator'].includes(user.role)) {
     return res.status(404).json({ error: 'User not found' });
+  }
+  const expectedOpposite = req.user.gender === 'male' ? 'female' : 'male';
+  if (
+    !req.user._id.equals(user._id) &&
+    user.gender === expectedOpposite &&
+    !['admin', 'moderator'].includes(req.user.role)
+  ) {
+    void recordProfileViewIfFresh(req.user._id, user._id);
   }
   const data = serializeUser(user);
   if (data?.email !== undefined) delete data.email;
@@ -111,6 +120,11 @@ export async function createLike(req, res) {
   }
   await Like.create({ fromUser: req.user._id, toUser: toUserId });
   await User.findByIdAndUpdate(toUserId, { $inc: { likesReceivedCount: 1 } });
+  await createActivity({
+    recipientId: toUserId,
+    actorId: req.user._id,
+    type: 'like',
+  });
   res.status(201).json({ ok: true, alreadyLiked: false });
 }
 

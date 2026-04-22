@@ -11,6 +11,8 @@ import { Transaction } from '../models/Transaction.model.js';
 import { Report } from '../models/Report.model.js';
 import { ContentItem } from '../models/ContentItem.model.js';
 import { VerificationRequest } from '../models/VerificationRequest.model.js';
+import { Activity } from '../models/Activity.model.js';
+import { viewBucketForTimestamp } from '../services/activityLog.js';
 
 const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/dating_app';
 const SALT = 12;
@@ -33,6 +35,7 @@ async function seed() {
     Report.deleteMany({}),
     ContentItem.deleteMany({}),
     VerificationRequest.deleteMany({}),
+    Activity.deleteMany({}),
   ]);
 
   const hash = (pw) => bcrypt.hashSync(pw, SALT);
@@ -358,6 +361,35 @@ async function seed() {
   ].join('\n');
 
   fs.writeFileSync(SEED_CREDENTIALS_FILE, credentialsBody, 'utf8');
+
+  const seedJames = await User.findOne({ email: 'seedman01@memberdate.com' });
+  const seedOliver = await User.findOne({ email: 'seedman02@memberdate.com' });
+  if (seedJames && seedOliver) {
+    const t = Date.now();
+    await Activity.create([
+      {
+        recipientId: ariana._id,
+        actorId: seedJames._id,
+        type: 'like',
+        createdAt: new Date(t - 2 * 60 * 1000),
+      },
+      {
+        recipientId: ariana._id,
+        actorId: seedJames._id,
+        type: 'gift',
+        details: 'sent present for you',
+        giftAmount: 100,
+        createdAt: new Date(t - 5 * 60 * 1000),
+      },
+      {
+        recipientId: ariana._id,
+        actorId: seedOliver._id,
+        type: 'view',
+        viewBucket: viewBucketForTimestamp(new Date(t - 10 * 60 * 1000).getTime()),
+        createdAt: new Date(t - 10 * 60 * 1000),
+      },
+    ]);
+  }
 
   const chat1 = await Chat.create({
     participants: [kevin._id, ariana._id],

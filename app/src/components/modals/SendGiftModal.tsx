@@ -1,37 +1,60 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Gift, Coins } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { giftOptions } from '@/data/mockData';
+import type { GiftOption } from '@/types';
 
 interface SendGiftModalProps {
   open: boolean;
   onClose: () => void;
   userName: string;
+  onSendGift: (gift: GiftOption) => Promise<void>;
 }
 
-export default function SendGiftModal({ open, onClose, userName }: SendGiftModalProps) {
+export default function SendGiftModal({ open, onClose, userName, onSendGift }: SendGiftModalProps) {
   const [selectedGift, setSelectedGift] = useState<string | null>(null);
+  const [sending, setSending] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setSelectedGift(null);
+      setSending(false);
+    }
+  }, [open]);
 
   if (!open) return null;
+
+  const handleSend = async () => {
+    if (!selectedGift || sending) return;
+    const gift = giftOptions.find((g) => g.id === selectedGift);
+    if (!gift) return;
+    setSending(true);
+    try {
+      await onSendGift(gift);
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not send gift');
+    } finally {
+      setSending(false);
+    }
+  };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200">
+      <div className="relative w-full max-w-md rounded-2xl bg-white shadow-2xl">
+        <div className="flex items-center justify-between border-b border-gray-200 p-4">
           <h2 className="text-lg font-semibold text-gray-900">Send Gift</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="w-5 h-5" />
+          <Button variant="ghost" size="icon" onClick={onClose} disabled={sending}>
+            <X className="h-5 w-5" />
           </Button>
         </div>
 
-        {/* Content */}
-        <div className="p-4 space-y-4">
-          {/* Recipient */}
-          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
-            <div className="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center">
-              <Gift className="w-5 h-5 text-pink-500" />
+        <div className="space-y-4 p-4">
+          <div className="flex items-center gap-3 rounded-lg bg-gray-50 p-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-pink-100">
+              <Gift className="h-5 w-5 text-pink-500" />
             </div>
             <div>
               <p className="text-sm text-gray-500">Sending gift to</p>
@@ -39,35 +62,38 @@ export default function SendGiftModal({ open, onClose, userName }: SendGiftModal
             </div>
           </div>
 
-          {/* Gift Options */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">Select a Gift</label>
+            <label className="mb-3 block text-sm font-medium text-gray-700">Select a Gift</label>
             <div className="grid grid-cols-1 gap-3">
               {giftOptions.map((gift) => (
                 <button
                   key={gift.id}
+                  type="button"
+                  disabled={sending}
                   onClick={() => setSelectedGift(gift.id)}
-                  className={`flex items-center justify-between p-4 rounded-xl border-2 transition-all ${
+                  className={`flex items-center justify-between rounded-xl border-2 p-4 transition-all ${
                     selectedGift === gift.id
                       ? 'border-green-500 bg-green-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
                   <div className="flex items-center gap-3">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                      gift.isSpecial ? 'bg-gradient-to-br from-yellow-400 to-orange-500' : 'bg-gray-100'
-                    }`}>
-                      <Gift className={`w-6 h-6 ${gift.isSpecial ? 'text-white' : 'text-gray-600'}`} />
+                    <div
+                      className={`flex h-12 w-12 items-center justify-center rounded-xl ${
+                        gift.isSpecial ? 'bg-gradient-to-br from-yellow-400 to-orange-500' : 'bg-gray-100'
+                      }`}
+                    >
+                      <Gift className={`h-6 w-6 ${gift.isSpecial ? 'text-white' : 'text-gray-600'}`} />
                     </div>
                     <div className="text-left">
                       <p className="font-medium text-gray-900">{gift.name}</p>
                       {gift.isSpecial && (
-                        <span className="text-xs text-orange-500 font-medium">Special Gift</span>
+                        <span className="text-xs font-medium text-orange-500">Special Gift</span>
                       )}
                     </div>
                   </div>
                   <div className="flex items-center gap-1 text-yellow-600">
-                    <Coins className="w-4 h-4" />
+                    <Coins className="h-4 w-4" />
                     <span className="font-semibold">{gift.coins}</span>
                   </div>
                 </button>
@@ -76,14 +102,13 @@ export default function SendGiftModal({ open, onClose, userName }: SendGiftModal
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-200">
-          <Button 
-            className="w-full bg-green-500 hover:bg-green-600" 
-            onClick={onClose}
-            disabled={!selectedGift}
+        <div className="border-t border-gray-200 p-4">
+          <Button
+            className="w-full bg-green-500 hover:bg-green-600"
+            onClick={() => void handleSend()}
+            disabled={!selectedGift || sending}
           >
-            Send Gift
+            {sending ? 'Sending…' : 'Send Gift'}
           </Button>
         </div>
       </div>

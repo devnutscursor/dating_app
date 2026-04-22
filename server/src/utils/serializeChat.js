@@ -38,14 +38,17 @@ export function serializeChatDoc(chatDoc, selfId) {
     isBlocked: chat.isBlocked || false,
     isReported: chat.isReported || false,
   };
-  if (chat.lastMessage?.content != null) {
+  if (chat.lastMessage != null && typeof chat.lastMessage === 'object') {
+    const lm = chat.lastMessage;
     out.lastMessage = {
-      id: chat.lastMessage.id || chat.lastMessage._id?.toString(),
-      senderId: chat.lastMessage.senderId?.toString?.() || String(chat.lastMessage.senderId),
-      content: chat.lastMessage.content,
-      type: chat.lastMessage.type || 'text',
-      timestamp: chat.lastMessage.timestamp,
-      isRead: chat.lastMessage.isRead,
+      id: lm.id || lm._id?.toString(),
+      senderId: lm.senderId?.toString?.() || String(lm.senderId),
+      content: lm.content ?? '',
+      type: lm.type || 'text',
+      timestamp: lm.timestamp,
+      isRead: lm.isRead,
+      mediaUrl: lm.mediaUrl,
+      giftAmount: lm.giftAmount,
     };
   }
   return out;

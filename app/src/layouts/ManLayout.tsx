@@ -1,5 +1,6 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { useState } from 'react';
+import { cn } from '@/lib/utils';
 import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import ActivityPanel from '@/components/ActivityPanel';
@@ -8,11 +9,13 @@ import SupportChat from '@/components/SupportChat';
 export default function ManLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(true);
+  const location = useLocation();
+  const isChatDetailRoute = /\/man\/chats\/[^/]+/.test(location.pathname);
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
+    <div className="flex h-[100dvh] min-h-0 overflow-hidden bg-gray-50">
       {/* Sidebar - Desktop */}
-      <div className="hidden lg:block">
+      <div className="hidden min-h-0 shrink-0 lg:block lg:h-full">
         <Sidebar userType="man" />
       </div>
 
@@ -30,22 +33,34 @@ export default function ManLayout() {
       )}
 
       {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
+      <div className="flex min-h-0 min-w-0 flex-1 flex-col">
         <Header 
           userType="man" 
           onMenuClick={() => setSidebarOpen(true)}
           onActivityClick={() => setActivityOpen(!activityOpen)}
         />
         
-        <div className="flex-1 flex overflow-hidden">
-          {/* Main Content Area */}
-          <main className="flex-1 overflow-auto p-4 lg:p-6">
-            <Outlet />
+        <div className="flex min-h-0 flex-1 overflow-hidden">
+          {/* Main Content Area — chat fills height & scrolls internally; other pages scroll here */}
+          <main
+            className={cn(
+              'flex min-h-0 flex-1 flex-col overflow-hidden',
+              isChatDetailRoute ? 'p-0' : 'p-4 lg:p-6'
+            )}
+          >
+            <div
+              className={cn(
+                'flex min-h-0 flex-1 flex-col',
+                isChatDetailRoute ? 'overflow-hidden' : 'overflow-y-auto'
+              )}
+            >
+              <Outlet />
+            </div>
           </main>
 
           {/* Activity Panel - Desktop */}
           {activityOpen && (
-            <div className="hidden xl:block w-80 border-l border-gray-200 bg-white overflow-auto">
+            <div className="hidden min-h-0 w-80 overflow-y-auto border-l border-gray-200 bg-white xl:block">
               <ActivityPanel />
             </div>
           )}

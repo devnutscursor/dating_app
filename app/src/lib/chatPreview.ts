@@ -10,8 +10,13 @@ export function chatPreviewLine(lastMessage: Chat['lastMessage'] | undefined): s
       return 'Photo';
     case 'video':
       return 'Video';
-    case 'gift':
+    case 'gift': {
+      const label = lastMessage.content?.trim();
+      const coins = lastMessage.giftAmount;
+      if (label && coins != null) return `${label} (${coins} coins)`;
+      if (label) return label;
       return 'Sent a gift';
+    }
     default:
       return 'Message';
   }

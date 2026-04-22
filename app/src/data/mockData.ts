@@ -1,4 +1,4 @@
-import type { User, Chat, Notification, Transaction, Report, ContentModerationItem, CoinPack, GiftOption, ActivityItem } from '@/types';
+import type { User, Chat, Notification, Transaction, Report, ContentModerationItem, CoinPack, GiftOption } from '@/types';
 
 export const mockUsers: User[] = [
   {
@@ -223,12 +223,6 @@ export const giftOptions: GiftOption[] = [
   { id: 'g1', name: 'Compliment', coins: 50, icon: 'Gift' },
   { id: 'g2', name: 'Small gift', coins: 100, icon: 'Gift' },
   { id: 'g3', name: 'Full Access', coins: 250, icon: 'Gift', isSpecial: true },
-];
-
-export const mockActivity: ActivityItem[] = [
-  { id: 'a1', type: 'like', user: mockUsers[2], timestamp: '2 min ago' },
-  { id: 'a2', type: 'gift', user: mockUsers[2], timestamp: '5 min ago', details: 'sent present for you' },
-  { id: 'a3', type: 'view', user: mockUsers[3], timestamp: '10 min ago' },
 ];
 
 export const currentUser: User = mockUsers[5]; // Kevin for man view
