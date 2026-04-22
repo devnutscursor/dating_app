@@ -1,69 +1,121 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { X, Heart, Star, MapPin, ArrowLeft } from 'lucide-react';
-import { mockUsers } from '@/data/mockData';
+import { toast } from 'sonner';
 import HoverPhotoGallery from '@/components/HoverPhotoGallery';
+import { formatProfileLocation } from '@/lib/formatProfileLocation';
+import { fetchDiscoverUsers, sendLike, userGalleryPhotos } from '@/lib/social';
+import type { User } from '@/types';
 
 export default function WomanSwipes() {
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState<'left' | 'right' | null>(null);
 
-  const menUsers = mockUsers.filter(u => u.gender === 'male');
-  const currentUser = menUsers[currentIndex];
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const list = await fetchDiscoverUsers();
+      setUsers(list);
+      setCurrentIndex(0);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not load profiles');
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void load();
+  }, [load]);
+
+  const currentUser = users[currentIndex];
 
   const handleSwipe = (dir: 'left' | 'right') => {
+    if (!currentUser) return;
+    const id = currentUser.id;
     setDirection(dir);
-    setTimeout(() => {
+    const advanceDeck = () => {
       setDirection(null);
-      if (currentIndex < menUsers.length - 1) {
-        setCurrentIndex(currentIndex + 1);
-      } else {
-        setCurrentIndex(0);
-      }
-    }, 300);
+      setUsers((prev) => prev.filter((u) => u.id !== id));
+      setCurrentIndex(0);
+    };
+    if (dir === 'left') {
+      setTimeout(advanceDeck, 300);
+      return;
+    }
+    void sendLike(id)
+      .then((res) => {
+        if (res.alreadyLiked) toast('Already liked');
+        setTimeout(advanceDeck, 300);
+      })
+      .catch((e) => {
+        toast.error(e instanceof Error ? e.message : 'Like failed');
+        setDirection(null);
+      });
   };
+
+  if (loading) {
+    return (
+      <div className="flex h-full items-center justify-center text-gray-500">
+        Loading…
+      </div>
+    );
+  }
 
   if (!currentUser) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <p className="text-gray-500">No more profiles</p>
+      <div className="flex h-full flex-col items-center justify-center gap-4 px-4 text-center">
+        <p className="text-lg font-medium text-gray-900">You are all caught up</p>
+        <p className="max-w-sm text-sm text-gray-600">
+          There is no one new around you right now. Check back later or open Discover to browse the grid.
+        </p>
+        <div className="flex flex-wrap justify-center gap-2">
+          <button
+            type="button"
+            onClick={() => void load()}
+            className="rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
+          >
+            Refresh list
+          </button>
+          <Link
+            to="/woman/home"
+            className="rounded-full bg-green-600 px-4 py-2 text-sm font-medium text-white hover:bg-green-700"
+          >
+            Discover
+          </Link>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="h-full flex flex-col">
-      {/* Header */}
-      <div className="flex items-center gap-4 mb-6">
-        <Link to="/woman/home" className="p-2 -ml-2 hover:bg-gray-100 rounded-full">
-          <ArrowLeft className="w-5 h-5" />
+    <div className="flex h-full flex-col">
+      <div className="mb-6 flex items-center gap-4">
+        <Link to="/woman/home" className="-ml-2 rounded-full p-2 hover:bg-gray-100">
+          <ArrowLeft className="h-5 w-5" />
         </Link>
         <h1 className="text-2xl font-bold text-gray-900">Discover</h1>
       </div>
 
-      {/* Card */}
-      <div className="flex-1 flex items-center justify-center p-4">
-        <div 
-          className={`relative w-full max-w-sm bg-white rounded-3xl shadow-2xl overflow-hidden transition-transform duration-300 ${
-            direction === 'left' ? '-translate-x-full rotate-[-10deg] opacity-0' :
-            direction === 'right' ? 'translate-x-full rotate-[10deg] opacity-0' : ''
+      <div className="flex flex-1 items-center justify-center p-4">
+        <div
+          className={`relative w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl transition-transform duration-300 ${
+            direction === 'left'
+              ? '-translate-x-full rotate-[-10deg] opacity-0'
+              : direction === 'right'
+                ? 'translate-x-full rotate-[10deg] opacity-0'
+                : ''
           }`}
         >
-          {/* Image */}
           <div className="relative aspect-[3/4]">
-            <HoverPhotoGallery
-              photos={[currentUser.profilePicture, ...currentUser.photos.map((photo) => photo.url)].filter(
-                (photo): photo is string => Boolean(photo)
-              )}
-              alt={currentUser.name}
-              className="h-full w-full"
-            />
-            
-            {/* Gradient Overlay */}
+            <HoverPhotoGallery photos={userGalleryPhotos(currentUser)} alt={currentUser.name} className="h-full w-full" />
+
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
 
-            {/* Online / offline status */}
-            <div className="absolute top-4 left-4 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 backdrop-blur-sm">
+            <div className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 backdrop-blur-sm">
               <div
                 className={`h-2 w-2 rounded-full ${currentUser.isOnline ? 'animate-pulse bg-green-500' : 'bg-gray-400'}`}
               />
@@ -72,21 +124,19 @@ export default function WomanSwipes() {
               </span>
             </div>
 
-            {/* Info */}
             <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-6 text-white">
-              <h2 className="text-3xl font-bold mb-1">
+              <h2 className="mb-1 text-3xl font-bold">
                 {currentUser.name}, {currentUser.age}
               </h2>
-              <div className="flex items-center gap-1 text-white/80 mb-3">
-                <MapPin className="w-4 h-4" />
-                <span>{currentUser.city}, {currentUser.country.toUpperCase()}</span>
+              <div className="mb-3 flex items-center gap-1 text-white/80">
+                <MapPin className="h-4 w-4" />
+                <span>{formatProfileLocation(currentUser.city, currentUser.country) || '—'}</span>
               </div>
-              <p className="text-white/70 text-sm line-clamp-2">{currentUser.aboutMe}</p>
-              
-              {/* Interests */}
-              <div className="flex flex-wrap gap-2 mt-3">
-                {currentUser.interests.slice(0, 3).map((interest, i) => (
-                  <span key={i} className="text-xs bg-white/20 backdrop-blur-sm px-2 py-1 rounded-full">
+              <p className="line-clamp-2 text-sm text-white/70">{currentUser.aboutMe?.trim() || '—'}</p>
+
+              <div className="mt-3 flex flex-wrap gap-2">
+                {(currentUser.interests ?? []).slice(0, 3).map((interest, i) => (
+                  <span key={i} className="rounded-full bg-white/20 px-2 py-1 text-xs backdrop-blur-sm">
                     {interest}
                   </span>
                 ))}
@@ -96,36 +146,37 @@ export default function WomanSwipes() {
         </div>
       </div>
 
-      {/* Actions */}
       <div className="flex items-center justify-center gap-6 p-6">
         <button
+          type="button"
           onClick={() => handleSwipe('left')}
-          className="w-16 h-16 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors border border-gray-200"
+          className="flex h-16 w-16 items-center justify-center rounded-full border border-gray-200 bg-white shadow-lg transition-colors hover:bg-gray-50"
+          aria-label="Pass"
         >
-          <X className="w-8 h-8 text-red-500" />
-        </button>
-        
-        <button
-          onClick={() => handleSwipe('right')}
-          className="w-20 h-20 bg-green-500 rounded-full shadow-lg flex items-center justify-center hover:bg-green-600 transition-colors"
-        >
-          <Heart className="w-10 h-10 text-white fill-white" />
+          <X className="h-8 w-8 text-red-500" />
         </button>
 
-        <button className="w-16 h-16 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-gray-50 transition-colors border border-gray-200">
-          <Star className="w-8 h-8 text-yellow-500" />
+        <button
+          type="button"
+          onClick={() => handleSwipe('right')}
+          className="flex h-20 w-20 items-center justify-center rounded-full bg-green-500 shadow-lg transition-colors hover:bg-green-600"
+          aria-label="Like"
+        >
+          <Heart className="h-10 w-10 fill-white text-white" />
+        </button>
+
+        <button
+          type="button"
+          className="flex h-16 w-16 items-center justify-center rounded-full border border-gray-200 bg-white shadow-lg transition-colors hover:bg-gray-50"
+          aria-label="Super like (coming soon)"
+        >
+          <Star className="h-8 w-8 text-yellow-500" />
         </button>
       </div>
 
-      {/* Progress */}
       <div className="flex justify-center gap-1 pb-4">
-        {menUsers.map((_, i) => (
-          <div
-            key={i}
-            className={`w-2 h-2 rounded-full ${
-              i === currentIndex ? 'bg-green-500' : 'bg-gray-300'
-            }`}
-          />
+        {users.map((_, i) => (
+          <div key={i} className={`h-2 w-2 rounded-full ${i === currentIndex ? 'bg-green-500' : 'bg-gray-300'}`} />
         ))}
       </div>
     </div>

@@ -1,13 +1,20 @@
-import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { useCallback, useEffect, useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
 import { MapPin, Heart, MessageCircle, Video, Lock } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { mockUsers } from '@/data/mockData';
 import UnlockContentModal from '@/components/modals/UnlockContentModal';
 import VideoCallModal from '@/components/modals/VideoCallModal';
 import HoverPhotoGallery from '@/components/HoverPhotoGallery';
+import { formatProfileLocation } from '@/lib/formatProfileLocation';
+import { fetchDiscoverUsers, sendLike, userGalleryPhotos } from '@/lib/social';
+import { createOrGetChat } from '@/lib/chats';
+import type { User } from '@/types';
 
 export default function WomanHome() {
+  const navigate = useNavigate();
+  const [users, setUsers] = useState<User[]>([]);
+  const [loading, setLoading] = useState(true);
   const [unlockModal, setUnlockModal] = useState<{ open: boolean; userId: string; type: 'photo' | 'video'; price: number }>({
     open: false,
     userId: '',
@@ -15,122 +22,175 @@ export default function WomanHome() {
     price: 100,
   });
   const [videoCallUserId, setVideoCallUserId] = useState<string | null>(null);
+  const [openingChatUserId, setOpeningChatUserId] = useState<string | null>(null);
 
-  const menUsers = mockUsers.filter(u => u.gender === 'male');
+  const loadDiscover = useCallback(async () => {
+    setLoading(true);
+    try {
+      const list = await fetchDiscoverUsers();
+      setUsers(list);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not load discover');
+      setUsers([]);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadDiscover();
+  }, [loadDiscover]);
+
+  const unlockUserName = users.find((u) => u.id === unlockModal.userId)?.name ?? '';
+  const videoPeer = videoCallUserId ? users.find((u) => u.id === videoCallUserId) : undefined;
+
+  const openChatWith = async (user: User) => {
+    setOpeningChatUserId(user.id);
+    try {
+      const chat = await createOrGetChat(user.id);
+      navigate(`/woman/chats/${chat.id}`);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not open chat');
+    } finally {
+      setOpeningChatUserId(null);
+    }
+  };
+
+  const handleQuickLike = async (user: User) => {
+    try {
+      const res = await sendLike(user.id);
+      toast.success(res.alreadyLiked ? 'Already liked' : 'Like sent');
+      if (!res.alreadyLiked) setUsers((prev) => prev.filter((u) => u.id !== user.id));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not send like');
+    }
+  };
 
   return (
     <div className="space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-gray-900">Discover</h1>
         <Link to="/woman/swipes">
           <Button variant="outline" className="gap-2">
-            <Heart className="w-4 h-4" />
+            <Heart className="h-4 w-4" />
             Swipe Mode
           </Button>
         </Link>
       </div>
 
-      {/* Profile Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-        {menUsers.map((user) => (
-          <div key={user.id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-md transition-shadow">
-            {/* Photo */}
-            <div className="relative aspect-[3/4]">
-              <HoverPhotoGallery
-                photos={[user.profilePicture, ...user.photos.map((photo) => photo.url)].filter(
-                  (photo): photo is string => Boolean(photo)
+      {loading ? (
+        <div className="flex min-h-[40vh] items-center justify-center text-gray-500">Loading people…</div>
+      ) : users.length === 0 ? (
+        <div className="rounded-2xl border border-dashed border-gray-200 bg-gray-50/80 px-6 py-16 text-center">
+          <p className="text-lg font-medium text-gray-900">No profiles to show yet</p>
+          <p className="mt-2 text-sm text-gray-600">
+            When more members join—or after you have liked everyone in view—new people will appear here.
+          </p>
+          <Button type="button" variant="outline" className="mt-6" onClick={() => void loadDiscover()}>
+            Refresh
+          </Button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {users.map((user) => (
+            <div key={user.id} className="overflow-hidden rounded-2xl bg-white shadow-sm transition-shadow hover:shadow-md">
+              <div className="relative aspect-[3/4]">
+                <HoverPhotoGallery photos={userGalleryPhotos(user)} alt={user.name} className="h-full w-full" />
+
+                <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 backdrop-blur-sm">
+                  <div
+                    className={`h-2 w-2 rounded-full ${user.isOnline ? 'animate-pulse bg-green-500' : 'bg-gray-400'}`}
+                  />
+                  <span className="text-xs font-medium text-white">{user.isOnline ? 'Online' : 'Offline'}</span>
+                </div>
+
+                {user.photos.some((p) => !p.isPublic) && (
+                  <button
+                    type="button"
+                    onClick={() => setUnlockModal({ open: true, userId: user.id, type: 'photo', price: 100 })}
+                    className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-yellow-500 transition-colors hover:bg-yellow-600"
+                  >
+                    <Lock className="h-4 w-4 text-white" />
+                  </button>
                 )}
-                alt={user.name}
-                className="h-full w-full"
-              />
-              
-              {/* Online / offline status */}
-              <div className="absolute top-3 left-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 backdrop-blur-sm">
-                <div
-                  className={`h-2 w-2 rounded-full ${user.isOnline ? 'animate-pulse bg-green-500' : 'bg-gray-400'}`}
-                />
-                <span className="text-xs font-medium text-white">{user.isOnline ? 'Online' : 'Offline'}</span>
+
+                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => void handleQuickLike(user)}
+                        className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm transition-colors hover:bg-white/30"
+                        aria-label="Like"
+                      >
+                        <Heart className="h-5 w-5 text-white" />
+                      </button>
+                      <button
+                        type="button"
+                        disabled={openingChatUserId === user.id}
+                        onClick={() => void openChatWith(user)}
+                        className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm transition-colors hover:bg-white/30 disabled:opacity-50"
+                        aria-label={`Message ${user.name}`}
+                      >
+                        <MessageCircle className="h-5 w-5 text-white" />
+                      </button>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setVideoCallUserId(user.id)}
+                      className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500 transition-colors hover:bg-green-600"
+                    >
+                      <Video className="h-5 w-5 text-white" />
+                    </button>
+                  </div>
+                </div>
               </div>
 
-              {/* Private Content Indicator */}
-              {user.photos.some(p => !p.isPublic) && (
-                <button
-                  onClick={() => setUnlockModal({ open: true, userId: user.id, type: 'photo', price: 100 })}
-                  className="absolute top-3 right-3 w-8 h-8 bg-yellow-500 rounded-full flex items-center justify-center hover:bg-yellow-600 transition-colors"
-                >
-                  <Lock className="w-4 h-4 text-white" />
-                </button>
-              )}
+              <div className="p-4">
+                <div className="mb-2 flex items-center justify-between">
+                  <Link to={`/woman/view-profile/${user.id}`}>
+                    <h3 className="font-semibold text-gray-900 transition-colors hover:text-green-600">
+                      {user.name}, {user.age}
+                    </h3>
+                  </Link>
+                </div>
+                <div className="mb-2 flex items-center gap-1 text-sm text-gray-500">
+                  <MapPin className="h-4 w-4" />
+                  <span>{formatProfileLocation(user.city, user.country) || 'Location not set'}</span>
+                </div>
+                <p className="line-clamp-2 text-sm text-gray-600">{user.aboutMe?.trim() || '—'}</p>
 
-              {/* Actions Overlay */}
-              <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/80 to-transparent">
-                <div className="flex items-center justify-between">
-                  <div className="flex gap-2">
-                    <button className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
-                      <Heart className="w-5 h-5 text-white" />
-                    </button>
-                    <Link to={`/woman/chats`}>
-                      <button className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center hover:bg-white/30 transition-colors">
-                        <MessageCircle className="w-5 h-5 text-white" />
-                      </button>
-                    </Link>
-                  </div>
-                  <button
-                    onClick={() => setVideoCallUserId(user.id)}
-                    className="w-10 h-10 bg-green-500 rounded-full flex items-center justify-center hover:bg-green-600 transition-colors"
-                  >
-                    <Video className="w-5 h-5 text-white" />
-                  </button>
+                <div className="mt-3 flex flex-wrap gap-1">
+                  {(user.interests ?? []).slice(0, 3).map((interest, i) => (
+                    <span key={i} className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">
+                      {interest}
+                    </span>
+                  ))}
+                  {(user.interests ?? []).length > 3 && (
+                    <span className="rounded-full bg-gray-100 px-2 py-1 text-xs text-gray-600">
+                      +{(user.interests ?? []).length - 3}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
+          ))}
+        </div>
+      )}
 
-            {/* Info */}
-            <div className="p-4">
-              <div className="flex items-center justify-between mb-2">
-                <Link to={`/woman/view-profile/${user.id}`}>
-                  <h3 className="font-semibold text-gray-900 hover:text-green-600 transition-colors">
-                    {user.name}, {user.age}
-                  </h3>
-                </Link>
-              </div>
-              <div className="flex items-center gap-1 text-sm text-gray-500 mb-2">
-                <MapPin className="w-4 h-4" />
-                <span>{user.city}, {user.country.toUpperCase()}</span>
-              </div>
-              <p className="text-sm text-gray-600 line-clamp-2">{user.aboutMe}</p>
-              
-              {/* Interests */}
-              <div className="flex flex-wrap gap-1 mt-3">
-                {user.interests.slice(0, 3).map((interest, i) => (
-                  <span key={i} className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                    {interest}
-                  </span>
-                ))}
-                {user.interests.length > 3 && (
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-1 rounded-full">
-                    +{user.interests.length - 3}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* Unlock Modal */}
       <UnlockContentModal
         open={unlockModal.open}
         onClose={() => setUnlockModal({ ...unlockModal, open: false })}
         contentType={unlockModal.type}
         price={unlockModal.price}
-        userName={mockUsers.find(u => u.id === unlockModal.userId)?.name || ''}
+        userName={unlockUserName}
       />
       <VideoCallModal
         open={Boolean(videoCallUserId)}
         onClose={() => setVideoCallUserId(null)}
-        userId={videoCallUserId || menUsers[0]?.id || ''}
+        userId={videoCallUserId || ''}
+        peerName={videoPeer?.name}
+        peerPicture={videoPeer?.profilePicture}
       />
     </div>
   );

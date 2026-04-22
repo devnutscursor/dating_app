@@ -21,11 +21,13 @@ export function createApp() {
 
   app.use((err, req, res, next) => {
     // eslint-disable-line no-unused-vars
+    if (res.headersSent) {
+      return next(err);
+    }
     console.error(err);
     const status = err.status || 500;
-    res.status(status).json({
-      error: err.message || 'Internal Server Error',
-    });
+    const payload = { error: err.message || 'Internal Server Error' };
+    res.status(status).type('application/json').send(JSON.stringify(payload));
   });
 
   return app;

@@ -49,3 +49,21 @@ export function apiPatch<T>(path: string, body: unknown) {
 export function apiDelete<T>(path: string) {
   return api<T>(path, { method: 'DELETE' });
 }
+
+/** Multipart upload (do not set Content-Type — browser sets boundary). */
+export async function apiUploadFile<T>(path: string, file: File, fieldName = 'file'): Promise<T> {
+  const url = `${API_BASE}${path.startsWith('/') ? path : `/${path}`}`;
+  const headers = new Headers();
+  const token = getStoredToken();
+  if (token) headers.set('Authorization', `Bearer ${token}`);
+  const body = new FormData();
+  body.append(fieldName, file);
+  const res = await fetch(url, { method: 'POST', body, headers });
+  const data = (await res.json().catch(() => ({}))) as T & { error?: string };
+  if (!res.ok) {
+    const msg =
+      typeof data === 'object' && data && 'error' in data && data.error ? String(data.error) : res.statusText;
+    throw new Error(msg);
+  }
+  return data as T;
+}

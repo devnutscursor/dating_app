@@ -40,7 +40,9 @@ const userSchema = new mongoose.Schema(
       enum: ['male', 'female', 'admin', 'moderator'],
       required: true,
     },
-    emailVerified: { type: Boolean, default: true },
+    emailVerified: { type: Boolean, default: false },
+    emailVerificationOtpHash: { type: String, select: false },
+    emailVerificationOtpExpires: Date,
     profileSetupComplete: { type: Boolean, default: false },
 
     name: { type: String, required: true, trim: true },
@@ -56,6 +58,7 @@ const userSchema = new mongoose.Schema(
     photos: [photoSchema],
     videos: [videoSchema],
     coins: { type: Number, default: 0 },
+    likesReceivedCount: { type: Number, default: 0 },
     isVerified: { type: Boolean, default: false },
     isBlocked: { type: Boolean, default: false },
     isOnline: { type: Boolean, default: false },

@@ -1,23 +1,34 @@
 import { useState, useEffect } from 'react';
 import { Phone, PhoneOff, Mic, MicOff, Camera, CameraOff, Clock, Coins, Gift } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { mockUsers } from '@/data/mockData';
+
+const FALLBACK_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400';
 
 interface VideoCallModalProps {
   open: boolean;
   onClose: () => void;
   userId: string;
+  peerName?: string;
+  peerPicture?: string;
   isIncoming?: boolean;
 }
 
-export default function VideoCallModal({ open, onClose, userId, isIncoming = false }: VideoCallModalProps) {
+export default function VideoCallModal({
+  open,
+  onClose,
+  userId,
+  peerName,
+  peerPicture,
+  isIncoming = false,
+}: VideoCallModalProps) {
   const [callState, setCallState] = useState<'confirm' | 'connecting' | 'ongoing' | 'ended'>(isIncoming ? 'connecting' : 'confirm');
   const [duration, setDuration] = useState(0);
   const [micOn, setMicOn] = useState(true);
   const [cameraOn, setCameraOn] = useState(true);
   const [showGiftModal, setShowGiftModal] = useState(false);
 
-  const user = mockUsers.find(u => u.id === userId) || mockUsers[0];
+  const avatar = peerPicture?.trim() || FALLBACK_AVATAR;
+  const name = peerName?.trim() || 'Member';
 
   useEffect(() => {
     if (open) {
@@ -61,10 +72,10 @@ export default function VideoCallModal({ open, onClose, userId, isIncoming = fal
         <div className="absolute inset-0 bg-black/60" onClick={onClose} />
         <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
           <div className="mx-auto mb-5 h-20 w-20 overflow-hidden rounded-full border-4 border-green-100">
-            <img src={user.profilePicture} alt={user.name} className="h-full w-full object-cover" />
+            <img src={avatar} alt={name} className="h-full w-full object-cover" />
           </div>
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-900">{user.name}</h2>
+            <h2 className="text-2xl font-bold text-gray-900">{name}</h2>
             <p className="mt-2 text-sm text-gray-500">Video chat will charge coins for communication.</p>
             <p className="mt-3 text-lg font-semibold text-green-600">10 coins per minute</p>
           </div>
@@ -91,9 +102,9 @@ export default function VideoCallModal({ open, onClose, userId, isIncoming = fal
         <div className="absolute inset-0 bg-black/80" />
         <div className="relative text-center p-8">
           <div className="w-24 h-24 rounded-full overflow-hidden mx-auto mb-6 border-4 border-white/20">
-            <img src={user.profilePicture} alt={user.name} className="w-full h-full object-cover" />
+            <img src={avatar} alt={name} className="w-full h-full object-cover" />
           </div>
-          <h2 className="text-2xl font-bold text-white mb-2">{user.name}</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">{name}</h2>
           <p className="text-white/70 mb-8">Incoming video call...</p>
           
           <div className="flex items-center justify-center gap-6">
@@ -122,11 +133,7 @@ export default function VideoCallModal({ open, onClose, userId, isIncoming = fal
         {/* Main Video Area */}
         <div className="absolute inset-0 flex items-center justify-center">
           <div className="w-full h-full bg-gray-800 flex items-center justify-center">
-            <img 
-              src={user.profilePicture} 
-              alt={user.name} 
-              className="w-full h-full object-cover opacity-50"
-            />
+            <img src={avatar} alt={name} className="h-full w-full object-cover opacity-50" />
           </div>
         </div>
 
@@ -140,8 +147,8 @@ export default function VideoCallModal({ open, onClose, userId, isIncoming = fal
         {/* Header */}
         <div className="absolute top-4 left-4 right-40 flex items-center gap-3">
           <div className="bg-black/50 backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-2">
-            <img src={user.profilePicture} alt={user.name} className="w-8 h-8 rounded-full object-cover" />
-            <span className="text-white font-medium">{user.name}</span>
+            <img src={avatar} alt={name} className="h-8 w-8 rounded-full object-cover" />
+            <span className="text-white font-medium">{name}</span>
           </div>
           <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-2 flex items-center gap-2">
             <Clock className="w-4 h-4 text-white" />
@@ -226,9 +233,9 @@ export default function VideoCallModal({ open, onClose, userId, isIncoming = fal
       <div className="absolute inset-0 bg-black/80" />
       <div className="relative text-center p-8">
         <div className="w-24 h-24 rounded-full overflow-hidden mx-auto mb-6 border-4 border-white/20 animate-pulse">
-          <img src={user.profilePicture} alt={user.name} className="w-full h-full object-cover" />
+          <img src={avatar} alt={name} className="h-full w-full object-cover" />
         </div>
-        <h2 className="text-2xl font-bold text-white mb-2">{user.name}</h2>
+        <h2 className="text-2xl font-bold text-white mb-2">{name}</h2>
         <p className="text-white/70">Connecting...</p>
       </div>
     </div>

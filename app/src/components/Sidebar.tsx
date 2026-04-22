@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
   House, User, Mail, Heart, ToggleLeft, Shield, Wallet, 
@@ -7,6 +7,8 @@ import {
 import { navigationItems } from '@/config/design';
 import BrandLogo from '@/components/BrandLogo';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiGet } from '@/lib/api';
+import type { Chat } from '@/types';
 
 interface SidebarProps {
   userType: 'man' | 'woman';
@@ -17,6 +19,27 @@ export default function Sidebar({ userType, onClose }: SidebarProps) {
   const { user: sessionUser, logout } = useAuth();
   const location = useLocation();
   const [faqOpen, setFaqOpen] = useState(false);
+  const [chatsUnreadTotal, setChatsUnreadTotal] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!sessionUser) {
+      setChatsUnreadTotal(null);
+      return;
+    }
+    let cancelled = false;
+    void apiGet<{ chats: Chat[] }>('/chats')
+      .then((data) => {
+        if (cancelled) return;
+        const total = (data.chats ?? []).reduce((sum, c) => sum + (c.unreadCount ?? 0), 0);
+        setChatsUnreadTotal(total);
+      })
+      .catch(() => {
+        if (!cancelled) setChatsUnreadTotal(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionUser, location.pathname]);
   
   const navItems = navigationItems[userType];
   const basePath = `/${userType}`;
@@ -126,9 +149,9 @@ export default function Sidebar({ userType, onClose }: SidebarProps) {
             >
               {getIcon(item.icon)}
               <span className="font-medium">{item.label}</span>
-              {item.id === 'chats' && (
-                <span className="ml-auto bg-green-500 text-white text-xs px-2 py-0.5 rounded-full">
-                  2
+              {item.id === 'chats' && chatsUnreadTotal != null && chatsUnreadTotal > 0 && (
+                <span className="ml-auto rounded-full bg-green-500 px-2 py-0.5 text-xs font-medium text-white">
+                  {chatsUnreadTotal > 99 ? '99+' : chatsUnreadTotal}
                 </span>
               )}
             </Link>

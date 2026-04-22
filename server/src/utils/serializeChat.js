@@ -1,5 +1,14 @@
 import { serializeUser } from './serializeUser.js';
 
+/** Unread for this viewer: messages from the other person that are not read yet. */
+function countUnreadForViewer(messages, selfStr) {
+  if (!messages?.length) return 0;
+  return messages.filter((m) => {
+    const sid = m.senderId?.toString?.() || String(m.senderId);
+    return sid !== selfStr && !m.isRead;
+  }).length;
+}
+
 export function serializeMessage(m) {
   const o = m.toObject ? m.toObject() : { ...m };
   return {
@@ -20,11 +29,12 @@ export function serializeChatDoc(chatDoc, selfId) {
   const selfStr = selfId.toString();
   const participants = chat.participants || [];
   const other = participants.find((p) => p._id.toString() !== selfStr) || participants[0];
+  const rawMessages = chat.messages || [];
   const out = {
     id: chat._id.toString(),
     participant: serializeUser(other),
-    messages: (chat.messages || []).map((m) => serializeMessage(m)),
-    unreadCount: chat.unreadCount || 0,
+    messages: rawMessages.map((m) => serializeMessage(m)),
+    unreadCount: countUnreadForViewer(rawMessages, selfStr),
     isBlocked: chat.isBlocked || false,
     isReported: chat.isReported || false,
   };

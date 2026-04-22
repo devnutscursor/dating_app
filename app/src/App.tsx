@@ -20,6 +20,7 @@ import ManOnline from '@/pages/man/Online';
 import ManFAQ from '@/pages/man/FAQ';
 import ManWallet from '@/pages/man/Wallet';
 import ManProfile from '@/pages/man/Profile';
+import ProfileEditPage from '@/pages/profile/ProfileEditPage';
 import ManSwipes from '@/pages/man/Swipes';
 import ManViewProfile from '@/pages/man/ViewProfile';
 
@@ -90,6 +91,7 @@ function App() {
             <Route path="faq" element={<ManFAQ />} />
             <Route path="wallet" element={<ManWallet />} />
             <Route path="profile" element={<ManProfile />} />
+            <Route path="profile/edit" element={<ProfileEditPage />} />
             <Route path="swipes" element={<ManSwipes />} />
             <Route path="view-profile/:userId" element={<ManViewProfile />} />
           </Route>
@@ -112,6 +114,7 @@ function App() {
             <Route path="faq" element={<WomanFAQ />} />
             <Route path="wallet" element={<WomanWallet />} />
             <Route path="profile" element={<WomanProfile />} />
+            <Route path="profile/edit" element={<ProfileEditPage />} />
             <Route path="swipes" element={<WomanSwipes />} />
             <Route path="view-profile/:userId" element={<WomanViewProfile />} />
             <Route path="payouts" element={<WomanPayouts />} />

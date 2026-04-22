@@ -1,14 +1,23 @@
-import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { Camera, MapPin, HeartHandshake, ChevronRight, Check, WifiOff } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { Camera, MapPin, HeartHandshake, ChevronRight, Check } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { datingGoals, countries, interestTags } from '@/config/design';
 import BrandLogo from '@/components/BrandLogo';
+import { useAuth } from '@/contexts/AuthContext';
+import { apiPatch, apiUploadFile } from '@/lib/api';
+import type { User } from '@/types';
 
 const PROFILE_SETUP_DRAFT_KEY = 'memberdate_profile_setup_draft';
 
 export default function ProfileSetupPage() {
+  const navigate = useNavigate();
+  const { user, loading: authLoading, refreshUser } = useAuth();
+  const photoInputRef = useRef<HTMLInputElement>(null);
   const [step, setStep] = useState(1);
+  const [photoUploading, setPhotoUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
   const [profileData, setProfileData] = useState({
     photo: null as string | null,
     country: '',
@@ -18,6 +27,13 @@ export default function ProfileSetupPage() {
     lookingFor: '',
     interests: [] as string[],
   });
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (user && user.emailVerified === false && (user.role === 'male' || user.role === 'female')) {
+      navigate('/verify-email', { replace: true, state: { email: user.email } });
+    }
+  }, [authLoading, user, navigate]);
 
   useEffect(() => {
     try {
@@ -43,32 +59,86 @@ export default function ProfileSetupPage() {
     }
   }, [step, profileData]);
 
-  const handlePhotoUpload = () => {
-    // Mock photo upload
-    setProfileData({ 
-      ...profileData, 
-      photo: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=400' 
-    });
+  const openPhotoPicker = () => photoInputRef.current?.click();
+
+  const onPhotoSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    setPhotoUploading(true);
+    try {
+      const data = await apiUploadFile<{ url: string }>('/uploads/image', file);
+      setProfileData((p) => ({ ...p, photo: data.url }));
+      toast.success('Photo uploaded');
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not upload photo');
+    } finally {
+      setPhotoUploading(false);
+    }
   };
 
   const toggleInterest = (interest: string) => {
     const newInterests = profileData.interests.includes(interest)
-      ? profileData.interests.filter(i => i !== interest)
+      ? profileData.interests.filter((i) => i !== interest)
       : [...profileData.interests, interest];
     setProfileData({ ...profileData, interests: newInterests });
   };
 
-  const handleNext = () => {
-    if (step < 4) {
-      setStep(step + 1);
-    } else {
+  const completeProfile = async () => {
+    if (!profileData.aboutMe.trim() || !profileData.lookingFor.trim()) {
+      toast.error('Please fill in About Me and Looking For');
+      return;
+    }
+    if (profileData.interests.length === 0) {
+      toast.error('Select at least one interest');
+      return;
+    }
+    setSaving(true);
+    try {
+      const payload: Record<string, unknown> = {
+        country: profileData.country,
+        city: profileData.city.trim(),
+        datingGoal: profileData.datingGoal,
+        aboutMe: profileData.aboutMe.trim(),
+        lookingFor: profileData.lookingFor.trim(),
+        interests: profileData.interests,
+        profileSetupComplete: true,
+      };
+      if (profileData.photo) payload.profilePicture = profileData.photo;
+      const { user: updated } = await apiPatch<{ user: User }>('/users/me', payload);
+      await refreshUser();
       try {
         localStorage.removeItem(PROFILE_SETUP_DRAFT_KEY);
       } catch {
         /* ignore */
       }
-      window.location.href = '/man/home';
+      toast.success('Profile saved');
+      navigate(updated.role === 'female' ? '/woman/home' : '/man/home', { replace: true });
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not save profile');
+    } finally {
+      setSaving(false);
     }
+  };
+
+  const handleNext = () => {
+    if (step === 2) {
+      if (!profileData.country || !profileData.city.trim()) {
+        toast.error('Please select your country and enter your city');
+        return;
+      }
+    }
+    if (step === 3) {
+      if (!profileData.datingGoal) {
+        toast.error('Please choose a dating goal');
+        return;
+      }
+    }
+    if (step < 4) {
+      setStep(step + 1);
+      return;
+    }
+    void completeProfile();
   };
 
   const renderStep = () => {
@@ -77,28 +147,42 @@ export default function ProfileSetupPage() {
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Add Your Photo</h2>
-              <p className="text-gray-500">Profiles with photos get 10x more matches</p>
+              <h2 className="mb-2 text-xl font-bold text-gray-900">Add Your Photo</h2>
+              <p className="text-gray-500">Profiles with photos get more attention — upload from your device</p>
             </div>
+
+            <input
+              ref={photoInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => void onPhotoSelected(e)}
+            />
 
             <div className="flex justify-center">
               <button
-                onClick={handlePhotoUpload}
-                className="relative w-40 h-40 rounded-full border-2 border-dashed border-gray-300 flex items-center justify-center hover:border-green-500 transition-colors overflow-hidden"
+                type="button"
+                onClick={openPhotoPicker}
+                disabled={photoUploading}
+                className="relative flex h-40 w-40 items-center justify-center overflow-hidden rounded-full border-2 border-dashed border-gray-300 transition-colors hover:border-green-500 disabled:opacity-60"
               >
                 {profileData.photo ? (
-                  <img src={profileData.photo} alt="Profile" className="w-full h-full object-cover" />
+                  <img src={profileData.photo} alt="" className="h-full w-full object-cover" />
                 ) : (
                   <div className="text-center">
-                    <Camera className="w-10 h-10 text-gray-400 mx-auto mb-2" />
-                    <span className="text-sm text-gray-500">Add Photo</span>
+                    <Camera className="mx-auto mb-2 h-10 w-10 text-gray-400" />
+                    <span className="text-sm text-gray-500">{photoUploading ? 'Uploading…' : 'Choose photo'}</span>
                   </div>
                 )}
               </button>
             </div>
 
             <div className="text-center">
-              <button className="text-green-500 hover:text-green-600 text-sm font-medium">
+              <button
+                type="button"
+                onClick={() => setStep(2)}
+                className="text-sm font-medium text-green-500 hover:text-green-600"
+              >
                 Skip for now
               </button>
             </div>
@@ -109,20 +193,20 @@ export default function ProfileSetupPage() {
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Where Are You From?</h2>
+              <h2 className="mb-2 text-xl font-bold text-gray-900">Where Are You From?</h2>
               <p className="text-gray-500">Help us find matches near you</p>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1 flex items-center gap-2">
-                  <MapPin className="w-4 h-4" />
+                <label className="mb-1 flex items-center gap-2 text-sm font-medium text-gray-700">
+                  <MapPin className="h-4 w-4" />
                   Country
                 </label>
                 <select
                   value={profileData.country}
                   onChange={(e) => setProfileData({ ...profileData, country: e.target.value })}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+                  className="w-full rounded-lg border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
                 >
                   <option value="">Select your country</option>
                   {countries.map((country) => (
@@ -134,13 +218,13 @@ export default function ProfileSetupPage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
+                <label className="mb-1 block text-sm font-medium text-gray-700">City</label>
                 <input
                   type="text"
                   value={profileData.city}
                   onChange={(e) => setProfileData({ ...profileData, city: e.target.value })}
                   placeholder="Enter your city"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+                  className="w-full rounded-lg border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
             </div>
@@ -151,7 +235,7 @@ export default function ProfileSetupPage() {
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">What Are You Looking For?</h2>
+              <h2 className="mb-2 text-xl font-bold text-gray-900">What Are You Looking For?</h2>
               <p className="text-gray-500">Select your dating goal</p>
             </div>
 
@@ -159,20 +243,21 @@ export default function ProfileSetupPage() {
               {datingGoals.map((goal) => (
                 <button
                   key={goal.value}
+                  type="button"
                   onClick={() => setProfileData({ ...profileData, datingGoal: goal.value })}
-                  className={`w-full flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+                  className={`flex w-full items-center gap-3 rounded-lg border-2 p-4 transition-all ${
                     profileData.datingGoal === goal.value
                       ? 'border-green-500 bg-green-50'
                       : 'border-gray-200 hover:border-gray-300'
                   }`}
                 >
-                  <HeartHandshake className={`w-5 h-5 ${
-                    profileData.datingGoal === goal.value ? 'text-green-500' : 'text-gray-400'
-                  }`} />
+                  <HeartHandshake
+                    className={`h-5 w-5 ${
+                      profileData.datingGoal === goal.value ? 'text-green-500' : 'text-gray-400'
+                    }`}
+                  />
                   <span className="font-medium">{goal.label}</span>
-                  {profileData.datingGoal === goal.value && (
-                    <Check className="w-5 h-5 text-green-500 ml-auto" />
-                  )}
+                  {profileData.datingGoal === goal.value && <Check className="ml-auto h-5 w-5 text-green-500" />}
                 </button>
               ))}
             </div>
@@ -183,41 +268,44 @@ export default function ProfileSetupPage() {
         return (
           <div className="space-y-6">
             <div className="text-center">
-              <h2 className="text-xl font-bold text-gray-900 mb-2">Tell Us About Yourself</h2>
-              <p className="text-gray-500">Add your interests and bio</p>
+              <h2 className="mb-2 text-xl font-bold text-gray-900">Tell Us About Yourself</h2>
+              <p className="text-gray-500">Bio and interests (required)</p>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">About Me</label>
+                <label className="mb-2 block text-sm font-medium text-gray-700">About Me *</label>
                 <textarea
                   value={profileData.aboutMe}
                   onChange={(e) => setProfileData({ ...profileData, aboutMe: e.target.value })}
                   placeholder="Tell others about yourself..."
                   rows={3}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none resize-none"
+                  required
+                  className="w-full resize-none rounded-lg border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Looking For</label>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Looking For *</label>
                 <textarea
                   value={profileData.lookingFor}
                   onChange={(e) => setProfileData({ ...profileData, lookingFor: e.target.value })}
                   placeholder="What are you looking for in a partner?"
                   rows={2}
-                  className="w-full px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none resize-none"
+                  required
+                  className="w-full resize-none rounded-lg border border-gray-200 px-4 py-3 outline-none focus:ring-2 focus:ring-green-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Interests</label>
+                <label className="mb-2 block text-sm font-medium text-gray-700">Interests * (pick at least one)</label>
                 <div className="flex flex-wrap gap-2">
                   {interestTags.map((interest) => (
                     <button
                       key={interest}
+                      type="button"
                       onClick={() => toggleInterest(interest)}
-                      className={`px-3 py-1.5 rounded-full text-sm font-medium transition-colors ${
+                      className={`rounded-full px-3 py-1.5 text-sm font-medium transition-colors ${
                         profileData.interests.includes(interest)
                           ? 'bg-green-500 text-white'
                           : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
@@ -235,59 +323,42 @@ export default function ProfileSetupPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+    <div className="flex min-h-screen items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md">
-        {/* Logo */}
-        <div className="text-center mb-8">
+        <div className="mb-8 text-center">
           <Link to="/" className="inline-flex">
             <BrandLogo size="sm" tone="dark" />
           </Link>
         </div>
 
-        {/* Setup Form */}
-        <div className="bg-white rounded-2xl shadow-sm p-8">
-          {step >= 3 && (
-            <div className="mb-6 flex gap-3 rounded-xl border border-emerald-200/80 bg-emerald-50/90 px-4 py-3 text-sm text-emerald-950">
-              <WifiOff className="mt-0.5 h-5 w-5 shrink-0 text-emerald-700" aria-hidden />
-              <p>
-                <span className="font-semibold">Works offline.</span> You can complete this questionnaire without an
-                internet connection; your answers stay on this device and sync when you are back online.
-              </p>
-            </div>
-          )}
-          {/* Progress */}
-          <div className="flex items-center gap-2 mb-8">
+        <div className="rounded-2xl bg-white p-8 shadow-sm">
+          <div className="mb-8 flex items-center gap-2">
             {[1, 2, 3, 4].map((s) => (
               <div
                 key={s}
-                className={`flex-1 h-2 rounded-full transition-colors ${
-                  s <= step ? 'bg-green-500' : 'bg-gray-200'
-                }`}
+                className={`h-2 flex-1 rounded-full transition-colors ${s <= step ? 'bg-green-500' : 'bg-gray-200'}`}
               />
             ))}
           </div>
 
-          {/* Step Content */}
           {renderStep()}
 
-          {/* Navigation */}
-          <div className="flex items-center justify-between mt-8">
+          <div className="mt-8 flex items-center justify-between">
             {step > 1 ? (
-              <button
-                onClick={() => setStep(step - 1)}
-                className="text-gray-500 hover:text-gray-700"
-              >
+              <button type="button" onClick={() => setStep(step - 1)} className="text-gray-500 hover:text-gray-700">
                 Back
               </button>
             ) : (
               <div />
             )}
             <Button
+              type="button"
               onClick={handleNext}
-              className="bg-green-500 hover:bg-green-600 px-6"
+              disabled={saving || photoUploading}
+              className="bg-green-500 px-6 hover:bg-green-600"
             >
-              {step === 4 ? 'Complete' : 'Next'}
-              <ChevronRight className="w-4 h-4 ml-1" />
+              {step === 4 ? (saving ? 'Saving…' : 'Complete') : 'Next'}
+              <ChevronRight className="ml-1 h-4 w-4" />
             </Button>
           </div>
         </div>

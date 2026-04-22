@@ -23,6 +23,7 @@ app/dist/
 # Backend API
 server/node_modules/
 server/.env
+server/SEED_TEST_ACCOUNTS.txt
 
 # TypeScript / Vite cache
 app/.vite/

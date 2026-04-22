@@ -124,6 +124,7 @@ export async function createUser(req, res) {
     coins: coinValue,
     isVerified: false,
     isBlocked: false,
+    emailVerified: true,
   });
 
   res.status(201).json({ user: serializeUser(user) });

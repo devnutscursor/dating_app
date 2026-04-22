@@ -20,7 +20,11 @@ export interface User {
   isOnline: boolean;
   lastActive?: string;
   coins: number;
+  /** Popularity counter; updated when like/match features write to the API */
+  likesReceivedCount?: number;
   isVerified: boolean;
+  /** When false, member must complete email verification before using the app. */
+  emailVerified?: boolean;
   isBlocked?: boolean;
   createdAt?: string;
   updatedAt?: string;

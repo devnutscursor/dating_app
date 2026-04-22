@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
@@ -10,6 +10,7 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [step, setStep] = useState(1);
   const [submitting, setSubmitting] = useState(false);
+  const registerOnceRef = useRef(false);
   const { register } = useAuth();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
@@ -38,6 +39,8 @@ export default function RegisterPage() {
       toast.error('Please select gender and date of birth');
       return;
     }
+    if (registerOnceRef.current) return;
+    registerOnceRef.current = true;
     setSubmitting(true);
     try {
       await register({
@@ -47,10 +50,11 @@ export default function RegisterPage() {
         gender: formData.gender,
         birthDate: formData.birthDate,
       });
-      navigate('/verify-email', { replace: true });
+      navigate('/verify-email', { replace: true, state: { email: formData.email.trim() } });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Registration failed');
     } finally {
+      registerOnceRef.current = false;
       setSubmitting(false);
     }
   };

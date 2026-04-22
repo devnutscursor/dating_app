@@ -4,10 +4,14 @@ import { User } from '../models/User.model.js';
 import { serializeChatDoc } from '../utils/serializeChat.js';
 
 export async function listChats(req, res) {
-  const chats = await Chat.find({ participants: req.user._id })
+  const selfId = req.user._id;
+  /** Only threads where you have sent at least one message (empty “opened” chats stay out of the list). */
+  const chats = await Chat.find({
+    participants: selfId,
+    messages: { $elemMatch: { senderId: selfId } },
+  })
     .populate('participants', '-password')
     .sort({ updatedAt: -1 });
-  const selfId = req.user._id;
   res.json({
     chats: chats.map((c) => serializeChatDoc(c, selfId)),
   });
@@ -20,6 +24,25 @@ export async function getChat(req, res) {
   }).populate('participants', '-password');
   if (!chat) {
     return res.status(404).json({ error: 'Chat not found' });
+  }
+  const selfStr = req.user._id.toString();
+  let marked = false;
+  for (const m of chat.messages) {
+    const sid = m.senderId?.toString?.() || String(m.senderId);
+    if (sid !== selfStr && !m.isRead) {
+      m.isRead = true;
+      marked = true;
+    }
+  }
+  if (marked) {
+    if (chat.lastMessage) {
+      const lmSender =
+        chat.lastMessage.senderId?.toString?.() || String(chat.lastMessage.senderId);
+      if (lmSender !== selfStr) chat.lastMessage.isRead = true;
+    }
+    chat.markModified('messages');
+    chat.markModified('lastMessage');
+    await chat.save();
   }
   res.json({ chat: serializeChatDoc(chat, req.user._id) });
 }

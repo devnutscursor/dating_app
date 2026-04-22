@@ -1,9 +1,10 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ArrowLeft, Phone, Video, MoreVertical, Send, Image, Gift, Smile, Lock, Flag, Coins, Search } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import type { Chat } from '@/types';
 import { apiGet, apiPost } from '@/lib/api';
+import { chatPreviewLine } from '@/lib/chatPreview';
 import { useAuth } from '@/contexts/AuthContext';
 import BlockUserModal from '@/components/modals/BlockUserModal';
 import ReportUserModal from '@/components/modals/ReportUserModal';
@@ -27,45 +28,52 @@ export default function WomanChatDetail() {
   const user = chat?.participant;
   const messages = chat?.messages ?? [];
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      setListLoading(true);
-      try {
-        const data = await apiGet<{ chats: Chat[] }>('/chats');
-        if (!cancelled) setThreads(data.chats);
-      } catch {
-        if (!cancelled) setThreads([]);
-      } finally {
-        if (!cancelled) setListLoading(false);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+  const refreshThreads = useCallback(async () => {
+    try {
+      const data = await apiGet<{ chats: Chat[] }>('/chats');
+      setThreads(data.chats);
+    } catch {
+      setThreads([]);
+    }
   }, []);
 
+  /** Load open chat first (server marks incoming messages read), then thread list so unread matches DB. */
   useEffect(() => {
     if (!chatId) return;
     let cancelled = false;
     (async () => {
+      setListLoading(true);
       setChatLoading(true);
       try {
-        const data = await apiGet<{ chat: Chat }>(`/chats/${chatId}`);
-        if (!cancelled) {
-          setChat(data.chat);
-          setMessage('');
-        }
+        const chatRes = await apiGet<{ chat: Chat }>(`/chats/${chatId}`);
+        if (cancelled) return;
+        setChat(chatRes.chat);
+        setMessage('');
+        const listRes = await apiGet<{ chats: Chat[] }>('/chats');
+        if (!cancelled) setThreads(listRes.chats);
       } catch {
-        if (!cancelled) setChat(null);
+        if (!cancelled) {
+          setChat(null);
+          setThreads([]);
+        }
       } finally {
-        if (!cancelled) setChatLoading(false);
+        if (!cancelled) {
+          setListLoading(false);
+          setChatLoading(false);
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
   }, [chatId]);
+
+  /** API omits chats with no outbound messages; still show the thread you’re viewing (e.g. from Message). */
+  const displayThreads = useMemo(() => {
+    if (!chat || !chatId) return threads;
+    if (threads.some((t) => t.id === chat.id)) return threads;
+    return [chat, ...threads];
+  }, [threads, chat, chatId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -80,6 +88,7 @@ export default function WomanChatDetail() {
       });
       setChat(data.chat);
       setMessage('');
+      void refreshThreads();
     } catch {
       /* ignore */
     }
@@ -124,7 +133,7 @@ export default function WomanChatDetail() {
         </div>
 
         <div className="flex-1 overflow-y-auto">
-          {threads.map((thread) => {
+          {displayThreads.map((thread) => {
             const isActive = thread.id === chatId;
             return (
               <Link
@@ -150,9 +159,7 @@ export default function WomanChatDetail() {
                     <h3 className="truncate font-semibold text-gray-900">{thread.participant.name}</h3>
                     <span className="text-xs text-gray-400">{thread.lastMessage?.timestamp}</span>
                   </div>
-                  <p className="mt-1 truncate text-sm text-gray-500">
-                    {thread.lastMessage?.type === 'text' ? thread.lastMessage.content : 'Shared media'}
-                  </p>
+                  <p className="mt-1 truncate text-sm text-gray-500">{chatPreviewLine(thread.lastMessage)}</p>
                 </div>
 
                 {thread.unreadCount > 0 && (
@@ -328,6 +335,8 @@ export default function WomanChatDetail() {
         open={videoCallOpen}
         onClose={() => setVideoCallOpen(false)}
         userId={user.id}
+        peerName={user.name}
+        peerPicture={user.profilePicture}
         isIncoming={false}
       />
     </div>
