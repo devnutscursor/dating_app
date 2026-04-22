@@ -2,13 +2,14 @@ import mongoose from 'mongoose';
 import { Chat } from '../models/Chat.model.js';
 import { User } from '../models/User.model.js';
 import { serializeChatDoc } from '../utils/serializeChat.js';
+import { emitChatUpdatedToParticipants } from '../realtime/emitChatUpdate.js';
 
 export async function listChats(req, res) {
   const selfId = req.user._id;
-  /** Only threads where you have sent at least one message (empty “opened” chats stay out of the list). */
+  /** Threads with real messages (either side). Empty “opened” chats from Message with no sends stay hidden. */
   const chats = await Chat.find({
     participants: selfId,
-    messages: { $elemMatch: { senderId: selfId } },
+    'messages.0': { $exists: true },
   })
     .populate('participants', '-password')
     .sort({ updatedAt: -1 });
@@ -104,5 +105,7 @@ export async function sendMessage(req, res) {
   };
   await chat.save();
   const populated = await Chat.findById(chat._id).populate('participants', '-password');
+  const io = req.app.get('io');
+  emitChatUpdatedToParticipants(io, populated);
   res.status(201).json({ chat: serializeChatDoc(populated, req.user._id) });
 }

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import type { Chat } from '@/types';
 import { apiGet, apiPost } from '@/lib/api';
 import { chatPreviewLine } from '@/lib/chatPreview';
+import { subscribeChatUpdate } from '@/lib/chatSocket';
 import { useAuth } from '@/contexts/AuthContext';
 import BlockUserModal from '@/components/modals/BlockUserModal';
 import ReportUserModal from '@/components/modals/ReportUserModal';
@@ -67,6 +68,24 @@ export default function WomanChatDetail() {
       cancelled = true;
     };
   }, [chatId]);
+
+  useEffect(() => {
+    if (!chatId) return;
+    const unsub = subscribeChatUpdate((payload) => {
+      if (payload.chatId !== chatId) return;
+      setChat(payload.chat);
+      void (async () => {
+        try {
+          const d = await apiGet<{ chat: Chat }>(`/chats/${chatId}`);
+          setChat(d.chat);
+        } catch {
+          /* keep optimistic payload */
+        }
+        await refreshThreads();
+      })();
+    });
+    return unsub;
+  }, [chatId, refreshThreads]);
 
   /** API omits chats with no outbound messages; still show the thread you’re viewing (e.g. from Message). */
   const displayThreads = useMemo(() => {

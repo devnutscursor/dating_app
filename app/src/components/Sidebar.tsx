@@ -8,6 +8,7 @@ import { navigationItems } from '@/config/design';
 import BrandLogo from '@/components/BrandLogo';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiGet } from '@/lib/api';
+import { subscribeChatUpdate } from '@/lib/chatSocket';
 import type { Chat } from '@/types';
 
 interface SidebarProps {
@@ -40,6 +41,26 @@ export default function Sidebar({ userType, onClose }: SidebarProps) {
       cancelled = true;
     };
   }, [sessionUser, location.pathname]);
+
+  useEffect(() => {
+    if (!sessionUser) return;
+    let debounce: ReturnType<typeof setTimeout> | undefined;
+    const unsub = subscribeChatUpdate(() => {
+      clearTimeout(debounce);
+      debounce = setTimeout(() => {
+        void apiGet<{ chats: Chat[] }>('/chats')
+          .then((data) => {
+            const total = (data.chats ?? []).reduce((sum, c) => sum + (c.unreadCount ?? 0), 0);
+            setChatsUnreadTotal(total);
+          })
+          .catch(() => setChatsUnreadTotal(null));
+      }, 120);
+    });
+    return () => {
+      clearTimeout(debounce);
+      unsub();
+    };
+  }, [sessionUser]);
   
   const navItems = navigationItems[userType];
   const basePath = `/${userType}`;

@@ -1,6 +1,8 @@
 import 'dotenv/config';
+import http from 'node:http';
 import { createApp } from './app.js';
 import { connectDb } from './config/db.js';
+import { initSocketIO } from './realtime/socket.js';
 
 /** Default 5001: macOS often binds 5000 to AirPlay (Control Center). Override with PORT=. */
 const PORT = Number(process.env.PORT) || 5001;
@@ -15,8 +17,12 @@ async function main() {
   console.log('MongoDB connected:', MONGODB_URI);
 
   const app = createApp();
-  app.listen(PORT, () => {
-    console.log(`API listening on http://localhost:${PORT}`);
+  const server = http.createServer(app);
+  const io = initSocketIO(server);
+  app.set('io', io);
+
+  server.listen(PORT, () => {
+    console.log(`API + Socket.IO listening on http://localhost:${PORT}`);
   });
 }
 

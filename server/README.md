@@ -18,6 +18,8 @@ npm run dev    # development with nodemon
 
 API listens on **http://localhost:5001** by default (port **5000** is often taken by macOS AirPlay). Set `PORT` in `.env` to change it. All REST routes are under **`/api`**.
 
+**Socket.IO** shares the same port at path **`/socket.io/`** (JWT in `handshake.auth.token`). In local dev, Vite proxies `/socket.io` to this server. Set **`CLIENT_ORIGIN`** in `.env` to your SPA URL (e.g. `http://localhost:5173`) so the socket CORS handshake succeeds.
+
 ## Scripts
 
 | Command | Description |
