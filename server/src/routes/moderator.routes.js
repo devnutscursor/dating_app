@@ -9,6 +9,7 @@ const router = Router();
 router.use(asyncHandler(authenticate), authorize('moderator'));
 router.get('/content', asyncHandler(mod.listContent));
 router.get('/reports', asyncHandler(mod.listReports));
+router.patch('/reports/:reportId', asyncHandler(mod.updateReport));
 router.get('/verifications', asyncHandler(mod.listVerifications));
 
 export default router;

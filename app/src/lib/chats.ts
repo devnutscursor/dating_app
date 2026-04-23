@@ -22,3 +22,20 @@ export async function postChatMessage(
   const data = await apiPost<{ chat: Chat; coins?: number }>(`/chats/${chatId}/messages`, body);
   return { chat: data.chat, coins: data.coins };
 }
+
+export async function postBlockChat(chatId: string): Promise<{ ok: boolean; chat?: Chat; alreadyBlocked?: boolean }> {
+  return apiPost(`/chats/${chatId}/block`, {});
+}
+
+export type PostReportChatBody = {
+  type: 'financial' | 'profile' | 'harassment';
+  topic: string;
+  comment: string;
+};
+
+export async function postReportChat(
+  chatId: string,
+  body: PostReportChatBody
+): Promise<{ ok: boolean; chat: Chat }> {
+  return apiPost(`/chats/${chatId}/report`, body);
+}

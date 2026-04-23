@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { Chat } from '../models/Chat.model.js';
 import { User } from '../models/User.model.js';
+import { Report } from '../models/Report.model.js';
 import { Transaction } from '../models/Transaction.model.js';
 import { serializeChatDoc } from '../utils/serializeChat.js';
 import { emitChatUpdatedToParticipants } from '../realtime/emitChatUpdate.js';
@@ -17,6 +18,9 @@ function otherParticipantId(chat, selfId) {
  * Uses compensating updates (no multi-doc transaction) so it works on standalone MongoDB.
  */
 async function persistGiftMessage(req, res, chat, amt, giftLabel) {
+  if (chat.isBlocked) {
+    return res.status(403).json({ error: 'This conversation has been blocked' });
+  }
   const recipientId = otherParticipantId(chat, req.user._id);
   if (!recipientId) {
     return res.status(400).json({ error: 'Invalid chat participants' });
@@ -131,6 +135,7 @@ export async function listChats(req, res) {
   const chats = await Chat.find({
     participants: selfId,
     'messages.0': { $exists: true },
+    isBlocked: { $ne: true },
   })
     .populate('participants', '-password')
     .sort({ updatedAt: -1 });
@@ -146,6 +151,9 @@ export async function getChat(req, res) {
   }).populate('participants', '-password');
   if (!chat) {
     return res.status(404).json({ error: 'Chat not found' });
+  }
+  if (chat.isBlocked) {
+    return res.status(403).json({ error: 'This conversation has been blocked' });
   }
   const selfStr = req.user._id.toString();
   let marked = false;
@@ -185,6 +193,9 @@ export async function createOrGetChat(req, res) {
     participants: { $all: [req.user._id, other._id], $size: 2 },
   }).populate('participants', '-password');
   if (existing) {
+    if (existing.isBlocked) {
+      return res.status(400).json({ error: 'This chat is blocked' });
+    }
     return res.json({ chat: serializeChatDoc(existing, req.user._id) });
   }
   const chat = await Chat.create({
@@ -206,6 +217,9 @@ export async function sendMessage(req, res) {
   });
   if (!chat) {
     return res.status(404).json({ error: 'Chat not found' });
+  }
+  if (chat.isBlocked) {
+    return res.status(403).json({ error: 'This conversation has been blocked' });
   }
   const msgType = type && ['text', 'image', 'video', 'gift'].includes(type) ? type : 'text';
 
@@ -253,4 +267,81 @@ export async function sendMessage(req, res) {
   const io = req.app.get('io');
   emitChatUpdatedToParticipants(io, populated);
   res.status(201).json({ chat: serializeChatDoc(populated, req.user._id) });
+}
+
+const REPORT_TYPES = new Set(['financial', 'profile', 'harassment']);
+
+export async function blockChat(req, res) {
+  const chat = await Chat.findOne({
+    _id: req.params.chatId,
+    participants: req.user._id,
+  });
+  if (!chat) {
+    return res.status(404).json({ error: 'Chat not found' });
+  }
+  if (chat.isBlocked) {
+    const populated = await Chat.findById(chat._id).populate('participants', '-password');
+    return res.json({ ok: true, alreadyBlocked: true, chat: serializeChatDoc(populated, req.user._id) });
+  }
+  chat.isBlocked = true;
+  await chat.save();
+  const populated = await Chat.findById(chat._id).populate('participants', '-password');
+  const io = req.app.get('io');
+  emitChatUpdatedToParticipants(io, populated);
+  return res.json({ ok: true, chat: serializeChatDoc(populated, req.user._id) });
+}
+
+export async function reportUserInChat(req, res) {
+  const { type, topic, comment } = req.body ?? {};
+  if (!REPORT_TYPES.has(String(type))) {
+    return res.status(400).json({ error: 'Invalid report type' });
+  }
+  const topicStr = typeof topic === 'string' ? topic.trim() : '';
+  const commentStr = typeof comment === 'string' ? comment.trim() : '';
+  if (!topicStr) {
+    return res.status(400).json({ error: 'Topic is required' });
+  }
+  if (!commentStr) {
+    return res.status(400).json({ error: 'Comment is required' });
+  }
+
+  const chat = await Chat.findOne({
+    _id: req.params.chatId,
+    participants: req.user._id,
+  });
+  if (!chat) {
+    return res.status(404).json({ error: 'Chat not found' });
+  }
+  if (chat.isBlocked) {
+    return res.status(403).json({ error: 'This conversation has been blocked' });
+  }
+
+  const reportedId = otherParticipantId(chat, req.user._id);
+  if (!reportedId) {
+    return res.status(400).json({ error: 'Invalid chat participants' });
+  }
+  const target = await User.findById(reportedId).select('role');
+  if (!target || ['admin', 'moderator'].includes(target.role)) {
+    return res.status(400).json({ error: 'Cannot report this user' });
+  }
+
+  await Report.create({
+    reporterId: req.user._id,
+    reportedId,
+    type,
+    topic: topicStr.slice(0, 200),
+    comment: commentStr.slice(0, 5000),
+    status: 'pending',
+    createdAt: new Date().toISOString().slice(0, 10),
+  });
+
+  if (!chat.isReported) {
+    chat.isReported = true;
+    await chat.save();
+  }
+
+  const populated = await Chat.findById(chat._id).populate('participants', '-password');
+  const io = req.app.get('io');
+  emitChatUpdatedToParticipants(io, populated);
+  return res.status(201).json({ ok: true, chat: serializeChatDoc(populated, req.user._id) });
 }

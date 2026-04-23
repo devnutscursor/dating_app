@@ -122,6 +122,9 @@ export interface Report {
   id: string;
   reporterId: string;
   reportedId: string;
+  /** Present on `GET /moderator/reports` when populated */
+  reporterName?: string;
+  reportedName?: string;
   type: 'financial' | 'profile' | 'harassment';
   topic: string;
   comment: string;

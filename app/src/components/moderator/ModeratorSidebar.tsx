@@ -1,9 +1,12 @@
+import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, Image, Flag, UserCheck, LogOut, X 
 } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
 import { useAuth } from '@/contexts/AuthContext';
+import { apiGet } from '@/lib/api';
+import type { Report } from '@/types';
 
 interface ModeratorSidebarProps {
   onClose?: () => void;
@@ -20,6 +23,17 @@ export default function ModeratorSidebar({ onClose }: ModeratorSidebarProps) {
   const { logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const [pendingReportCount, setPendingReportCount] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (!location.pathname.startsWith('/moderator')) return;
+    void apiGet<{ reports: Report[] }>('/moderator/reports')
+      .then((d) => {
+        const n = (d.reports ?? []).filter((r) => r.status === 'pending' || r.status === 'reviewing').length;
+        setPendingReportCount(n);
+      })
+      .catch(() => setPendingReportCount(null));
+  }, [location.pathname]);
 
   const isActive = (href: string) => {
     return location.pathname === href;
@@ -64,9 +78,9 @@ export default function ModeratorSidebar({ onClose }: ModeratorSidebarProps) {
                   5
                 </span>
               )}
-              {item.id === 'reports' && (
-                <span className="ml-auto bg-orange-500 text-white text-xs px-2 py-0.5 rounded-full">
-                  3
+              {item.id === 'reports' && pendingReportCount != null && pendingReportCount > 0 && (
+                <span className="ml-auto rounded-full bg-orange-500 px-2 py-0.5 text-xs text-white">
+                  {pendingReportCount > 99 ? '99+' : pendingReportCount}
                 </span>
               )}
             </Link>

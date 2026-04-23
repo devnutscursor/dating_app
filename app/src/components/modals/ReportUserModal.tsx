@@ -1,52 +1,100 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { X, Flag } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { reportTypes } from '@/config/design';
+import { postReportChat } from '@/lib/chats';
+import type { PostReportChatBody } from '@/lib/chats';
 
 interface ReportUserModalProps {
   open: boolean;
   onClose: () => void;
+  chatId: string;
   userName: string;
   profilePicture?: string;
+  onSubmitted?: () => void;
 }
 
-export default function ReportUserModal({ open, onClose, userName, profilePicture }: ReportUserModalProps) {
+export default function ReportUserModal({
+  open,
+  onClose,
+  chatId,
+  userName,
+  profilePicture,
+  onSubmitted,
+}: ReportUserModalProps) {
   const [selectedType, setSelectedType] = useState('');
   const [topic, setTopic] = useState('');
   const [comment, setComment] = useState('');
+  const [pending, setPending] = useState(false);
+
+  useEffect(() => {
+    if (!open) {
+      setSelectedType('');
+      setTopic('');
+      setComment('');
+      setPending(false);
+    }
+  }, [open]);
 
   if (!open) return null;
 
   const getColorClass = (color: string) => {
     switch (color) {
-      case 'red': return 'bg-red-100 text-red-600';
-      case 'blue': return 'bg-blue-100 text-blue-600';
-      case 'green': return 'bg-green-100 text-green-600';
-      default: return 'bg-gray-100 text-gray-600';
+      case 'red':
+        return 'bg-red-100 text-red-600';
+      case 'blue':
+        return 'bg-blue-100 text-blue-600';
+      case 'green':
+        return 'bg-green-100 text-green-600';
+      default:
+        return 'bg-gray-100 text-gray-600';
+    }
+  };
+
+  const canSubmit =
+    selectedType &&
+    topic.trim() &&
+    comment.trim() &&
+    ['financial', 'profile', 'harassment'].includes(selectedType);
+
+  const handleSubmit = async () => {
+    if (!canSubmit) return;
+    setPending(true);
+    try {
+      await postReportChat(chatId, {
+        type: selectedType as PostReportChatBody['type'],
+        topic: topic.trim(),
+        comment: comment.trim(),
+      });
+      toast.success('Report submitted. Our team will review it.');
+      onSubmitted?.();
+      onClose();
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not submit report');
+    } finally {
+      setPending(false);
     }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center px-4">
-      <div className="absolute inset-0 bg-black/50" onClick={onClose} />
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md max-h-[90vh] overflow-auto">
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-gray-200 sticky top-0 bg-white">
+      <div className="absolute inset-0 bg-black/50" onClick={() => !pending && onClose()} />
+      <div className="relative max-h-[90vh] w-full max-w-md overflow-auto rounded-2xl bg-white shadow-2xl">
+        <div className="sticky top-0 flex items-center justify-between border-b border-gray-200 bg-white p-4">
           <h2 className="text-lg font-semibold text-gray-900">Report User</h2>
-          <Button variant="ghost" size="icon" onClick={onClose}>
-            <X className="w-5 h-5" />
+          <Button variant="ghost" size="icon" onClick={onClose} disabled={pending}>
+            <X className="h-5 w-5" />
           </Button>
         </div>
 
-        {/* Content */}
-        <div className="p-4 space-y-6">
-          {/* User Info */}
-          <div className="flex items-center gap-3 p-3 bg-gray-50 rounded-lg">
+        <div className="space-y-6 p-4">
+          <div className="flex items-center gap-3 rounded-lg bg-gray-50 p-3">
             {profilePicture ? (
-              <img src={profilePicture} alt={userName} className="w-10 h-10 rounded-full object-cover" />
+              <img src={profilePicture} alt={userName} className="h-10 w-10 rounded-full object-cover" />
             ) : (
-              <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
-                <Flag className="w-5 h-5 text-orange-500" />
+              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-orange-100">
+                <Flag className="h-5 w-5 text-orange-500" />
               </div>
             )}
             <div>
@@ -55,14 +103,13 @@ export default function ReportUserModal({ open, onClose, userName, profilePictur
             </div>
           </div>
 
-          {/* Report Type */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-3">Report Type</label>
+            <label className="mb-3 block text-sm font-medium text-gray-700">Report Type</label>
             <div className="grid grid-cols-1 gap-2">
               {reportTypes.map((type) => (
                 <label
                   key={type.value}
-                  className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  className={`flex cursor-pointer items-center gap-3 rounded-lg border p-3 transition-colors ${
                     selectedType === type.value
                       ? 'border-green-500 bg-green-50'
                       : 'border-gray-200 hover:border-gray-300'
@@ -74,9 +121,10 @@ export default function ReportUserModal({ open, onClose, userName, profilePictur
                     value={type.value}
                     checked={selectedType === type.value}
                     onChange={(e) => setSelectedType(e.target.value)}
-                    className="w-4 h-4 text-green-500"
+                    className="h-4 w-4 text-green-500"
+                    disabled={pending}
                   />
-                  <span className={`px-2 py-1 rounded text-xs font-medium ${getColorClass(type.color)}`}>
+                  <span className={`rounded px-2 py-1 text-xs font-medium ${getColorClass(type.color)}`}>
                     {type.label}
                   </span>
                 </label>
@@ -84,42 +132,41 @@ export default function ReportUserModal({ open, onClose, userName, profilePictur
             </div>
           </div>
 
-          {/* Topic */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Topic</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">Topic</label>
             <input
               type="text"
               value={topic}
               onChange={(e) => setTopic(e.target.value)}
               placeholder="Brief description of the issue"
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-green-500"
+              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-500"
+              disabled={pending}
             />
           </div>
 
-          {/* Comment */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">Comment</label>
+            <label className="mb-2 block text-sm font-medium text-gray-700">Comment</label>
             <textarea
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Please provide more details about the issue..."
+              placeholder="Please provide more details about the issue…"
               rows={4}
-              className="w-full px-3 py-2 border border-gray-200 rounded-lg text-sm outline-none focus:ring-2 focus:ring-green-500 resize-none"
+              className="w-full resize-none rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-500"
+              disabled={pending}
             />
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="p-4 border-t border-gray-200 sticky bottom-0 bg-white flex gap-3">
-          <Button variant="outline" className="flex-1" onClick={onClose}>
+        <div className="sticky bottom-0 flex gap-3 border-t border-gray-200 bg-white p-4">
+          <Button variant="outline" className="flex-1" onClick={onClose} disabled={pending}>
             Cancel
           </Button>
-          <Button 
-            className="flex-1 bg-green-500 hover:bg-green-600" 
-            onClick={onClose}
-            disabled={!selectedType || !topic}
+          <Button
+            className="flex-1 bg-green-500 hover:bg-green-600"
+            onClick={() => void handleSubmit()}
+            disabled={!canSubmit || pending}
           >
-            Submit Report
+            {pending ? 'Submitting…' : 'Submit Report'}
           </Button>
         </div>
       </div>

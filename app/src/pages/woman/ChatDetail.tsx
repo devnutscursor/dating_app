@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import type { ChangeEvent } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Phone, Video, MoreVertical, Send, Image, Lock, Flag, Coins, Search } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -20,6 +20,7 @@ import MediaPreviewModal from '@/components/modals/MediaPreviewModal';
 
 export default function WomanChatDetail() {
   const { chatId } = useParams();
+  const navigate = useNavigate();
   const { user: me, refreshUser } = useAuth();
   const [message, setMessage] = useState('');
   const [threads, setThreads] = useState<Chat[]>([]);
@@ -33,6 +34,7 @@ export default function WomanChatDetail() {
   const [earnings, _setEarnings] = useState(0);
   const [imageBusy, setImageBusy] = useState(false);
   const [mediaPreview, setMediaPreview] = useState<{ kind: 'photo' | 'video'; url: string } | null>(null);
+  const [accessError, setAccessError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
 
@@ -55,6 +57,7 @@ export default function WomanChatDetail() {
     (async () => {
       setListLoading(true);
       setChatLoading(true);
+      setAccessError(null);
       try {
         const chatRes = await apiGet<{ chat: Chat }>(`/chats/${chatId}`);
         if (cancelled) return;
@@ -62,10 +65,11 @@ export default function WomanChatDetail() {
         setMessage('');
         const listRes = await apiGet<{ chats: Chat[] }>('/chats');
         if (!cancelled) setThreads(listRes.chats);
-      } catch {
+      } catch (e) {
         if (!cancelled) {
           setChat(null);
           setThreads([]);
+          setAccessError(e instanceof Error ? e.message : 'Could not load chat');
         }
       } finally {
         if (!cancelled) {
@@ -83,6 +87,12 @@ export default function WomanChatDetail() {
     if (!chatId) return;
     const unsub = subscribeChatUpdate((payload) => {
       if (payload.chatId !== chatId) return;
+      if (payload.chat.isBlocked) {
+        setAccessError('This conversation has been blocked');
+        setChat(null);
+        void refreshThreads();
+        return;
+      }
       const lm = payload.chat.lastMessage;
       const incomingGift =
         lm?.type === 'gift' && Boolean(me?.id) && lm.senderId !== me.id;
@@ -158,6 +168,20 @@ export default function WomanChatDetail() {
     return (
       <div className="flex h-full min-h-0 flex-1 items-center justify-center text-gray-500">
         Loading chat…
+      </div>
+    );
+  }
+
+  if (accessError) {
+    const blocked = accessError.toLowerCase().includes('blocked');
+    return (
+      <div className="flex h-full min-h-0 flex-1 flex-col items-center justify-center gap-3 px-4 text-center">
+        <p className="text-gray-600">
+          {blocked ? 'This conversation is no longer available.' : accessError}
+        </p>
+        <Link to="/woman/chats" className="text-green-600 hover:underline">
+          Back to chats
+        </Link>
       </div>
     );
   }
@@ -364,14 +388,31 @@ export default function WomanChatDetail() {
       <BlockUserModal
         open={blockModalOpen}
         onClose={() => setBlockModalOpen(false)}
+        chatId={chatId!}
         userName={user.name}
         profilePicture={user.profilePicture}
+        onBlocked={() => {
+          void refreshThreads();
+          navigate('/woman/chats');
+        }}
       />
       <ReportUserModal
         open={reportModalOpen}
         onClose={() => setReportModalOpen(false)}
+        chatId={chatId!}
         userName={user.name}
         profilePicture={user.profilePicture}
+        onSubmitted={() => {
+          void (async () => {
+            try {
+              const d = await apiGet<{ chat: Chat }>(`/chats/${chatId}`);
+              setChat(d.chat);
+            } catch {
+              /* ignore */
+            }
+          })();
+          void refreshThreads();
+        }}
       />
       <VideoCallModal
         open={videoCallOpen}
