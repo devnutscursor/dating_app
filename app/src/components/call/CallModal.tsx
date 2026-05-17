@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Mic, MicOff, Camera, CameraOff, PhoneOff, Clock, Phone } from 'lucide-react';
 import type { CallStatus, CallType } from '@/hooks/useWebRTCCall';
 
@@ -27,6 +27,17 @@ function formatDuration(seconds: number) {
   return `${m}:${s}`;
 }
 
+// Callback ref helper: assigns stream.srcObject as soon as the <video> mounts.
+function useVideoStream(stream: MediaStream | null) {
+  const ref = useCallback(
+    (el: HTMLVideoElement | null) => {
+      if (el) el.srcObject = stream;
+    },
+    [stream]
+  );
+  return ref;
+}
+
 export default function CallModal({
   callStatus,
   callType,
@@ -43,23 +54,21 @@ export default function CallModal({
   onToggleMic,
   onToggleCamera,
 }: CallModalProps) {
-  const localVideoRef = useRef<HTMLVideoElement>(null);
-  const remoteVideoRef = useRef<HTMLVideoElement>(null);
+  // true  → remote is main / local is pip  (default, same as WhatsApp)
+  // false → local is main / remote is pip
+  const [remoteIsMain, setRemoteIsMain] = useState(true);
+
+  const remoteVideoRef = useVideoStream(remoteStream);
+  const localVideoRef = useVideoStream(localStream);
+
+  // Also keep remote audio working for audio-only calls
+  const audioRef = useRef<HTMLAudioElement>(null);
+  useEffect(() => {
+    if (audioRef.current && remoteStream) audioRef.current.srcObject = remoteStream;
+  }, [remoteStream]);
 
   const avatar = peerPicture?.trim() || FALLBACK_AVATAR;
   const name = peerName?.trim() || 'Member';
-
-  useEffect(() => {
-    if (localVideoRef.current && localStream) {
-      localVideoRef.current.srcObject = localStream;
-    }
-  }, [localStream]);
-
-  useEffect(() => {
-    if (remoteVideoRef.current && remoteStream) {
-      remoteVideoRef.current.srcObject = remoteStream;
-    }
-  }, [remoteStream]);
 
   if (callStatus === 'idle') return null;
 
@@ -158,55 +167,78 @@ export default function CallModal({
   }
 
   // ── Active / connected call ───────────────────────────────────────────────
+  // mainRef   = the full-screen feed
+  // pipRef    = the small pinned tile
+  // Tapping the pip swaps them.
+  const mainRef  = remoteIsMain ? remoteVideoRef : localVideoRef;
+  const pipRef   = remoteIsMain ? localVideoRef  : remoteVideoRef;
+  const pipLabel = remoteIsMain ? 'You' : name;
+
   return (
-    <div className="fixed inset-0 z-50 bg-gray-900">
-      {/* Remote video / audio */}
+    <div className="fixed inset-0 z-50 bg-black">
+      {/* Audio-only: hidden audio element for remote stream */}
+      {callType === 'audio' && <audio ref={audioRef} autoPlay className="hidden" />}
+
+      {/* ── Main video ────────────────────────────────────────────── */}
       {callType === 'video' ? (
         <video
-          ref={remoteVideoRef}
+          ref={mainRef}
           autoPlay
           playsInline
+          muted={!remoteIsMain} // mute when we're pinned to main (avoid echo)
           className="absolute inset-0 w-full h-full object-cover"
         />
       ) : (
-        <div className="absolute inset-0 flex items-center justify-center bg-gray-800">
-          <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white/20">
-            <img src={avatar} alt={name} className="w-full h-full object-cover" />
+        /* Audio call main view */
+        <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
+          <div className="flex flex-col items-center gap-4">
+            <img src={avatar} alt={name} className="w-28 h-28 rounded-full object-cover border-4 border-white/20" />
+            <span className="text-white text-xl font-semibold">{name}</span>
           </div>
         </div>
       )}
 
-      {/* Audio-only: hidden remote audio element */}
-      {callType === 'audio' && (
-        <audio ref={remoteVideoRef as React.RefObject<HTMLAudioElement>} autoPlay />
-      )}
-
-      {/* Local video (picture-in-picture) */}
+      {/* ── PiP tile (tap to swap) ─────────────────────────────────── */}
       {callType === 'video' && (
-        <div className="absolute top-4 right-4 w-32 h-44 bg-gray-700 rounded-2xl overflow-hidden border-2 border-white/20">
-          {cameraOn ? (
-            <video ref={localVideoRef} autoPlay playsInline muted className="w-full h-full object-cover" />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <CameraOff className="w-8 h-8 text-white/40" />
-            </div>
-          )}
-        </div>
+        <button
+          onClick={() => setRemoteIsMain((v) => !v)}
+          className="absolute top-4 right-4 w-28 h-40 rounded-2xl overflow-hidden border-2 border-white/30 shadow-xl bg-gray-800 cursor-pointer focus:outline-none group"
+          aria-label="Swap view"
+          type="button"
+        >
+          <video
+            ref={pipRef}
+            autoPlay
+            playsInline
+            muted={remoteIsMain} // pip is local → mute to avoid echo
+            className="w-full h-full object-cover"
+          />
+          {/* Hover / tap hint */}
+          <div className="absolute inset-0 bg-black/0 group-hover:bg-black/30 transition-colors flex items-center justify-center opacity-0 group-hover:opacity-100">
+            <span className="text-white text-xs font-medium bg-black/60 rounded-full px-2 py-1">
+              Tap to swap
+            </span>
+          </div>
+          {/* Label */}
+          <div className="absolute bottom-1 left-0 right-0 text-center">
+            <span className="text-white/80 text-[11px] font-medium drop-shadow">{pipLabel}</span>
+          </div>
+        </button>
       )}
 
-      {/* Header – name + timer */}
-      <div className="absolute top-4 left-4 right-40 flex items-center gap-3">
-        <div className="bg-black/50 backdrop-blur-sm rounded-full px-4 py-2 flex items-center gap-2">
-          <img src={avatar} alt={name} className="h-8 w-8 rounded-full object-cover" />
-          <span className="text-white font-medium">{name}</span>
+      {/* ── Header: peer name + timer ──────────────────────────────── */}
+      <div className="absolute top-4 left-4 right-36 flex items-center gap-2 pointer-events-none">
+        <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-2">
+          <img src={avatar} alt={name} className="h-7 w-7 rounded-full object-cover" />
+          <span className="text-white text-sm font-medium">{name}</span>
         </div>
-        <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-2 flex items-center gap-2">
-          <Clock className="w-4 h-4 text-white" />
-          <span className="text-white font-mono">{formatDuration(duration)}</span>
+        <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-1.5">
+          <Clock className="w-3.5 h-3.5 text-white" />
+          <span className="text-white font-mono text-sm">{formatDuration(duration)}</span>
         </div>
       </div>
 
-      {/* Controls */}
+      {/* ── Controls ──────────────────────────────────────────────── */}
       <div className="absolute bottom-10 left-1/2 -translate-x-1/2 flex items-center gap-5">
         <button
           onClick={onToggleMic}
