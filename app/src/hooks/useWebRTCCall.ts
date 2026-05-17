@@ -31,24 +31,28 @@ export interface UseWebRTCCallReturn {
   chatId: string | null;
   micOn: boolean;
   cameraOn: boolean;
-  /** Caller initiates an outgoing call */
   startCall: (targetUserId: string, chatId: string, type: CallType) => Promise<void>;
-  /** Callee accepts an incoming call */
   acceptCall: () => Promise<void>;
-  /** Callee declines an incoming call */
   rejectCall: () => void;
-  /** Either side hangs up */
   endCall: () => void;
   toggleMic: () => void;
   toggleCamera: () => void;
-  /** Called by CallContext when a call:incoming socket event arrives */
   handleIncomingCall: (fromUserId: string, incomingChatId: string, type: CallType) => void;
 }
 
-const STUN_SERVERS = {
+// Public STUN servers (free, no signup). For users behind strict / symmetric
+// NAT a TURN server is required — drop credentials in here when available.
+const ICE_SERVERS = {
   iceServers: [
     { urls: 'stun:stun.l.google.com:19302' },
     { urls: 'stun:stun1.l.google.com:19302' },
+    { urls: 'stun:stun2.l.google.com:19302' },
+    // Example TURN (uncomment + replace when you have credentials):
+    // {
+    //   urls: 'turn:your-turn-host:3478',
+    //   username: 'user',
+    //   credential: 'pass',
+    // },
   ],
 };
 
@@ -64,6 +68,19 @@ export function useWebRTCCall(): UseWebRTCCallReturn {
 
   const peerRef = useRef<SimplePeer.Instance | null>(null);
   const localStreamRef = useRef<MediaStream | null>(null);
+  // Buffer for signals that arrive before the peer instance has been created.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const pendingSignalsRef = useRef<any[]>([]);
+  // Stable refs of state we need to read from socket subscribers.
+  const peerUserIdRef = useRef<string | null>(null);
+  const chatIdRef = useRef<string | null>(null);
+  const callTypeRef = useRef<CallType>('video');
+  const callStatusRef = useRef<CallStatus>('idle');
+
+  useEffect(() => { peerUserIdRef.current = peerUserId; }, [peerUserId]);
+  useEffect(() => { chatIdRef.current = chatId; }, [chatId]);
+  useEffect(() => { callTypeRef.current = callType; }, [callType]);
+  useEffect(() => { callStatusRef.current = callStatus; }, [callStatus]);
 
   const stopLocalStream = useCallback(() => {
     localStreamRef.current?.getTracks().forEach((t) => t.stop());
@@ -73,9 +90,10 @@ export function useWebRTCCall(): UseWebRTCCallReturn {
 
   const destroyPeer = useCallback(() => {
     if (peerRef.current) {
-      peerRef.current.destroy();
+      try { peerRef.current.destroy(); } catch { /* ignore */ }
       peerRef.current = null;
     }
+    pendingSignalsRef.current = [];
   }, []);
 
   const cleanup = useCallback(() => {
@@ -102,7 +120,7 @@ export function useWebRTCCall(): UseWebRTCCallReturn {
 
   const buildPeer = useCallback(
     (initiator: boolean, stream: MediaStream, targetUserId: string, activeChatId: string) => {
-      const peer = new SimplePeer({ initiator, stream, trickle: true, config: STUN_SERVERS });
+      const peer = new SimplePeer({ initiator, stream, trickle: true, config: ICE_SERVERS });
 
       peer.on('signal', (signal) => {
         emitCallSignal(targetUserId, activeChatId, signal);
@@ -113,7 +131,15 @@ export function useWebRTCCall(): UseWebRTCCallReturn {
         setCallStatus('connected');
       });
 
-      peer.on('error', () => {
+      peer.on('connect', () => {
+        // datachannel ready – useful debugging aid
+        // eslint-disable-next-line no-console
+        console.log('[WebRTC] peer connected');
+      });
+
+      peer.on('error', (err) => {
+        // eslint-disable-next-line no-console
+        console.warn('[WebRTC] peer error', err);
         cleanup();
       });
 
@@ -122,35 +148,45 @@ export function useWebRTCCall(): UseWebRTCCallReturn {
       });
 
       peerRef.current = peer;
+
+      // Flush any signals that arrived before the peer existed.
+      if (pendingSignalsRef.current.length > 0) {
+        for (const s of pendingSignalsRef.current) {
+          try { peer.signal(s); } catch { /* ignore stale */ }
+        }
+        pendingSignalsRef.current = [];
+      }
     },
     [cleanup]
   );
 
   // ── Outgoing call ─────────────────────────────────────────────────────────
+  // IMPORTANT: do NOT create the initiator peer here. Wait for the callee to
+  // accept (call:accepted) — otherwise the offer is generated and broadcast
+  // before the callee has a peer to receive it, causing both sides to hang at
+  // "Connecting…" forever.
   const startCall = useCallback(
     async (targetUserId: string, activeChatId: string, type: CallType) => {
       if (callStatus !== 'idle') return;
       try {
-        const stream = await getMedia(type);
+        await getMedia(type);
         setCallType(type);
         setPeerUserId(targetUserId);
         setChatId(activeChatId);
         setCallStatus('calling');
         emitCallInitiate(targetUserId, activeChatId, type);
-        buildPeer(true, stream, targetUserId, activeChatId);
       } catch {
         stopLocalStream();
         setCallStatus('idle');
       }
     },
-    [callStatus, getMedia, buildPeer, stopLocalStream]
+    [callStatus, getMedia, stopLocalStream]
   );
 
   // ── Incoming call (called by context) ────────────────────────────────────
   const handleIncomingCall = useCallback(
     (fromUserId: string, incomingChatId: string, type: CallType) => {
-      if (callStatus !== 'idle') {
-        // Busy – immediately reject
+      if (callStatusRef.current !== 'idle') {
         emitCallRejected(fromUserId, incomingChatId);
         return;
       }
@@ -159,17 +195,20 @@ export function useWebRTCCall(): UseWebRTCCallReturn {
       setChatId(incomingChatId);
       setCallStatus('incoming');
     },
-    [callStatus]
+    []
   );
 
   // ── Accept incoming call ──────────────────────────────────────────────────
+  // Build the receiver peer FIRST, then emit accepted. That way by the time the
+  // caller receives accepted and creates its initiator peer + offer, our peer
+  // is already listening.
   const acceptCall = useCallback(async () => {
     if (callStatus !== 'incoming' || !peerUserId || !chatId) return;
     try {
       const stream = await getMedia(callType);
+      buildPeer(false, stream, peerUserId, chatId);
       setCallStatus('connecting');
       emitCallAccepted(peerUserId, chatId);
-      buildPeer(false, stream, peerUserId, chatId);
     } catch {
       stopLocalStream();
       setCallStatus('idle');
@@ -207,44 +246,54 @@ export function useWebRTCCall(): UseWebRTCCallReturn {
     setCameraOn((v) => !v);
   }, []);
 
-  // ── Socket event handlers ─────────────────────────────────────────────────
+  // ── Socket: caller receives "accepted" → now build the initiator peer ────
   useEffect(() => {
     const unsubAccepted = subscribeCallAccepted(({ chatId: eid }) => {
-      if (eid !== chatId) return;
+      if (eid !== chatIdRef.current) return;
+      if (callStatusRef.current !== 'calling') return;
+      const stream = localStreamRef.current;
+      const target = peerUserIdRef.current;
+      const activeChatId = chatIdRef.current;
+      if (!stream || !target || !activeChatId) return;
       setCallStatus('connecting');
+      buildPeer(true, stream, target, activeChatId);
     });
     return unsubAccepted;
-  }, [chatId]);
+  }, [buildPeer]);
 
+  // ── Socket: rejected ──────────────────────────────────────────────────────
   useEffect(() => {
     const unsubRejected = subscribeCallRejected(({ chatId: eid }) => {
-      if (eid !== chatId) return;
+      if (eid !== chatIdRef.current) return;
       setCallStatus('ended');
       setTimeout(cleanup, 2000);
     });
     return unsubRejected;
-  }, [chatId, cleanup]);
+  }, [cleanup]);
 
+  // ── Socket: WebRTC signal (offer / answer / ICE) ──────────────────────────
+  // Buffer signals until the peer exists, then apply.
   useEffect(() => {
     const unsubSignal = subscribeCallSignal(({ chatId: eid, signal }) => {
-      if (eid !== chatId) return;
-      try {
-        peerRef.current?.signal(signal);
-      } catch {
-        /* ignore stale signals */
+      if (eid !== chatIdRef.current) return;
+      if (peerRef.current) {
+        try { peerRef.current.signal(signal); } catch { /* ignore */ }
+      } else {
+        pendingSignalsRef.current.push(signal);
       }
     });
     return unsubSignal;
-  }, [chatId]);
+  }, []);
 
+  // ── Socket: peer ended the call ──────────────────────────────────────────
   useEffect(() => {
     const unsubEnded = subscribeCallEnded(({ chatId: eid }) => {
-      if (eid !== chatId) return;
+      if (eid !== chatIdRef.current) return;
       setCallStatus('ended');
       setTimeout(cleanup, 1500);
     });
     return unsubEnded;
-  }, [chatId, cleanup]);
+  }, [cleanup]);
 
   // Cleanup on unmount
   useEffect(() => {

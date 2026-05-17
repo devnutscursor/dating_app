@@ -61,6 +61,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
     if (rtc.callStatus !== 'incoming') {
       setIncomingCallInfo(null);
     }
+    if (rtc.callStatus === 'idle') {
+      setActivePeerName('');
+      setActivePeerPicture(undefined);
+    }
   }, [rtc.callStatus]);
 
   // Subscribe to incoming call socket events
@@ -79,6 +83,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
         /* use defaults */
       }
       setIncomingCallInfo({ fromUserId: from, chatId, callType, callerName, callerPicture });
+      // Also store into the persistent active-peer fields so the name/avatar
+      // remain visible once the call transitions past the 'incoming' state.
+      setActivePeerName(callerName);
+      setActivePeerPicture(callerPicture);
       rtc.handleIncomingCall(from, chatId, callType);
     });
 
