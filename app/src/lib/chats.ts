@@ -11,7 +11,12 @@ export type PostChatMessageBody = {
   type?: 'text' | 'image' | 'video' | 'gift';
   mediaUrl?: string;
   giftAmount?: number;
+  giftComment?: string;
 };
+
+export async function setChatPinned(chatId: string, pinned: boolean): Promise<{ chat: Chat }> {
+  return apiPost(`/chats/${chatId}/pin`, { pinned });
+}
 
 export type PostChatMessageResult = { chat: Chat; coins?: number };
 

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { MapPin, MessageCircle, Video } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -7,11 +7,15 @@ import VideoCallModal from '@/components/modals/VideoCallModal';
 import HoverPhotoGallery from '@/components/HoverPhotoGallery';
 import { formatProfileLocation } from '@/lib/formatProfileLocation';
 import { fetchOnlineUsers, userGalleryPhotos } from '@/lib/social';
+import { subscribePresenceChanged } from '@/lib/chatSocket';
 import { createOrGetChat } from '@/lib/chats';
+import { profileReturnState } from '@/lib/profileNavigation';
 import type { User } from '@/types';
 
 export default function WomanOnline() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const profileNavState = profileReturnState(location.pathname + location.search);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [videoCallUserId, setVideoCallUserId] = useState<string | null>(null);
@@ -32,6 +36,24 @@ export default function WomanOnline() {
 
   useEffect(() => {
     void load();
+  }, [load]);
+
+  useEffect(() => {
+    const unsub = subscribePresenceChanged((payload) => {
+      if (payload.isOnline) {
+        void load();
+      } else {
+        setUsers((prev) => prev.filter((u) => u.id !== payload.userId));
+      }
+    });
+    const onFocus = () => void load();
+    window.addEventListener('focus', onFocus);
+    const poll = window.setInterval(() => void load(), 60_000);
+    return () => {
+      unsub();
+      window.removeEventListener('focus', onFocus);
+      clearInterval(poll);
+    };
   }, [load]);
 
   const videoPeer = videoCallUserId ? users.find((u) => u.id === videoCallUserId) : undefined;
@@ -75,10 +97,12 @@ export default function WomanOnline() {
               <div className="relative aspect-[3/4]">
                 <HoverPhotoGallery photos={userGalleryPhotos(user)} alt={user.name} className="h-full w-full" />
 
-                <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-green-500 px-2 py-1">
-                  <div className="h-2 w-2 animate-pulse rounded-full bg-white" />
-                  <span className="text-xs font-medium text-white">Online</span>
-                </div>
+                {user.isOnline && (
+                  <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-green-500 px-2 py-1">
+                    <div className="h-2 w-2 animate-pulse rounded-full bg-white" />
+                    <span className="text-xs font-medium text-white">Online</span>
+                  </div>
+                )}
 
                 <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
                   <div className="flex items-center justify-between">
@@ -104,7 +128,7 @@ export default function WomanOnline() {
               </div>
 
               <div className="p-4">
-                <Link to={`/woman/view-profile/${user.id}`}>
+                <Link to={`/woman/view-profile/${user.id}`} state={profileNavState.state}>
                   <h3 className="font-semibold text-gray-900 transition-colors hover:text-green-600">
                     {user.name}, {user.age}
                   </h3>

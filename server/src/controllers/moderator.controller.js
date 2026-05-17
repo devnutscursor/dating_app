@@ -5,6 +5,7 @@ import { Chat } from '../models/Chat.model.js';
 import { User } from '../models/User.model.js';
 import { serializeChatDoc, serializeMessage } from '../utils/serializeChat.js';
 import { createInAppNotification } from '../services/inAppNotifications.js';
+import { countPendingFemaleMedia } from '../utils/countPendingFemaleMedia.js';
 
 function mapReportLean(r) {
   const rep = r.reporterId;
@@ -392,6 +393,69 @@ export async function updateReport(req, res) {
 }
 
 export async function listVerifications(req, res) {
-  const items = await VerificationRequest.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(50);
+  const items = await VerificationRequest.find({
+    status: 'pending',
+    videoUrl: { $exists: true, $ne: '' },
+  })
+    .sort({ createdAt: -1 })
+    .limit(50);
   res.json({ verifications: items.map(mapVerification) });
+}
+
+export async function moderatorStats(req, res) {
+  const today = new Date().toISOString().slice(0, 10);
+  const [pendingContent, pendingReports, pendingVerifications, resolvedReportsToday, resolvedVerificationsToday] =
+    await Promise.all([
+      countPendingFemaleMedia(),
+      Report.countDocuments({ status: { $in: ['pending', 'reviewing'] } }),
+      VerificationRequest.countDocuments({ status: 'pending', videoUrl: { $exists: true, $ne: '' } }),
+      Report.countDocuments({
+        status: { $in: ['resolved', 'dismissed'] },
+        resolvedAt: today,
+      }),
+      VerificationRequest.countDocuments({
+        status: { $in: ['approved', 'rejected'] },
+        updatedAt: { $gte: new Date(today) },
+      }),
+    ]);
+
+  const recentReports = await Report.find({ status: { $in: ['resolved', 'dismissed'] } })
+    .sort({ updatedAt: -1 })
+    .limit(3)
+    .populate('reportedId', 'name')
+    .lean();
+  const recentVerifications = await VerificationRequest.find({
+    status: { $in: ['approved', 'rejected'] },
+  })
+    .sort({ updatedAt: -1 })
+    .limit(3)
+    .lean();
+
+  const recentActivity = [
+    ...recentReports.map((r) => ({
+      type: 'report',
+      action: r.status === 'dismissed' ? 'Dismissed report' : 'Resolved report',
+      user:
+        r.reportedId && typeof r.reportedId === 'object' && r.reportedId.name
+          ? String(r.reportedId.name)
+          : 'Member',
+      at: r.resolvedAt || r.updatedAt?.toISOString?.() || '',
+    })),
+    ...recentVerifications.map((v) => ({
+      type: 'verification',
+      action: v.status === 'approved' ? 'Verified user' : 'Rejected verification',
+      user: v.userDisplayName || 'Member',
+      at: v.updatedAt?.toISOString?.() || v.submittedAt || '',
+    })),
+  ]
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)))
+    .slice(0, 6);
+
+  res.json({
+    pendingContent,
+    pendingReports,
+    pendingVerifications,
+    resolvedToday: resolvedReportsToday + resolvedVerificationsToday,
+    recentActivity,
+  });
 }

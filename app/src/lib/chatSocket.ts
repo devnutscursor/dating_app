@@ -16,6 +16,32 @@ export type NotificationNewPayload = {
 };
 const notificationSubscribers = new Set<(payload: NotificationNewPayload) => void>();
 
+export type PresenceChangedPayload = {
+  userId: string;
+  isOnline: boolean;
+  lastActive?: string;
+};
+const presenceSubscribers = new Set<(payload: PresenceChangedPayload) => void>();
+
+const PRESENCE_PING_MS = 45_000;
+let presencePingTimer: ReturnType<typeof setInterval> | null = null;
+
+function startPresencePing() {
+  stopPresencePing();
+  const emitPing = () => {
+    if (socket?.connected) socket.emit('presence:ping');
+  };
+  emitPing();
+  presencePingTimer = setInterval(emitPing, PRESENCE_PING_MS);
+}
+
+function stopPresencePing() {
+  if (presencePingTimer) {
+    clearInterval(presencePingTimer);
+    presencePingTimer = null;
+  }
+}
+
 function socketBaseUrl(): string {
   const custom = (import.meta.env.VITE_SOCKET_URL as string | undefined)?.trim();
   if (custom) return custom.replace(/\/$/, '');
@@ -65,17 +91,40 @@ export function connectChatSocket(token: string) {
     }
   });
 
+  socket.on('connect', () => {
+    startPresencePing();
+  });
+
+  socket.on('presence:changed', (payload: PresenceChangedPayload) => {
+    if (!payload?.userId) return;
+    for (const cb of presenceSubscribers) {
+      try {
+        cb(payload);
+      } catch {
+        /* ignore */
+      }
+    }
+  });
+
   socket.on('connect_error', (err) => {
     console.warn('[chat socket]', err.message);
   });
 }
 
 export function disconnectChatSocket() {
+  stopPresencePing();
   if (socket) {
     socket.removeAllListeners();
     socket.disconnect();
     socket = null;
   }
+}
+
+export function subscribePresenceChanged(handler: (payload: PresenceChangedPayload) => void) {
+  presenceSubscribers.add(handler);
+  return () => {
+    presenceSubscribers.delete(handler);
+  };
 }
 
 export function subscribeChatUpdate(handler: (payload: ChatUpdatePayload) => void) {

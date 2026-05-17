@@ -4,10 +4,211 @@ import validator from 'validator';
 import { User } from '../models/User.model.js';
 import { Transaction } from '../models/Transaction.model.js';
 import { Report } from '../models/Report.model.js';
+import { Chat } from '../models/Chat.model.js';
+import { Activity } from '../models/Activity.model.js';
 import { serializeUser } from '../utils/serializeUser.js';
+import { countPendingFemaleMedia } from '../utils/countPendingFemaleMedia.js';
 
 const SALT_ROUNDS = 12;
 const SORT_FIELDS = new Set(['name', 'coins', 'createdAt', 'role', 'isOnline', 'isBlocked']);
+const MEMBER_ROLES = { role: { $in: ['male', 'female', 'moderator'] } };
+
+function pctChangeLabel(current, previous) {
+  if (previous <= 0) return current > 0 ? '+100%' : '0%';
+  const pct = Math.round(((current - previous) / previous) * 100);
+  return pct >= 0 ? `+${pct}%` : `${pct}%`;
+}
+
+async function countChatMessagesSince(since) {
+  const rows = await Chat.aggregate([
+    { $unwind: '$messages' },
+    ...(since ? [{ $match: { 'messages.createdAt': { $gte: since } } }] : []),
+    { $count: 'n' },
+  ]);
+  return rows[0]?.n ?? 0;
+}
+
+async function countChatMessagesBetween(start, end) {
+  const rows = await Chat.aggregate([
+    { $unwind: '$messages' },
+    { $match: { 'messages.createdAt': { $gte: start, $lt: end } } },
+    { $count: 'n' },
+  ]);
+  return rows[0]?.n ?? 0;
+}
+
+export async function dashboardStats(req, res) {
+  const now = new Date();
+  const weekAgo = new Date(now);
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const twoWeeksAgo = new Date(now);
+  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+  const [
+    totalUsers,
+    activeToday,
+    messagesAllTime,
+    messagesThisWeek,
+    messagesLastWeek,
+    videoCalls,
+    videoCallsThisWeek,
+    videoCallsLastWeek,
+    purchaseAgg,
+    purchasesThisWeek,
+    purchasesLastWeek,
+    newSignupsThisWeek,
+    newSignupsLastWeek,
+    usersLastWeekTotal,
+    pendingReports,
+    pendingContent,
+    pendingPayouts,
+    recentTransactions,
+    recentReports,
+    recentActivities,
+  ] = await Promise.all([
+    User.countDocuments(MEMBER_ROLES),
+    User.countDocuments({ ...MEMBER_ROLES, isOnline: true }),
+    countChatMessagesSince(null),
+    countChatMessagesSince(weekAgo),
+    countChatMessagesBetween(twoWeeksAgo, weekAgo),
+    Transaction.countDocuments({ type: 'videoCall' }),
+    Transaction.countDocuments({ type: 'videoCall', createdAt: { $gte: weekAgo } }),
+    Transaction.countDocuments({
+      type: 'videoCall',
+      createdAt: { $gte: twoWeeksAgo, $lt: weekAgo },
+    }),
+    Transaction.aggregate([
+      { $match: { type: 'purchase', status: 'completed' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]),
+    Transaction.countDocuments({ type: 'purchase', createdAt: { $gte: weekAgo } }),
+    Transaction.countDocuments({
+      type: 'purchase',
+      createdAt: { $gte: twoWeeksAgo, $lt: weekAgo },
+    }),
+    User.countDocuments({ ...MEMBER_ROLES, createdAt: { $gte: weekAgo } }),
+    User.countDocuments({
+      ...MEMBER_ROLES,
+      createdAt: { $gte: twoWeeksAgo, $lt: weekAgo },
+    }),
+    User.countDocuments({ ...MEMBER_ROLES, createdAt: { $lt: weekAgo } }),
+    Report.countDocuments({ status: { $in: ['pending', 'reviewing'] } }),
+    countPendingFemaleMedia(),
+    Transaction.countDocuments({ type: 'payout', status: 'pending' }),
+    Transaction.find()
+      .sort({ createdAt: -1 })
+      .limit(4)
+      .populate('userId', 'name')
+      .lean(),
+    Report.find()
+      .sort({ _id: -1 })
+      .limit(3)
+      .populate('reporterId', 'name')
+      .populate('reportedId', 'name')
+      .lean(),
+    Activity.find()
+      .sort({ createdAt: -1 })
+      .limit(3)
+      .populate('actorId', 'name')
+      .populate('recipientId', 'name')
+      .lean(),
+  ]);
+
+  const coinPurchases = purchaseAgg[0]?.total ?? 0;
+
+  const activityFromTx = recentTransactions.map((t) => {
+    const name =
+      t.userId && typeof t.userId === 'object' && t.userId.name ? String(t.userId.name) : 'Member';
+    const actionMap = {
+      purchase: 'purchased',
+      unlock: 'unlocked',
+      tip: 'tipped',
+      videoCall: 'video call',
+      payout: 'requested payout',
+      gift: 'sent gift',
+    };
+    return {
+      user: name,
+      action: actionMap[t.type] ?? t.type,
+      target: t.description || `${t.amount} ${t.currency || 'coins'}`,
+      at: t.createdAt?.toISOString?.() || t.timestamp || '',
+    };
+  });
+
+  const activityFromReports = recentReports.map((r) => {
+    const reporter =
+      r.reporterId && typeof r.reporterId === 'object' && r.reporterId.name
+        ? String(r.reporterId.name)
+        : 'Member';
+    const reported =
+      r.reportedId && typeof r.reportedId === 'object' && r.reportedId.name
+        ? String(r.reportedId.name)
+        : 'a member';
+    return {
+      user: reporter,
+      action: 'reported',
+      target: reported,
+      at: r.createdAt?.toISOString?.() || r.createdAt || '',
+    };
+  });
+
+  const activityFromFeed = recentActivities.map((a) => {
+    const actor =
+      a.actorId && typeof a.actorId === 'object' && a.actorId.name
+        ? String(a.actorId.name)
+        : 'Member';
+    const target =
+      a.recipientId && typeof a.recipientId === 'object' && a.recipientId.name
+        ? String(a.recipientId.name)
+        : 'member';
+    const actionMap = {
+      like: 'liked',
+      view: 'viewed',
+      gift: 'gifted',
+      message: 'messaged',
+    };
+    return {
+      user: actor,
+      action: actionMap[a.type] ?? a.type,
+      target: a.details?.trim() || target,
+      at: a.createdAt?.toISOString?.() || '',
+    };
+  });
+
+  const recentActivity = [...activityFromTx, ...activityFromReports, ...activityFromFeed]
+    .sort((a, b) => String(b.at).localeCompare(String(a.at)))
+    .slice(0, 8);
+
+  res.json({
+    stats: {
+      totalUsers: { value: totalUsers, change: pctChangeLabel(totalUsers, usersLastWeekTotal) },
+      activeToday: { value: activeToday, change: null },
+      messagesSent: {
+        value: messagesAllTime,
+        change: pctChangeLabel(messagesThisWeek, messagesLastWeek),
+      },
+      videoCalls: {
+        value: videoCalls,
+        change: pctChangeLabel(videoCallsThisWeek, videoCallsLastWeek),
+      },
+      revenue: {
+        value: coinPurchases,
+        label: 'Coins purchased',
+        change: pctChangeLabel(purchasesThisWeek, purchasesLastWeek),
+      },
+      newSignups: {
+        value: newSignupsThisWeek,
+        change: pctChangeLabel(newSignupsThisWeek, newSignupsLastWeek),
+      },
+    },
+    quickActions: {
+      pendingPayouts,
+      pendingReports,
+      pendingContent,
+    },
+    recentActivity,
+  });
+}
 
 export async function listUsers(req, res) {
   const {

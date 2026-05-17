@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { MapPin, Heart, MessageCircle, Video, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -8,11 +8,17 @@ import VideoCallModal from '@/components/modals/VideoCallModal';
 import HoverPhotoGallery from '@/components/HoverPhotoGallery';
 import { formatProfileLocation } from '@/lib/formatProfileLocation';
 import { fetchDiscoverUsers, sendLike, userGalleryPhotos } from '@/lib/social';
+import AppliedSearchFiltersBar from '@/components/AppliedSearchFiltersBar';
+import { useSearchFilters } from '@/contexts/SearchFiltersContext';
 import { createOrGetChat } from '@/lib/chats';
+import { profileReturnState } from '@/lib/profileNavigation';
 import type { User } from '@/types';
 
 export default function WomanHome() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const profileNavState = profileReturnState(location.pathname + location.search);
+  const { filters, userIdSearch, version } = useSearchFilters();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [unlockModal, setUnlockModal] = useState<{ open: boolean; userId: string; type: 'photo' | 'video'; price: number }>({
@@ -27,7 +33,10 @@ export default function WomanHome() {
   const loadDiscover = useCallback(async () => {
     setLoading(true);
     try {
-      const list = await fetchDiscoverUsers();
+      const list = await fetchDiscoverUsers({
+        ...filters,
+        userId: userIdSearch || undefined,
+      });
       setUsers(list);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not load discover');
@@ -35,7 +44,7 @@ export default function WomanHome() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filters, userIdSearch, version]);
 
   useEffect(() => {
     void loadDiscover();
@@ -77,6 +86,8 @@ export default function WomanHome() {
           </Button>
         </Link>
       </div>
+
+      <AppliedSearchFiltersBar resultCount={users.length} loading={loading} />
 
       {loading ? (
         <div className="flex min-h-[40vh] items-center justify-center text-gray-500">Loading people…</div>
@@ -148,7 +159,7 @@ export default function WomanHome() {
 
               <div className="p-4">
                 <div className="mb-2 flex items-center justify-between">
-                  <Link to={`/woman/view-profile/${user.id}`}>
+                  <Link to={`/woman/view-profile/${user.id}`} state={profileNavState.state}>
                     <h3 className="font-semibold text-gray-900 transition-colors hover:text-green-600">
                       {user.name}, {user.age}
                     </h3>

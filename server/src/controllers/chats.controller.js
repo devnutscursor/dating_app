@@ -18,7 +18,26 @@ function otherParticipantId(chat, selfId) {
  * Debit sender, credit recipient, persist gift message + ledger rows.
  * Uses compensating updates (no multi-doc transaction) so it works on standalone MongoDB.
  */
-async function persistGiftMessage(req, res, chat, amt, giftLabel) {
+function normalizeGiftNote(raw) {
+  if (typeof raw !== 'string') return '';
+  return raw.trim().slice(0, 500);
+}
+
+function sortChatsForViewer(chats, selfId) {
+  const selfStr = selfId.toString();
+  return [...chats].sort((a, b) => {
+    const aObj = a.toObject ? a.toObject() : a;
+    const bObj = b.toObject ? b.toObject() : b;
+    const aPin = (aObj.pinnedBy || []).some((id) => (id?.toString?.() || String(id)) === selfStr);
+    const bPin = (bObj.pinnedBy || []).some((id) => (id?.toString?.() || String(id)) === selfStr);
+    if (aPin !== bPin) return aPin ? -1 : 1;
+    const aTime = aObj.updatedAt ? new Date(aObj.updatedAt).getTime() : 0;
+    const bTime = bObj.updatedAt ? new Date(bObj.updatedAt).getTime() : 0;
+    return bTime - aTime;
+  });
+}
+
+async function persistGiftMessage(req, res, chat, amt, giftLabel, giftNoteRaw) {
   if (chat.isBlocked) {
     return res.status(403).json({ error: 'This conversation has been blocked' });
   }
@@ -37,6 +56,7 @@ async function persistGiftMessage(req, res, chat, amt, giftLabel) {
   const senderName = req.user.name || 'Member';
   const recipientName = recipient.name || 'Member';
   const label = typeof giftLabel === 'string' && giftLabel.trim() ? giftLabel.trim() : 'Gift';
+  const giftNote = normalizeGiftNote(giftNoteRaw);
 
   const msg = {
     senderId: req.user._id,
@@ -45,6 +65,7 @@ async function persistGiftMessage(req, res, chat, amt, giftLabel) {
     isRead: false,
     timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
     giftAmount: amt,
+    ...(giftNote ? { giftNote } : {}),
   };
 
   let debitDone = false;
@@ -74,6 +95,7 @@ async function persistGiftMessage(req, res, chat, amt, giftLabel) {
       timestamp: msg.timestamp,
       isRead: false,
       giftAmount: msg.giftAmount,
+      giftNote: msg.giftNote,
     };
     await chat.save();
     chatSaved = true;
@@ -111,7 +133,7 @@ async function persistGiftMessage(req, res, chat, amt, giftLabel) {
       actorId: req.user._id,
       type: 'gift',
       giftAmount: amt,
-      details: '',
+      details: giftNote,
     });
 
     const populated = await Chat.findById(chat._id).populate('participants', '-password');
@@ -139,11 +161,10 @@ export async function listChats(req, res) {
     participants: selfId,
     isBlocked: { $ne: true },
     $or: [{ 'messages.0': { $exists: true } }, { chatKind: 'moderator_support' }],
-  })
-    .populate('participants', '-password')
-    .sort({ updatedAt: -1 });
+  }).populate('participants', '-password');
+  const sorted = sortChatsForViewer(chats, selfId);
   res.json({
-    chats: chats.map((c) => serializeChatDoc(c, selfId)),
+    chats: sorted.map((c) => serializeChatDoc(c, selfId)),
   });
 }
 
@@ -215,8 +236,32 @@ export async function createOrGetChat(req, res) {
   res.status(201).json({ chat: serializeChatDoc(populated, req.user._id) });
 }
 
+export async function setChatPinned(req, res) {
+  const pinned = req.body?.pinned !== false;
+  const chat = await Chat.findOne({
+    _id: req.params.chatId,
+    participants: req.user._id,
+  });
+  if (!chat) {
+    return res.status(404).json({ error: 'Chat not found' });
+  }
+  const uid = req.user._id;
+  const ids = chat.pinnedBy || [];
+  const already = ids.some((id) => id.equals(uid));
+  if (pinned && !already) {
+    chat.pinnedBy = [...ids, uid];
+  } else if (!pinned && already) {
+    chat.pinnedBy = ids.filter((id) => !id.equals(uid));
+  }
+  await chat.save();
+  const populated = await Chat.findById(chat._id).populate('participants', '-password');
+  const io = req.app.get('io');
+  emitChatUpdatedToParticipants(io, populated);
+  return res.json({ chat: serializeChatDoc(populated, req.user._id) });
+}
+
 export async function sendMessage(req, res) {
-  const { content, type, mediaUrl, giftAmount } = req.body;
+  const { content, type, mediaUrl, giftAmount, giftComment } = req.body;
   const chat = await Chat.findOne({
     _id: req.params.chatId,
     participants: req.user._id,
@@ -248,7 +293,7 @@ export async function sendMessage(req, res) {
     if (!Number.isFinite(amt) || amt <= 0) {
       return res.status(400).json({ error: 'A valid giftAmount is required for gift messages' });
     }
-    return persistGiftMessage(req, res, chat, amt, content);
+    return persistGiftMessage(req, res, chat, amt, content, giftComment);
   }
 
   const msg = {

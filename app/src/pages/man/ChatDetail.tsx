@@ -1,15 +1,18 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import type { ChangeEvent } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Phone, Video, MoreVertical, Send, Image, Gift, Lock, Flag, Search, Clapperboard } from 'lucide-react';
+import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
+import { ArrowLeft, Phone, Video, MoreVertical, Send, Image, Gift, Lock, Flag, Search, Clapperboard, Pin } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import type { Chat, GiftOption } from '@/types';
+import type { Chat } from '@/types';
+import type { GiftSendPayload } from '@/lib/gifts';
 import { apiGet, apiUploadFile } from '@/lib/api';
-import { chatPreviewLine } from '@/lib/chatPreview';
-import { postChatMessage } from '@/lib/chats';
+import { chatPreviewLine, filterChatThreads } from '@/lib/chatPreview';
+import { postChatMessage, setChatPinned } from '@/lib/chats';
+import { profileReturnState } from '@/lib/profileNavigation';
 import { layoutChatsListColumnHeaderClass, layoutConversationToolbarClass } from '@/config/design';
-import { subscribeChatUpdate } from '@/lib/chatSocket';
+import { subscribeChatUpdate, subscribePresenceChanged } from '@/lib/chatSocket';
+import { patchChatWithPresence, patchThreadsWithPresence } from '@/lib/presence';
 import { useAuth } from '@/contexts/AuthContext';
 import { ChatMessageBubble } from '@/components/chat/ChatMessageBubble';
 import { EmojiPickerButton } from '@/components/chat/EmojiPickerButton';
@@ -22,6 +25,7 @@ import MediaPreviewModal from '@/components/modals/MediaPreviewModal';
 export default function ManChatDetail() {
   const { chatId } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { user: me, refreshUser } = useAuth();
   const [message, setMessage] = useState('');
   const [threads, setThreads] = useState<Chat[]>([]);
@@ -37,6 +41,7 @@ export default function ManChatDetail() {
   const [videoBusy, setVideoBusy] = useState(false);
   const [mediaPreview, setMediaPreview] = useState<{ kind: 'photo' | 'video'; url: string } | null>(null);
   const [accessError, setAccessError] = useState<string | null>(null);
+  const [chatListSearch, setChatListSearch] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
@@ -87,6 +92,14 @@ export default function ManChatDetail() {
   }, [chatId]);
 
   useEffect(() => {
+    const unsubPresence = subscribePresenceChanged((payload) => {
+      setThreads((prev) => patchThreadsWithPresence(prev, payload));
+      setChat((c) => (c ? patchChatWithPresence(c, payload) : c));
+    });
+    return unsubPresence;
+  }, []);
+
+  useEffect(() => {
     if (!chatId) return;
     const unsub = subscribeChatUpdate((payload) => {
       if (payload.chatId !== chatId) return;
@@ -116,6 +129,18 @@ export default function ManChatDetail() {
     return [chat, ...threads];
   }, [threads, chat, chatId]);
 
+  const filteredThreads = useMemo(
+    () => filterChatThreads(displayThreads, chatListSearch),
+    [displayThreads, chatListSearch]
+  );
+
+  const peerProfilePath =
+    user && !isModSupport && user.id ? `/man/view-profile/${user.id}` : null;
+  const profileNavState = useMemo(
+    () => profileReturnState(location.pathname + location.search),
+    [location.pathname, location.search]
+  );
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
@@ -139,13 +164,28 @@ export default function ManChatDetail() {
     }
   };
 
-  const handleGiftSend = async (gift: GiftOption) => {
+  const handleTogglePin = async () => {
+    if (!chatId || !chat) return;
+    const nextPinned = !chat.isPinned;
+    try {
+      const { chat: next } = await setChatPinned(chatId, nextPinned);
+      setChat(next);
+      await refreshThreads();
+      toast.success(nextPinned ? 'Chat pinned' : 'Chat unpinned');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not update pin');
+    }
+    setMenuOpen(false);
+  };
+
+  const handleGiftSend = async (gift: GiftSendPayload) => {
     if (!chatId) return;
     try {
       const { chat: next } = await postChatMessage(chatId, {
         type: 'gift',
         content: gift.name,
         giftAmount: gift.coins,
+        ...(gift.comment ? { giftComment: gift.comment } : {}),
       });
       applyChatResponse(next);
       await refreshUser();
@@ -232,7 +272,9 @@ export default function ManChatDetail() {
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
-              type="text"
+              type="search"
+              value={chatListSearch}
+              onChange={(e) => setChatListSearch(e.target.value)}
               placeholder="Search chats..."
               className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-10 pr-3 text-sm leading-tight outline-none focus:ring-2 focus:ring-green-500"
             />
@@ -240,7 +282,10 @@ export default function ManChatDetail() {
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
-          {displayThreads.map((thread) => {
+          {filteredThreads.length === 0 && chatListSearch.trim() ? (
+            <p className="px-4 py-8 text-center text-sm text-gray-500">No chats match your search</p>
+          ) : null}
+          {filteredThreads.map((thread) => {
             const isActive = thread.id === chatId;
             return (
               <Link
@@ -264,6 +309,9 @@ export default function ManChatDetail() {
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex min-w-0 items-center gap-1.5">
+                      {thread.isPinned && (
+                        <Pin className="h-3.5 w-3.5 shrink-0 fill-green-600 text-green-600" aria-hidden />
+                      )}
                       <h3 className="truncate font-semibold text-gray-900">{thread.participant.name}</h3>
                       {thread.chatKind === 'moderator_support' && (
                         <span className="shrink-0 rounded bg-amber-200 px-1 text-[10px] font-semibold uppercase text-amber-900">
@@ -294,18 +342,45 @@ export default function ManChatDetail() {
             <Link to="/man/chats" className="lg:hidden p-2 -ml-2 hover:bg-gray-100 rounded-full">
               <ArrowLeft className="w-5 h-5" />
             </Link>
-            <div className="relative">
-              <img
-                src={user.profilePicture}
-                alt={user.name}
-                className="w-10 h-10 rounded-full object-cover"
-              />
-              {user.isOnline && (
-                <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white" />
-              )}
-            </div>
+            {peerProfilePath ? (
+              <Link
+                to={peerProfilePath}
+                state={profileNavState.state}
+                className="relative shrink-0 rounded-full focus:outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <img
+                  src={user.profilePicture}
+                  alt={user.name}
+                  className="h-10 w-10 rounded-full object-cover transition-opacity hover:opacity-90"
+                />
+                {user.isOnline && (
+                  <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
+                )}
+              </Link>
+            ) : (
+              <div className="relative shrink-0">
+                <img
+                  src={user.profilePicture}
+                  alt={user.name}
+                  className="h-10 w-10 rounded-full object-cover"
+                />
+                {user.isOnline && (
+                  <div className="absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-white bg-green-500" />
+                )}
+              </div>
+            )}
             <div>
-              <h3 className="font-semibold text-gray-900">{user.name}</h3>
+              {peerProfilePath ? (
+                <Link
+                  to={peerProfilePath}
+                  state={profileNavState.state}
+                  className="font-semibold text-gray-900 hover:text-green-600"
+                >
+                  {user.name}
+                </Link>
+              ) : (
+                <h3 className="font-semibold text-gray-900">{user.name}</h3>
+              )}
               <p className="text-xs text-gray-500">
                 {user.isOnline ? 'Online' : `Last seen ${user.lastActive || 'recently'}`}
               </p>
@@ -336,6 +411,18 @@ export default function ManChatDetail() {
 
                   {menuOpen && (
                     <div className="absolute right-0 top-full z-10 mt-2 w-48 rounded-xl border border-gray-200 bg-white py-2 shadow-lg">
+                      {!isModSupport && (
+                        <button
+                          onClick={() => void handleTogglePin()}
+                          className="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-gray-50"
+                          type="button"
+                        >
+                          <Pin
+                            className={`h-4 w-4 ${chat.isPinned ? 'fill-green-600 text-green-600' : 'text-gray-500'}`}
+                          />
+                          <span className="text-sm">{chat.isPinned ? 'Unpin chat' : 'Pin chat'}</span>
+                        </button>
+                      )}
                       <button
                         onClick={() => {
                           setBlockModalOpen(true);

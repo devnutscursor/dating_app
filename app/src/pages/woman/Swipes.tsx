@@ -4,10 +4,13 @@ import { X, Heart, Star, MapPin, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import HoverPhotoGallery from '@/components/HoverPhotoGallery';
 import { formatProfileLocation } from '@/lib/formatProfileLocation';
+import AppliedSearchFiltersBar from '@/components/AppliedSearchFiltersBar';
+import { useSearchFilters } from '@/contexts/SearchFiltersContext';
 import { fetchDiscoverUsers, sendLike, userGalleryPhotos } from '@/lib/social';
 import type { User } from '@/types';
 
 export default function WomanSwipes() {
+  const { filters, userIdSearch, version } = useSearchFilters();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
@@ -16,7 +19,10 @@ export default function WomanSwipes() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const list = await fetchDiscoverUsers();
+      const list = await fetchDiscoverUsers({
+        ...filters,
+        userId: userIdSearch || undefined,
+      });
       setUsers(list);
       setCurrentIndex(0);
     } catch (e) {
@@ -25,7 +31,7 @@ export default function WomanSwipes() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filters, userIdSearch, version]);
 
   useEffect(() => {
     void load();
@@ -99,6 +105,8 @@ export default function WomanSwipes() {
         </Link>
         <h1 className="text-2xl font-bold text-gray-900">Discover</h1>
       </div>
+
+      <AppliedSearchFiltersBar resultCount={users.length} loading={loading} />
 
       <div className="flex flex-1 items-center justify-center p-4">
         <div

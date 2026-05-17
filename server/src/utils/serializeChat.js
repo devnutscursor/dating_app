@@ -41,7 +41,28 @@ export function serializeMessage(m) {
     isRead: o.isRead,
     mediaUrl: o.mediaUrl,
     giftAmount: o.giftAmount,
+    giftNote: o.giftNote,
   };
+}
+
+function isPinnedForViewer(chat, selfStr) {
+  return (chat.pinnedBy || []).some((id) => {
+    const s = id?.toString?.() || String(id);
+    return s === selfStr;
+  });
+}
+
+/** Total coins received from the other participant via gift messages in this thread. */
+export function sumCoinsReceivedFromPeer(messages, selfStr) {
+  if (!messages?.length) return 0;
+  return messages.reduce((sum, m) => {
+    const o = messagePlain(m);
+    if (o.type !== 'gift') return sum;
+    const sid = o.senderId?.toString?.() || String(o.senderId);
+    if (sid === selfStr) return sum;
+    const amt = Number(o.giftAmount);
+    return sum + (Number.isFinite(amt) && amt > 0 ? amt : 0);
+  }, 0);
 }
 
 /** Build one chat object for the authenticated viewer */
@@ -88,6 +109,8 @@ export function serializeChatDoc(chatDoc, selfId) {
     unreadCount: countUnreadForViewer(visible, selfStr),
     isBlocked: chat.isBlocked || false,
     isReported: chat.isReported || false,
+    isPinned: isPinnedForViewer(chat, selfStr),
+    coinsReceivedFromPeer: sumCoinsReceivedFromPeer(visible, selfStr),
   };
 
   if (lastMessageOut) {
