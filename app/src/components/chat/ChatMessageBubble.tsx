@@ -1,7 +1,8 @@
-import { AlertTriangle, Coins, Gift, Play } from 'lucide-react';
+import { AlertTriangle, Coins, Play } from 'lucide-react';
 import type { Message } from '@/types';
 import { cn } from '@/lib/utils';
-import { getGiftVisualTheme } from '@/lib/giftVisualThemes';
+import { getGiftVisualTheme, giftIconKindForLabel } from '@/lib/giftVisualThemes';
+import { GiftOptionIcon } from '@/components/gifts/GiftOptionIcon';
 
 type Props = {
   msg: Message;
@@ -16,7 +17,9 @@ type Props = {
 function GiftMessageCard({ msg, isMe }: { msg: Message; isMe: boolean }) {
   const name = msg.content?.trim() || 'Gift';
   const coins = msg.giftAmount;
+  const note = msg.giftNote?.trim();
   const t = getGiftVisualTheme(name, isMe);
+  const iconKind = giftIconKindForLabel(name);
 
   return (
     <div
@@ -39,7 +42,7 @@ function GiftMessageCard({ msg, isMe }: { msg: Message; isMe: boolean }) {
               t.icon
             )}
           >
-            <Gift className="h-5 w-5" strokeWidth={2} />
+            <GiftOptionIcon kind={iconKind} className="h-5 w-5" strokeWidth={2} />
           </div>
           <div className="min-w-0 flex-1">
             <p className={cn('text-[10px] font-bold uppercase tracking-wider', t.label)}>
@@ -57,6 +60,9 @@ function GiftMessageCard({ msg, isMe }: { msg: Message; isMe: boolean }) {
                 {coins} coins
               </div>
             )}
+            {note ? (
+              <p className={cn('mt-2 text-sm leading-snug opacity-90', t.label)}>&ldquo;{note}&rdquo;</p>
+            ) : null}
           </div>
         </div>
         <p className={cn('mt-3 text-xs tabular-nums', t.time)}>{msg.timestamp}</p>

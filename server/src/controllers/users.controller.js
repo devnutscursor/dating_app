@@ -25,13 +25,56 @@ const PUBLIC_USER_SELECT =
 export async function discover(req, res) {
   const self = req.user;
   const opposite = self.gender === 'male' ? 'female' : 'male';
-  const likedIds = await Like.find({ fromUser: self._id }).distinct('toUser');
-  const users = await User.find({
+  const {
+    userId,
+    datingGoal,
+    country,
+    minAge,
+    maxAge,
+    isOnline,
+  } = req.query;
+
+  const baseFilter = {
     gender: opposite,
     role: opposite,
-    _id: { $ne: self._id, $nin: likedIds },
     isBlocked: { $ne: true },
     profileSetupComplete: true,
+  };
+
+  if (userId && mongoose.Types.ObjectId.isValid(String(userId))) {
+    const target = await User.findOne({ ...baseFilter, _id: userId }).select(PUBLIC_USER_SELECT).lean();
+    return res.json({
+      users: target
+        ? [
+            applyPublicMediaFilter(serializeUser({ ...target, _id: target._id }), {
+              isViewerOwnerOfProfile: false,
+            }),
+          ]
+        : [],
+    });
+  }
+
+  if (datingGoal && String(datingGoal).trim()) {
+    baseFilter.datingGoal = String(datingGoal).trim();
+  }
+  if (country && String(country).trim()) {
+    baseFilter.country = String(country).trim();
+  }
+  const min = minAge != null && minAge !== '' ? Number(minAge) : null;
+  const max = maxAge != null && maxAge !== '' ? Number(maxAge) : null;
+  if (Number.isFinite(min) || Number.isFinite(max)) {
+    baseFilter.age = {};
+    if (Number.isFinite(min)) baseFilter.age.$gte = Math.max(18, min);
+    if (Number.isFinite(max)) baseFilter.age.$lte = Math.min(120, max);
+  }
+  if (String(isOnline) === 'true') {
+    baseFilter.isOnline = true;
+  }
+
+  const likedIds = await Like.find({ fromUser: self._id }).distinct('toUser');
+  const users = await User.find({
+    ...baseFilter,
+    _id: { $ne: self._id, $nin: likedIds },
   })
     .select(PUBLIC_USER_SELECT)
     .limit(60)

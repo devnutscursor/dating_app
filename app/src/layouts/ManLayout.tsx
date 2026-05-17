@@ -5,6 +5,7 @@ import Sidebar from '@/components/Sidebar';
 import Header from '@/components/Header';
 import ActivityPanel from '@/components/ActivityPanel';
 import SupportChat from '@/components/SupportChat';
+import { SearchFiltersProvider } from '@/contexts/SearchFiltersContext';
 
 export default function ManLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -13,6 +14,7 @@ export default function ManLayout() {
   const isChatDetailRoute = /\/man\/chats\/[^/]+/.test(location.pathname);
 
   return (
+    <SearchFiltersProvider>
     <div className="flex h-[100dvh] min-h-0 overflow-hidden bg-gray-50">
       {/* Sidebar - Desktop */}
       <div className="hidden min-h-0 shrink-0 lg:block lg:h-full">
@@ -70,5 +72,6 @@ export default function ManLayout() {
       {/* Support Chat */}
       <SupportChat />
     </div>
+    </SearchFiltersProvider>
   );
 }

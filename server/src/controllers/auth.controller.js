@@ -5,6 +5,7 @@ import { User } from '../models/User.model.js';
 import { signAccessToken } from '../utils/jwt.js';
 import { serializeUser } from '../utils/serializeUser.js';
 import { sendVerificationEmail } from '../utils/mailer.js';
+import { forceUserOffline } from '../services/presence.js';
 
 const SALT_ROUNDS = 12;
 const OTP_ROUNDS = 10;
@@ -170,5 +171,10 @@ export async function me(req, res) {
 }
 
 export async function logout(req, res) {
-  res.json({ message: 'Logged out. Clear the token on the client.' });
+  await forceUserOffline(req.user._id);
+  const user = await User.findById(req.user._id);
+  res.json({
+    message: 'Logged out. Clear the token on the client.',
+    user: user ? serializeUser(user) : undefined,
+  });
 }

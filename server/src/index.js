@@ -2,6 +2,7 @@ import 'dotenv/config';
 import http from 'node:http';
 import { createApp } from './app.js';
 import { connectDb } from './config/db.js';
+import { User } from './models/User.model.js';
 import { initSocketIO } from './realtime/socket.js';
 
 /** Default 5001: macOS often binds 5000 to AirPlay (Control Center). Override with PORT=. */
@@ -15,6 +16,11 @@ async function main() {
   }
   await connectDb(MONGODB_URI);
   console.log('MongoDB connected:', MONGODB_URI);
+
+  const cleared = await User.updateMany({ isOnline: true }, { $set: { isOnline: false } });
+  if (cleared.modifiedCount > 0) {
+    console.log(`Cleared ${cleared.modifiedCount} stale online flag(s) from previous session`);
+  }
 
   const app = createApp();
   const server = http.createServer(app);

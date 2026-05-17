@@ -54,6 +54,12 @@ export async function fetchPendingFemaleContent(): Promise<PendingFemaleMediaIte
   return data.items ?? [];
 }
 
+export {
+  fetchModeratorStats,
+  fetchModeratorVerifications,
+  type ModeratorStats,
+} from '@/lib/verification';
+
 export async function reviewFemaleMedia(body: {
   userId: string;
   mediaKind: 'photo' | 'video';

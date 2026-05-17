@@ -1,4 +1,4 @@
-import type { User, Chat, Notification, Transaction, Report, ContentModerationItem, CoinPack, GiftOption } from '@/types';
+import type { User, Chat, Notification, Transaction, Report, ContentModerationItem, CoinPack } from '@/types';
 
 export const mockUsers: User[] = [
   {
@@ -219,11 +219,7 @@ export const coinPacks: CoinPack[] = [
   { id: 'cp3', name: 'Elite Pack', coins: 1000, price: 139.99, originalPrice: 149.99, features: ['Profile Priority', 'Messages Priority'] },
 ];
 
-export const giftOptions: GiftOption[] = [
-  { id: 'g1', name: 'Compliment', coins: 50, icon: 'Gift' },
-  { id: 'g2', name: 'Small gift', coins: 100, icon: 'Gift' },
-  { id: 'g3', name: 'Full Access', coins: 250, icon: 'Gift', isSpecial: true },
-];
+export { GIFT_OPTIONS as giftOptions } from '@/lib/gifts';
 
 export const currentUser: User = mockUsers[5]; // Kevin for man view
 export const currentWomanUser: User = mockUsers[0]; // Ariana for woman view

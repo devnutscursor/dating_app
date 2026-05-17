@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, MapPin, Edit, Image, Video, Lock, Settings, ChevronRight, TrendingUp } from 'lucide-react';
+import { Camera, MapPin, Edit, Image, Video, Lock, Settings, ChevronRight, TrendingUp, BadgeCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -111,7 +111,15 @@ export default function WomanProfile() {
 
           <div className="flex items-start justify-between gap-3">
             <div className="min-w-0 flex-1">
-              <h2 className="text-2xl font-bold text-gray-900">{currentWomanUser.name}, {currentWomanUser.age}</h2>
+              <h2 className="flex flex-wrap items-center gap-2 text-2xl font-bold text-gray-900">
+                {currentWomanUser.name}, {currentWomanUser.age}
+                {currentWomanUser.isVerified && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-blue-100 px-2.5 py-0.5 text-xs font-semibold text-blue-700">
+                    <BadgeCheck className="h-3.5 w-3.5" />
+                    Verified
+                  </span>
+                )}
+              </h2>
               <div className="mt-1 flex items-start gap-1 text-gray-500">
                 <MapPin className="mt-0.5 h-4 w-4 shrink-0" />
                 <span className="text-sm leading-snug">
@@ -126,6 +134,24 @@ export default function WomanProfile() {
               <span className="text-sm text-gray-600">Online</span>
             </div>
           </div>
+
+          {!currentWomanUser.isVerified && (
+            <Link
+              to="/woman/profile/verify"
+              className="mt-5 flex items-center justify-between gap-3 rounded-xl border border-blue-200 bg-blue-50/80 px-4 py-3 transition-colors hover:bg-blue-50"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg bg-blue-600">
+                  <BadgeCheck className="h-5 w-5 text-white" />
+                </div>
+                <div>
+                  <p className="font-semibold text-blue-950">Get verified</p>
+                  <p className="text-sm text-blue-900/75">Record a short video saying on-screen numbers</p>
+                </div>
+              </div>
+              <ChevronRight className="h-5 w-5 shrink-0 text-blue-600" />
+            </Link>
+          )}
 
           {/* Stats */}
           <div className="flex gap-6 mt-6 pt-6 border-t border-gray-100">

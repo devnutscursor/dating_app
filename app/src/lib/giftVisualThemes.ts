@@ -1,4 +1,6 @@
-/** Visual theme for chat gift cards — keyed by gift label (see `giftOptions` names). */
+import type { GiftIconKind } from '@/types';
+
+/** Visual theme for chat gift cards — keyed by gift label (see `GIFT_OPTIONS` names). */
 
 export type GiftVisualTokens = {
   card: string;
@@ -162,7 +164,17 @@ const BY_NAME: Record<string, Pair> = {
   compliment: COMPLIMENT,
   'small gift': SMALL_GIFT,
   'full access': FULL_ACCESS,
+  'custom gift': FALLBACK[0],
 };
+
+export function giftIconKindForLabel(giftName: string | undefined): GiftIconKind {
+  const key = giftName?.trim().toLowerCase() || '';
+  if (key === 'compliment') return 'compliment';
+  if (key === 'small gift') return 'small_gift';
+  if (key === 'full access') return 'full_access';
+  if (key === 'custom gift') return 'custom';
+  return 'small_gift';
+}
 
 export function getGiftVisualTheme(giftName: string | undefined, isMe: boolean): GiftVisualTokens {
   const key = giftName?.trim().toLowerCase() || '';

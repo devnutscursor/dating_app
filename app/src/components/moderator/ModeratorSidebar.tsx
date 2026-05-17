@@ -6,7 +6,7 @@ import {
 import BrandLogo from '@/components/BrandLogo';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiGet } from '@/lib/api';
-import { fetchPendingFemaleContent } from '@/lib/moderator';
+import { fetchModeratorVerifications, fetchPendingFemaleContent } from '@/lib/moderator';
 import type { Report } from '@/types';
 
 interface ModeratorSidebarProps {
@@ -26,6 +26,7 @@ export default function ModeratorSidebar({ onClose }: ModeratorSidebarProps) {
   const location = useLocation();
   const [pendingReportCount, setPendingReportCount] = useState<number | null>(null);
   const [pendingContentCount, setPendingContentCount] = useState<number | null>(null);
+  const [pendingVerificationCount, setPendingVerificationCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (!location.pathname.startsWith('/moderator')) return;
@@ -38,6 +39,9 @@ export default function ModeratorSidebar({ onClose }: ModeratorSidebarProps) {
     void fetchPendingFemaleContent()
       .then((items) => setPendingContentCount(items.length))
       .catch(() => setPendingContentCount(null));
+    void fetchModeratorVerifications()
+      .then((items) => setPendingVerificationCount(items.length))
+      .catch(() => setPendingVerificationCount(null));
   }, [location.pathname]);
 
   const isActive = (href: string) => {
@@ -45,9 +49,9 @@ export default function ModeratorSidebar({ onClose }: ModeratorSidebarProps) {
   };
 
   return (
-    <div className="h-full w-72 max-w-[85vw] bg-blue-900 text-white flex flex-col">
+    <div className="flex h-full min-h-0 w-72 max-w-[85vw] flex-col bg-blue-900 text-white">
       {/* Logo */}
-      <div className="relative border-b border-blue-800 p-4">
+      <div className="relative shrink-0 border-b border-blue-800 p-4">
         <Link to="/moderator" className="flex min-w-0 flex-col gap-3">
           <BrandLogo size="sm" tone="light" className="shrink-0" />
           <span className="min-w-0 text-lg font-semibold text-white">Moderator Panel</span>
@@ -59,8 +63,8 @@ export default function ModeratorSidebar({ onClose }: ModeratorSidebarProps) {
         )}
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1 overflow-auto">
+      {/* Navigation — scrolls; logout stays pinned below */}
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-4">
         {moderatorNavItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
@@ -88,13 +92,20 @@ export default function ModeratorSidebar({ onClose }: ModeratorSidebarProps) {
                   {pendingReportCount > 99 ? '99+' : pendingReportCount}
                 </span>
               )}
+              {item.id === 'verifications' &&
+                pendingVerificationCount != null &&
+                pendingVerificationCount > 0 && (
+                  <span className="ml-auto rounded-full bg-blue-500 px-2 py-0.5 text-xs text-white">
+                    {pendingVerificationCount > 99 ? '99+' : pendingVerificationCount}
+                  </span>
+                )}
             </Link>
           );
         })}
       </nav>
 
-      {/* Logout */}
-      <div className="p-4 border-t border-blue-800">
+      {/* Logout — pinned to bottom of sidebar */}
+      <div className="shrink-0 border-t border-blue-800 bg-blue-900 p-4">
         <button
           type="button"
           onClick={() => {

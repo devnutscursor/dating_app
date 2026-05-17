@@ -63,6 +63,10 @@ export interface Chat {
   lastMessage?: Message;
   isBlocked: boolean;
   isReported: boolean;
+  /** Pinned by the current viewer — stays at top of the chat list */
+  isPinned?: boolean;
+  /** Total coins received from the other participant via gifts in this thread */
+  coinsReceivedFromPeer?: number;
 }
 
 export interface Message {
@@ -74,6 +78,8 @@ export interface Message {
   isRead: boolean;
   mediaUrl?: string;
   giftAmount?: number;
+  /** Optional personal note from the gift sender */
+  giftNote?: string;
   /** Reporter-only moderation confirmation bubble (never shown to the peer). */
   isPrivateNotice?: boolean;
 }
@@ -195,11 +201,13 @@ export interface SearchFilters {
   isOnline?: boolean;
 }
 
+export type GiftIconKind = 'compliment' | 'small_gift' | 'full_access' | 'custom';
+
 export interface GiftOption {
   id: string;
   name: string;
   coins: number;
-  icon: string;
+  icon: GiftIconKind;
   isSpecial?: boolean;
 }
 

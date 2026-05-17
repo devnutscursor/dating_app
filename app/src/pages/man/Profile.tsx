@@ -1,6 +1,6 @@
 import { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Camera, MapPin, Edit, Image, Video, Lock, Settings, ChevronRight } from 'lucide-react';
+import { Camera, MapPin, Edit, Image, Video, Lock, Settings, ChevronRight, BadgeCheck } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -261,6 +261,26 @@ export default function ManProfile() {
           </div>
         </div>
       </div>
+
+      {!currentUser.isVerified && (
+        <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+          <Link
+            to="/man/profile/verify"
+            className="flex items-center justify-between p-4 transition-colors hover:bg-gray-50"
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+                <BadgeCheck className="h-5 w-5 text-blue-600" />
+              </div>
+              <div>
+                <span className="font-medium text-gray-900">Get verified</span>
+                <p className="text-sm text-gray-500">Record a short video saying on-screen numbers</p>
+              </div>
+            </div>
+            <ChevronRight className="h-5 w-5 text-gray-400" />
+          </Link>
+        </div>
+      )}
 
       {/* Settings */}
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">

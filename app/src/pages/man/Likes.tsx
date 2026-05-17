@@ -1,15 +1,18 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { Heart, Users, ArrowRight } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { formatProfileLocation } from '@/lib/formatProfileLocation';
 import { fetchLikes } from '@/lib/social';
 import type { User } from '@/types';
+import { profileReturnState } from '@/lib/profileNavigation';
 
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400';
 
 export default function ManLikes() {
+  const location = useLocation();
+  const profileNavState = profileReturnState(location.pathname + location.search);
   const [activeTab, setActiveTab] = useState<'received' | 'sent'>('received');
   const [users, setUsers] = useState<User[]>([]);
   const [receivedCount, setReceivedCount] = useState(0);
@@ -105,7 +108,7 @@ export default function ManLikes() {
                 <p className="mb-3 text-sm text-gray-500">
                   {formatProfileLocation(user.city, user.country) || 'Location not set'}
                 </p>
-                <Link to={`/man/view-profile/${user.id}`}>
+                <Link to={`/man/view-profile/${user.id}`} state={profileNavState.state}>
                   <Button variant="outline" className="w-full gap-2">
                     View profile
                     <ArrowRight className="h-4 w-4" />

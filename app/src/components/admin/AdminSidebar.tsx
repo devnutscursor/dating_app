@@ -30,9 +30,9 @@ export default function AdminSidebar({ onClose }: AdminSidebarProps) {
   };
 
   return (
-    <div className="h-full w-72 max-w-[85vw] bg-gray-900 text-white flex flex-col">
+    <div className="flex h-full min-h-0 w-72 max-w-[85vw] flex-col bg-gray-900 text-white">
       {/* Logo */}
-      <div className="relative border-b border-gray-800 p-4">
+      <div className="relative shrink-0 border-b border-gray-800 p-4">
         <Link to="/admin" className="flex min-w-0 flex-col gap-3">
           <BrandLogo size="sm" tone="light" className="shrink-0" />
           <span className="min-w-0 text-lg font-semibold text-white">Admin Panel</span>
@@ -44,8 +44,8 @@ export default function AdminSidebar({ onClose }: AdminSidebarProps) {
         )}
       </div>
 
-      {/* Navigation */}
-      <nav className="flex-1 p-4 space-y-1 overflow-auto">
+      {/* Navigation — scrolls; logout stays pinned below */}
+      <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-4">
         {adminNavItems.map((item) => {
           const Icon = item.icon;
           const active = isActive(item.href);
@@ -68,8 +68,8 @@ export default function AdminSidebar({ onClose }: AdminSidebarProps) {
         })}
       </nav>
 
-      {/* Logout */}
-      <div className="p-4 border-t border-gray-800">
+      {/* Logout — pinned to bottom of sidebar */}
+      <div className="shrink-0 border-t border-gray-800 bg-gray-900 p-4">
         <button
           type="button"
           onClick={() => {

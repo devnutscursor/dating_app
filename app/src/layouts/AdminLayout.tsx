@@ -9,7 +9,7 @@ export default function AdminLayout() {
   return (
     <div className="min-h-screen bg-gray-50 flex">
       {/* Sidebar - Desktop */}
-      <div className="hidden lg:block">
+      <div className="hidden h-screen shrink-0 sticky top-0 lg:block">
         <AdminSidebar />
       </div>
 

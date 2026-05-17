@@ -1,6 +1,12 @@
 import { Server } from 'socket.io';
 import { verifyAccessToken } from '../utils/jwt.js';
 import { User } from '../models/User.model.js';
+import {
+  initPresence,
+  onSocketConnect,
+  onSocketDisconnect,
+  touchPresence,
+} from '../services/presence.js';
 
 /**
  * @param {import('http').Server} httpServer
@@ -15,6 +21,8 @@ export function initSocketIO(httpServer) {
     },
   });
 
+  initPresence(io);
+
   io.use(async (socket, next) => {
     try {
       const token = socket.handshake.auth?.token;
@@ -24,6 +32,7 @@ export function initSocketIO(httpServer) {
       const payload = verifyAccessToken(token);
       const user = await User.findById(payload.sub);
       if (!user) return next(new Error('User not found'));
+      if (user.isBlocked) return next(new Error('Account suspended'));
       socket.data.userId = user._id.toString();
       return next();
     } catch {
@@ -35,10 +44,19 @@ export function initSocketIO(httpServer) {
     const uid = socket.data.userId;
     socket.join(`user:${uid}`);
 
+    void onSocketConnect(uid, socket.id);
+
+    socket.on('presence:ping', () => {
+      void touchPresence(uid);
+    });
+
+    socket.on('disconnect', () => {
+      void onSocketDisconnect(uid, socket.id);
+    });
+
     // ── Audio / Video call signaling ──────────────────────────────────────────
     // All events are pure relay: the server never inspects media.
 
-    // Caller → callee: announce an incoming call
     socket.on('call:initiate', ({ targetUserId, chatId, callType }) => {
       if (!targetUserId || !chatId) return;
       io.to(`user:${targetUserId}`).emit('call:incoming', {
@@ -48,25 +66,21 @@ export function initSocketIO(httpServer) {
       });
     });
 
-    // Callee → caller: call was accepted
     socket.on('call:accepted', ({ targetUserId, chatId }) => {
       if (!targetUserId || !chatId) return;
       io.to(`user:${targetUserId}`).emit('call:accepted', { from: uid, chatId });
     });
 
-    // Callee → caller: call was rejected / declined
     socket.on('call:rejected', ({ targetUserId, chatId }) => {
       if (!targetUserId || !chatId) return;
       io.to(`user:${targetUserId}`).emit('call:rejected', { from: uid, chatId });
     });
 
-    // Either peer → other peer: WebRTC signal data (offer / answer / ICE candidate)
     socket.on('call:signal', ({ targetUserId, chatId, signal }) => {
       if (!targetUserId || !chatId || !signal) return;
       io.to(`user:${targetUserId}`).emit('call:signal', { from: uid, chatId, signal });
     });
 
-    // Either peer → other peer: call has ended / hung up
     socket.on('call:ended', ({ targetUserId, chatId }) => {
       if (!targetUserId || !chatId) return;
       io.to(`user:${targetUserId}`).emit('call:ended', { from: uid, chatId });

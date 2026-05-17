@@ -1,4 +1,4 @@
-import type { User } from '@/types';
+import type { SearchFilters, User } from '@/types';
 import { apiGet, apiPost } from '@/lib/api';
 import { publicGalleryPhotoUrls } from '@/lib/profileMedia';
 
@@ -10,8 +10,18 @@ export function userGalleryPhotos(user: User, fallback = PHOTO_FALLBACK): string
   return urls.length ? urls : [fallback];
 }
 
-export async function fetchDiscoverUsers(): Promise<User[]> {
-  const data = await apiGet<{ users: User[] }>('/users/discover');
+export async function fetchDiscoverUsers(
+  filters?: SearchFilters & { userId?: string }
+): Promise<User[]> {
+  const params = new URLSearchParams();
+  if (filters?.userId?.trim()) params.set('userId', filters.userId.trim());
+  if (filters?.datingGoal) params.set('datingGoal', filters.datingGoal);
+  if (filters?.country) params.set('country', filters.country);
+  if (filters?.minAge != null) params.set('minAge', String(filters.minAge));
+  if (filters?.maxAge != null) params.set('maxAge', String(filters.maxAge));
+  if (filters?.isOnline) params.set('isOnline', 'true');
+  const qs = params.toString();
+  const data = await apiGet<{ users: User[] }>(`/users/discover${qs ? `?${qs}` : ''}`);
   return data.users ?? [];
 }
 

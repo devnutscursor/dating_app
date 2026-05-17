@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, MapPin, Heart, MessageCircle, Video, Lock, Image as ImageIcon, ChevronLeft, ChevronRight, Coins } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import ProfileBackLink from '@/components/profile/ProfileBackLink';
+import { MapPin, Heart, MessageCircle, Video, Lock, Image as ImageIcon, ChevronLeft, ChevronRight, Coins } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import UnlockContentModal from '@/components/modals/UnlockContentModal';
@@ -89,9 +90,7 @@ export default function ManViewProfile() {
     return (
       <div className="flex h-full min-h-[40vh] flex-col items-center justify-center gap-3 text-center">
         <p className="text-gray-600">{loadError || 'User not found'}</p>
-        <Link to="/man/home" className="text-green-600 hover:underline">
-          Back to Discover
-        </Link>
+        <ProfileBackLink area="man" className="text-green-600 hover:underline" />
       </div>
     );
   }
@@ -129,10 +128,7 @@ export default function ManViewProfile() {
   return (
     <div className="space-y-6">
       {/* Back Button */}
-      <Link to="/man/home" className="inline-flex items-center gap-2 text-gray-600 hover:text-gray-900">
-        <ArrowLeft className="w-5 h-5" />
-        Back to Discover
-      </Link>
+      <ProfileBackLink area="man" />
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Photo Gallery */}

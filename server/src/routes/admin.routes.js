@@ -10,6 +10,9 @@ import * as mem from '../controllers/moderationMembers.controller.js';
 const router = Router();
 
 router.use(asyncHandler(authenticate), authorize('admin'));
+router.get('/dashboard-stats', asyncHandler(admin.dashboardStats));
+router.get('/content', asyncHandler(mod.listContent));
+router.post('/content/review', asyncHandler(mod.reviewFemaleMedia));
 router.get('/users', asyncHandler(admin.listUsers));
 router.post('/users', asyncHandler(admin.createUser));
 router.patch('/users/:id', asyncHandler(admin.patchUser));

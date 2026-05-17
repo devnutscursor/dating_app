@@ -12,5 +12,6 @@ router.get('/:chatId', asyncHandler(chats.getChat));
 router.post('/:chatId/block', asyncHandler(chats.blockChat));
 router.post('/:chatId/report', asyncHandler(chats.reportUserInChat));
 router.post('/:chatId/messages', asyncHandler(chats.sendMessage));
+router.post('/:chatId/pin', asyncHandler(chats.setChatPinned));
 
 export default router;

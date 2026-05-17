@@ -14,6 +14,8 @@ const messageSchema = new mongoose.Schema(
     isRead: { type: Boolean, default: false },
     mediaUrl: String,
     giftAmount: Number,
+    /** Optional note from the sender (gift messages only) */
+    giftNote: { type: String, maxlength: 500 },
     timestamp: { type: String, default: () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
   },
   { timestamps: { createdAt: true, updatedAt: false } }
@@ -34,6 +36,8 @@ const chatSchema = new mongoose.Schema(
     lastMessage: { type: mongoose.Schema.Types.Mixed, default: null },
     isBlocked: { type: Boolean, default: false },
     isReported: { type: Boolean, default: false },
+    /** User ids who pinned this thread (per-user, Telegram-style) */
+    pinnedBy: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User' }],
   },
   { timestamps: true }
 );
