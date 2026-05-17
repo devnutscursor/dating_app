@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Trash2, Image as ImageIcon, Video as VideoIcon } from 'lucide-react';
 import { toast } from 'sonner';
@@ -12,25 +12,56 @@ import type { Photo, User, Video } from '@/types';
 
 function photosForApi(photos: Photo[]) {
   return photos.map((p) => ({
+    ...(p.id ? { id: p.id } : {}),
     url: p.url,
     ...(p.thumbnail ? { thumbnail: p.thumbnail } : {}),
     isPublic: p.isPublic !== false,
     isUnlocked: Boolean(p.isUnlocked),
-    status: p.status,
     ...(p.unlockPrice != null && Number.isFinite(p.unlockPrice) ? { unlockPrice: p.unlockPrice } : {}),
   }));
 }
 
 function videosForApi(videos: Video[]) {
   return videos.map((v) => ({
+    ...(v.id ? { id: v.id } : {}),
     url: v.url,
     thumbnail: v.thumbnail,
     isPublic: v.isPublic !== false,
     isUnlocked: Boolean(v.isUnlocked),
-    status: v.status,
     ...(v.duration != null && Number.isFinite(v.duration) ? { duration: v.duration } : {}),
     ...(v.unlockPrice != null && Number.isFinite(v.unlockPrice) ? { unlockPrice: v.unlockPrice } : {}),
   }));
+}
+
+function buildSnapshot(
+  aboutMe: string,
+  lookingFor: string,
+  city: string,
+  country: string,
+  interests: string[],
+  photos: Photo[],
+  videos: Video[]
+): string {
+  return JSON.stringify({
+    aboutMe: aboutMe.trim(),
+    lookingFor: lookingFor.trim(),
+    city: city.trim(),
+    country: country.trim(),
+    interests: [...interests].sort(),
+    photos: photos.map((p) => ({
+      id: p.id,
+      url: p.url,
+      isPublic: p.isPublic !== false,
+      unlockPrice: p.unlockPrice,
+    })),
+    videos: videos.map((v) => ({
+      id: v.id,
+      url: v.url,
+      thumbnail: v.thumbnail,
+      isPublic: v.isPublic !== false,
+      unlockPrice: v.unlockPrice,
+    })),
+  });
 }
 
 export default function ProfileEditPage() {
@@ -41,31 +72,71 @@ export default function ProfileEditPage() {
   const [city, setCity] = useState('');
   const [country, setCountry] = useState('');
   const [interests, setInterests] = useState<string[]>([]);
+  const [draftPhotos, setDraftPhotos] = useState<Photo[]>([]);
+  const [draftVideos, setDraftVideos] = useState<Video[]>([]);
   const [saving, setSaving] = useState(false);
   const [avatarBusy, setAvatarBusy] = useState(false);
-  const [addMedia, setAddMedia] = useState<{ open: boolean; type: 'photo' | 'video' }>({ open: false, type: 'photo' });
+  const [addMedia, setAddMedia] = useState<{ open: boolean; type: 'photo' | 'video' }>({
+    open: false,
+    type: 'photo',
+  });
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const baselineRef = useRef<string | null>(null);
+  const userIdRef = useRef<string | null>(null);
 
   const profileBase = user?.role === 'female' ? '/woman/profile' : '/man/profile';
   const isWoman = user?.role === 'female';
 
   useEffect(() => {
     if (!user) return;
-    setAboutMe(user.aboutMe ?? '');
-    setLookingFor(user.lookingFor ?? '');
-    setCity(user.city ?? '');
-    setCountry(user.country ?? '');
-    setInterests([...(user.interests ?? [])]);
+    if (userIdRef.current !== user.id) {
+      userIdRef.current = user.id;
+      setAboutMe(user.aboutMe ?? '');
+      setLookingFor(user.lookingFor ?? '');
+      setCity(user.city ?? '');
+      setCountry(user.country ?? '');
+      setInterests([...(user.interests ?? [])]);
+      setDraftPhotos([...(user.photos ?? [])]);
+      setDraftVideos([...(user.videos ?? [])]);
+      baselineRef.current = buildSnapshot(
+        user.aboutMe ?? '',
+        user.lookingFor ?? '',
+        user.city ?? '',
+        user.country ?? '',
+        user.interests ?? [],
+        user.photos ?? [],
+        user.videos ?? []
+      );
+      return;
+    }
+    setDraftPhotos((prev) => {
+      const urls = new Set(prev.map((p) => p.url));
+      const added = (user.photos ?? []).filter((p) => !urls.has(p.url));
+      return added.length ? [...prev, ...added] : prev;
+    });
+    setDraftVideos((prev) => {
+      const urls = new Set(prev.map((v) => v.url));
+      const added = (user.videos ?? []).filter((v) => !urls.has(v.url));
+      return added.length ? [...prev, ...added] : prev;
+    });
   }, [user]);
+
+  const isDirty = useMemo(() => {
+    if (!baselineRef.current) return false;
+    return (
+      buildSnapshot(aboutMe, lookingFor, city, country, interests, draftPhotos, draftVideos) !==
+      baselineRef.current
+    );
+  }, [aboutMe, lookingFor, city, country, interests, draftPhotos, draftVideos]);
 
   const toggleInterest = (tag: string) => {
     setInterests((prev) =>
-      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag],
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag]
     );
   };
 
-  const saveText = async () => {
-    if (!user) return;
+  const saveAll = async () => {
+    if (!user || !isDirty) return;
     if (!aboutMe.trim() || !lookingFor.trim()) {
       toast.error('About Me and Looking For are required');
       return;
@@ -82,8 +153,19 @@ export default function ProfileEditPage() {
         city: city.trim(),
         country: country.trim(),
         interests,
+        photos: photosForApi(draftPhotos),
+        videos: videosForApi(draftVideos),
       });
       await refreshUser();
+      baselineRef.current = buildSnapshot(
+        aboutMe,
+        lookingFor,
+        city,
+        country,
+        interests,
+        draftPhotos,
+        draftVideos
+      );
       toast.success('Profile updated');
       navigate(profileBase, { replace: true });
     } catch (e) {
@@ -93,37 +175,35 @@ export default function ProfileEditPage() {
     }
   };
 
-  const removePhoto = async (key: string) => {
-    if (!user) return;
-    const next = user.photos.filter((p) => (p.id || p.url) !== key);
-    try {
-      await apiPatch('/users/me', { photos: photosForApi(next) });
-      await refreshUser();
-      toast.success('Photo removed');
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not remove photo');
-    }
+  const removePhoto = (key: string) => {
+    setDraftPhotos((prev) => prev.filter((p) => (p.id || p.url) !== key));
   };
 
-  const removeVideo = async (key: string) => {
-    if (!user) return;
-    const next = user.videos.filter((v) => (v.id || v.url) !== key);
-    try {
-      await apiPatch('/users/me', { videos: videosForApi(next) });
-      await refreshUser();
-      toast.success('Video removed');
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not remove video');
-    }
+  const removeVideo = (key: string) => {
+    setDraftVideos((prev) => prev.filter((v) => (v.id || v.url) !== key));
   };
 
   const changeAvatar = async (file: File) => {
     setAvatarBusy(true);
     try {
       const { url } = await apiUploadFile<{ url: string }>('/uploads/image', file);
-      await apiPatch('/users/me', { profilePicture: url });
+      if (isWoman) {
+        const nextPhotos: Photo[] = [
+          ...draftPhotos,
+          {
+            id: '',
+            url,
+            isPublic: true,
+            isUnlocked: false,
+            status: 'pending',
+          },
+        ];
+        await apiPatch('/users/me', { profilePicture: url, photos: photosForApi(nextPhotos) });
+      } else {
+        await apiPatch('/users/me', { profilePicture: url });
+      }
       await refreshUser();
-      toast.success('Profile picture updated');
+      toast.success(isWoman ? 'Profile picture submitted for review' : 'Profile picture updated');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Upload failed');
     } finally {
@@ -256,11 +336,23 @@ export default function ProfileEditPage() {
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <h2 className="text-lg font-semibold text-gray-900">Photos & videos</h2>
           <div className="flex gap-2">
-            <Button type="button" variant="outline" size="sm" className="gap-1" onClick={() => setAddMedia({ open: true, type: 'photo' })}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              onClick={() => setAddMedia({ open: true, type: 'photo' })}
+            >
               <ImageIcon className="h-4 w-4" />
               Add photo
             </Button>
-            <Button type="button" variant="outline" size="sm" className="gap-1" onClick={() => setAddMedia({ open: true, type: 'video' })}>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-1"
+              onClick={() => setAddMedia({ open: true, type: 'video' })}
+            >
               <VideoIcon className="h-4 w-4" />
               Add video
             </Button>
@@ -269,15 +361,15 @@ export default function ProfileEditPage() {
 
         <h3 className="mb-2 text-sm font-medium text-gray-700">Photos</h3>
         <div className="mb-6 grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {user.photos.length === 0 ? (
+          {draftPhotos.length === 0 ? (
             <ProfileMediaEmptyState media="photo" tone="neutral" compact />
           ) : (
-            user.photos.map((p) => (
+            draftPhotos.map((p) => (
               <div key={p.id || p.url} className="group relative aspect-square overflow-hidden rounded-xl border border-gray-100">
                 <img src={p.url} alt="" className="h-full w-full object-cover" />
                 <button
                   type="button"
-                  onClick={() => void removePhoto(p.id || p.url)}
+                  onClick={() => removePhoto(p.id || p.url)}
                   className="absolute right-1 top-1 rounded-full bg-black/60 p-1.5 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
                   aria-label="Remove photo"
                 >
@@ -290,15 +382,18 @@ export default function ProfileEditPage() {
 
         <h3 className="mb-2 text-sm font-medium text-gray-700">Videos</h3>
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {user.videos.length === 0 ? (
+          {draftVideos.length === 0 ? (
             <ProfileMediaEmptyState media="video" tone="neutral" compact />
           ) : (
-            user.videos.map((v) => (
-              <div key={v.id || v.url} className="group relative aspect-square overflow-hidden rounded-xl border border-gray-100 bg-gray-900">
+            draftVideos.map((v) => (
+              <div
+                key={v.id || v.url}
+                className="group relative aspect-square overflow-hidden rounded-xl border border-gray-100 bg-gray-900"
+              >
                 <img src={v.thumbnail} alt="" className="h-full w-full object-cover opacity-90" />
                 <button
                   type="button"
-                  onClick={() => void removeVideo(v.id || v.url)}
+                  onClick={() => removeVideo(v.id || v.url)}
                   className="absolute right-1 top-1 rounded-full bg-black/60 p-1.5 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
                   aria-label="Remove video"
                 >
@@ -314,7 +409,12 @@ export default function ProfileEditPage() {
         <Button type="button" variant="outline" onClick={() => navigate(profileBase)}>
           Cancel
         </Button>
-        <Button type="button" className="bg-green-500 hover:bg-green-600" disabled={saving} onClick={() => void saveText()}>
+        <Button
+          type="button"
+          className="bg-green-500 hover:bg-green-600 disabled:opacity-50"
+          disabled={saving || !isDirty}
+          onClick={() => void saveAll()}
+        >
           {saving ? 'Saving…' : 'Save changes'}
         </Button>
       </div>

@@ -3,9 +3,10 @@ import { Chat } from '../models/Chat.model.js';
 import { User } from '../models/User.model.js';
 import { Report } from '../models/Report.model.js';
 import { Transaction } from '../models/Transaction.model.js';
-import { serializeChatDoc } from '../utils/serializeChat.js';
+import { serializeChatDoc, isMessageVisibleToViewer } from '../utils/serializeChat.js';
 import { emitChatUpdatedToParticipants } from '../realtime/emitChatUpdate.js';
 import { createActivity } from '../services/activityLog.js';
+import { createInAppNotification } from '../services/inAppNotifications.js';
 
 function otherParticipantId(chat, selfId) {
   const selfStr = selfId.toString();
@@ -20,6 +21,9 @@ function otherParticipantId(chat, selfId) {
 async function persistGiftMessage(req, res, chat, amt, giftLabel) {
   if (chat.isBlocked) {
     return res.status(403).json({ error: 'This conversation has been blocked' });
+  }
+  if (chat.chatKind === 'moderator_support') {
+    return res.status(400).json({ error: 'Gifts are not available in moderation chats' });
   }
   const recipientId = otherParticipantId(chat, req.user._id);
   if (!recipientId) {
@@ -131,11 +135,10 @@ async function persistGiftMessage(req, res, chat, amt, giftLabel) {
 
 export async function listChats(req, res) {
   const selfId = req.user._id;
-  /** Threads with real messages (either side). Empty “opened” chats from Message with no sends stay hidden. */
   const chats = await Chat.find({
     participants: selfId,
-    'messages.0': { $exists: true },
     isBlocked: { $ne: true },
+    $or: [{ 'messages.0': { $exists: true } }, { chatKind: 'moderator_support' }],
   })
     .populate('participants', '-password')
     .sort({ updatedAt: -1 });
@@ -158,6 +161,7 @@ export async function getChat(req, res) {
   const selfStr = req.user._id.toString();
   let marked = false;
   for (const m of chat.messages) {
+    if (!isMessageVisibleToViewer(m, selfStr)) continue;
     const sid = m.senderId?.toString?.() || String(m.senderId);
     if (sid !== selfStr && !m.isRead) {
       m.isRead = true;
@@ -190,6 +194,7 @@ export async function createOrGetChat(req, res) {
     return res.status(404).json({ error: 'User not found' });
   }
   const existing = await Chat.findOne({
+    chatKind: 'direct',
     participants: { $all: [req.user._id, other._id], $size: 2 },
   }).populate('participants', '-password');
   if (existing) {
@@ -201,6 +206,7 @@ export async function createOrGetChat(req, res) {
   const chat = await Chat.create({
     participants: [req.user._id, other._id],
     messages: [],
+    chatKind: 'direct',
     unreadCount: 0,
     isBlocked: false,
     isReported: false,
@@ -222,6 +228,12 @@ export async function sendMessage(req, res) {
     return res.status(403).json({ error: 'This conversation has been blocked' });
   }
   const msgType = type && ['text', 'image', 'video', 'gift'].includes(type) ? type : 'text';
+
+  if (chat.chatKind === 'moderator_support' && (msgType === 'gift')) {
+    return res.status(400).json({
+      error: 'Gifts are not available in moderation chats',
+    });
+  }
 
   if (msgType === 'image' || msgType === 'video') {
     if (!mediaUrl || typeof mediaUrl !== 'string' || !/^https?:\/\//i.test(mediaUrl.trim())) {
@@ -250,6 +262,8 @@ export async function sendMessage(req, res) {
     msg.mediaUrl = String(mediaUrl).trim();
   }
 
+  const wasEmptyBeforeSend = chat.messages.length === 0;
+
   chat.messages.push(msg);
   const last = chat.messages[chat.messages.length - 1];
   chat.lastMessage = {
@@ -265,6 +279,32 @@ export async function sendMessage(req, res) {
   await chat.save();
   const populated = await Chat.findById(chat._id).populate('participants', '-password');
   const io = req.app.get('io');
+
+  if (
+    chat.chatKind === 'moderator_support' &&
+    req.user.role === 'moderator' &&
+    wasEmptyBeforeSend &&
+    io
+  ) {
+    const other = otherParticipantId(chat, req.user._id);
+    if (other) {
+      const trimmed = typeof content === 'string' ? content.trim() : '';
+      let body = trimmed
+        ? trimmed.slice(0, 280)
+        : msgType === 'image'
+          ? 'Moderation sent a photo.'
+          : msgType === 'video'
+            ? 'Moderation sent a video.'
+            : 'You have a new message from the moderation team.';
+      await createInAppNotification(io, {
+        userId: other,
+        kind: 'moderator_dm',
+        title: 'Message from moderation',
+        body,
+      });
+    }
+  }
+
   emitChatUpdatedToParticipants(io, populated);
   res.status(201).json({ chat: serializeChatDoc(populated, req.user._id) });
 }
@@ -278,6 +318,9 @@ export async function blockChat(req, res) {
   });
   if (!chat) {
     return res.status(404).json({ error: 'Chat not found' });
+  }
+  if (chat.chatKind === 'moderator_support') {
+    return res.status(400).json({ error: 'Moderation chats cannot be blocked' });
   }
   if (chat.isBlocked) {
     const populated = await Chat.findById(chat._id).populate('participants', '-password');
@@ -315,12 +358,17 @@ export async function reportUserInChat(req, res) {
   if (chat.isBlocked) {
     return res.status(403).json({ error: 'This conversation has been blocked' });
   }
+  if (chat.chatKind === 'moderator_support') {
+    return res.status(400).json({
+      error: 'You cannot file a dating report from a moderation conversation',
+    });
+  }
 
   const reportedId = otherParticipantId(chat, req.user._id);
   if (!reportedId) {
     return res.status(400).json({ error: 'Invalid chat participants' });
   }
-  const target = await User.findById(reportedId).select('role');
+  const target = await User.findById(reportedId).select('role name');
   if (!target || ['admin', 'moderator'].includes(target.role)) {
     return res.status(400).json({ error: 'Cannot report this user' });
   }
@@ -328,6 +376,7 @@ export async function reportUserInChat(req, res) {
   await Report.create({
     reporterId: req.user._id,
     reportedId,
+    relatedChatId: chat._id,
     type,
     topic: topicStr.slice(0, 200),
     comment: commentStr.slice(0, 5000),
@@ -335,10 +384,27 @@ export async function reportUserInChat(req, res) {
     createdAt: new Date().toISOString().slice(0, 10),
   });
 
+  const reportedName = target.name?.trim() || 'this member';
+  const summaryComment = commentStr.length > 800 ? `${commentStr.slice(0, 797)}…` : commentStr;
+  const ackLines = [
+    `You reported ${reportedName} to MemberDate moderation.`,
+    `Category: ${String(type)}. Subject: ${topicStr}.`,
+    `Details you submitted: ${summaryComment}`,
+  ];
+  chat.messages.push({
+    senderId: req.user._id,
+    content: ackLines.join('\n\n'),
+    type: 'text',
+    visibility: 'sender_only',
+    isRead: true,
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+  });
+
   if (!chat.isReported) {
     chat.isReported = true;
-    await chat.save();
   }
+  chat.markModified('messages');
+  await chat.save();
 
   const populated = await Chat.findById(chat._id).populate('participants', '-password');
   const io = req.app.get('io');

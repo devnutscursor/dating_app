@@ -3,6 +3,7 @@ import { Link, Navigate } from 'react-router-dom';
 import { MessageCircle } from 'lucide-react';
 import { apiGet } from '@/lib/api';
 import { Button } from '@/components/ui/button';
+import type { Chat } from '@/types';
 
 type Props = { area: 'man' | 'woman' };
 
@@ -16,10 +17,12 @@ export default function DefaultChatRedirect({ area }: Props) {
     setPhase('loading');
     setFirstChatId(null);
     try {
-      const data = await apiGet<{ chats: { id: string }[] }>('/chats');
-      const first = data.chats[0]?.id;
-      if (first) {
-        setFirstChatId(first);
+      const data = await apiGet<{ chats: Chat[] }>('/chats');
+      const preferred = data.chats.find((c) => (c.chatKind ?? 'direct') !== 'moderator_support');
+      const first = preferred ?? data.chats[0];
+      const id = first?.id;
+      if (id) {
+        setFirstChatId(id);
         setPhase('redirect');
       } else {
         setPhase('empty');

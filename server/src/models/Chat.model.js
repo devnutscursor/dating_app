@@ -5,6 +5,12 @@ const messageSchema = new mongoose.Schema(
     senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     content: { type: String, default: '' },
     type: { type: String, enum: ['text', 'image', 'video', 'gift'], default: 'text' },
+    /** If `sender_only`, only the sender sees this row (used for reporter-only confirmations). */
+    visibility: {
+      type: String,
+      enum: ['all', 'sender_only'],
+      default: 'all',
+    },
     isRead: { type: Boolean, default: false },
     mediaUrl: String,
     giftAmount: Number,
@@ -15,6 +21,12 @@ const messageSchema = new mongoose.Schema(
 
 const chatSchema = new mongoose.Schema(
   {
+    /** Regular member↔member thread vs moderator↔member support thread */
+    chatKind: {
+      type: String,
+      enum: ['direct', 'moderator_support'],
+      default: 'direct',
+    },
     participants: [{ type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true }],
     messages: [messageSchema],
     unreadCount: { type: Number, default: 0 },

@@ -184,6 +184,10 @@ export default function ManHome() {
         contentType={unlockModal.type}
         price={unlockModal.price}
         userName={unlockUserName}
+        onUnlock={() => {
+          setUnlockModal((m) => ({ ...m, open: false }));
+          if (unlockModal.userId) navigate(`/man/view-profile/${unlockModal.userId}`);
+        }}
       />
       <VideoCallModal
         open={Boolean(videoCallUserId)}

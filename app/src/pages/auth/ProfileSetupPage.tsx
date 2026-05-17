@@ -104,7 +104,26 @@ export default function ProfileSetupPage() {
         interests: profileData.interests,
         profileSetupComplete: true,
       };
-      if (profileData.photo) payload.profilePicture = profileData.photo;
+      if (profileData.photo) {
+        payload.profilePicture = profileData.photo;
+        if (user?.role === 'female') {
+          const existing = user?.photos ?? [];
+          const dup = existing.some((p) => p.url === profileData.photo);
+          if (!dup) {
+            payload.photos = [
+              ...existing.map((p) => ({
+                id: p.id,
+                url: p.url,
+                thumbnail: p.thumbnail,
+                isPublic: p.isPublic,
+                isUnlocked: p.isUnlocked,
+                unlockPrice: p.unlockPrice,
+              })),
+              { url: profileData.photo, isPublic: true, isUnlocked: false },
+            ];
+          }
+        }
+      }
       const { user: updated } = await apiPatch<{ user: User }>('/users/me', payload);
       await refreshUser();
       try {

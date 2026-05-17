@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, Bell, Search, Coins, Activity } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -6,6 +6,8 @@ import { layoutTopBarRowClass } from '@/config/design';
 import { useAuth } from '@/contexts/AuthContext';
 import NotificationsModal from '@/components/modals/NotificationsModal';
 import SearchFilterModal from '@/components/modals/SearchFilterModal';
+import { fetchNotificationUnreadCount } from '@/lib/notifications';
+import { subscribeNotificationNew } from '@/lib/chatSocket';
 
 interface HeaderProps {
   userType: 'man' | 'woman';
@@ -17,9 +19,31 @@ export default function Header({ userType, onMenuClick, onActivityClick }: Heade
   const { user } = useAuth();
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [searchOpen, setSearchOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
   const coins = user?.coins ?? 0;
   const avatar = user?.profilePicture || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200';
   const name = user?.name ?? 'Member';
+
+  useEffect(() => {
+    if (!user || user.role === 'moderator' || user.role === 'admin') return;
+    let cancelled = false;
+    const loadCount = async () => {
+      try {
+        const n = await fetchNotificationUnreadCount();
+        if (!cancelled) setUnreadCount(n);
+      } catch {
+        if (!cancelled) setUnreadCount(0);
+      }
+    };
+    void loadCount();
+    const unsub = subscribeNotificationNew(() => {
+      void loadCount();
+    });
+    return () => {
+      cancelled = true;
+      unsub();
+    };
+  }, [user]);
 
   return (
     <>
@@ -86,7 +110,9 @@ export default function Header({ userType, onMenuClick, onActivityClick }: Heade
             onClick={() => setNotificationsOpen(true)}
           >
             <Bell className="w-5 h-5" />
-            <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full" />
+            {unreadCount > 0 && (
+              <span className="absolute right-1 top-1 flex h-2 min-w-2 rounded-full bg-red-500 px-0.5" />
+            )}
           </Button>
 
           {/* Coins Balance */}
@@ -108,9 +134,18 @@ export default function Header({ userType, onMenuClick, onActivityClick }: Heade
       </header>
 
       {/* Modals */}
-      <NotificationsModal 
-        open={notificationsOpen} 
-        onClose={() => setNotificationsOpen(false)} 
+      <NotificationsModal
+        open={notificationsOpen}
+        onClose={() => setNotificationsOpen(false)}
+        onListChange={() => {
+          void (async () => {
+            try {
+              setUnreadCount(await fetchNotificationUnreadCount());
+            } catch {
+              setUnreadCount(0);
+            }
+          })();
+        }}
       />
       <SearchFilterModal 
         open={searchOpen} 

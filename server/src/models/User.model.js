@@ -61,6 +61,10 @@ const userSchema = new mongoose.Schema(
     likesReceivedCount: { type: Number, default: 0 },
     isVerified: { type: Boolean, default: false },
     isBlocked: { type: Boolean, default: false },
+    /** Set when moderated account suspension applies (distinct from informal “blocked chats”) */
+    platformSuspendedReason: { type: String, default: '' },
+    platformSuspendedAt: Date,
+    platformSuspendedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     isOnline: { type: Boolean, default: false },
     lastActive: String,
   },

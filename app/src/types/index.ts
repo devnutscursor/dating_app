@@ -26,6 +26,8 @@ export interface User {
   /** When false, member must complete email verification before using the app. */
   emailVerified?: boolean;
   isBlocked?: boolean;
+  /** Set when the platform suspends a dating member (ToS). Shown on /auth/me for blocked users. */
+  platformSuspendedReason?: string;
   createdAt?: string;
   updatedAt?: string;
   profilePicture?: string;
@@ -54,6 +56,7 @@ export interface Video {
 
 export interface Chat {
   id: string;
+  chatKind?: 'direct' | 'moderator_support';
   participant: User;
   messages: Message[];
   unreadCount: number;
@@ -71,6 +74,8 @@ export interface Message {
   isRead: boolean;
   mediaUrl?: string;
   giftAmount?: number;
+  /** Reporter-only moderation confirmation bubble (never shown to the peer). */
+  isPrivateNotice?: boolean;
 }
 
 export interface Notification {
@@ -120,11 +125,14 @@ export interface PayoutRequest {
 
 export interface Report {
   id: string;
+  relatedChatId?: string | null;
   reporterId: string;
   reportedId: string;
   /** Present on `GET /moderator/reports` when populated */
   reporterName?: string;
   reportedName?: string;
+  reporterIsSuspended?: boolean;
+  reportedIsSuspended?: boolean;
   type: 'financial' | 'profile' | 'harassment';
   topic: string;
   comment: string;
@@ -133,6 +141,18 @@ export interface Report {
   resolvedAt?: string;
   moderatorId?: string;
   resolution?: string;
+}
+
+export interface PendingFemaleMediaItem {
+  id: string;
+  userId: string;
+  memberName: string;
+  mediaKind: 'photo' | 'video';
+  mediaId: string;
+  url: string;
+  thumbnail: string;
+  isPublic: boolean;
+  unlockPrice?: number;
 }
 
 export interface ContentModerationItem {

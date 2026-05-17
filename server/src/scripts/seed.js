@@ -471,6 +471,7 @@ async function seed() {
   await Report.create({
     reporterId: kevin._id,
     reportedId: ariana._id,
+    relatedChatId: chat1._id,
     type: 'harassment',
     topic: 'Inappropriate behavior',
     comment: 'User sent inappropriate messages',

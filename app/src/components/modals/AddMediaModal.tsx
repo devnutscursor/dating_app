@@ -52,7 +52,7 @@ export default function AddMediaModal({ open, onClose, mediaType, isWoman = fals
           url: data.url,
           isPublic: isWoman ? isPublic : true,
           isUnlocked: false,
-          status: 'approved' as const,
+          status: isWoman ? ('pending' as const) : ('approved' as const),
           ...(isWoman && !isPublic ? { unlockPrice: Math.max(10, Math.floor(price)) } : {}),
         };
         const photos = [...(user.photos ?? []), next];
@@ -64,14 +64,22 @@ export default function AddMediaModal({ open, onClose, mediaType, isWoman = fals
           thumbnail: thumb,
           isPublic: isWoman ? isPublic : true,
           isUnlocked: false,
-          status: 'approved' as const,
+          status: isWoman ? ('pending' as const) : ('approved' as const),
           ...(isWoman && !isPublic ? { unlockPrice: Math.max(10, Math.floor(price)) } : {}),
         };
         const videos = [...(user.videos ?? []), next];
         await apiPatch('/users/me', { videos });
       }
       await refreshUser();
-      toast.success(mediaType === 'photo' ? 'Photo added' : 'Video added');
+      toast.success(
+        isWoman
+          ? mediaType === 'photo'
+            ? 'Photo submitted for review.'
+            : 'Video submitted for review.'
+          : mediaType === 'photo'
+            ? 'Photo added'
+            : 'Video added'
+      );
       setSelectedFile(null);
       onClose();
     } catch (e) {

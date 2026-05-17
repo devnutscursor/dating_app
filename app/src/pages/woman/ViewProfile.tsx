@@ -344,6 +344,7 @@ export default function WomanViewProfile() {
         contentType={unlockModal.type}
         price={unlockModal.price}
         userName={user.name}
+        onUnlock={() => setUnlockModal((m) => ({ ...m, open: false }))}
       />
 
       <MediaPreviewModal

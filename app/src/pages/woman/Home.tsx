@@ -184,6 +184,7 @@ export default function WomanHome() {
         contentType={unlockModal.type}
         price={unlockModal.price}
         userName={unlockUserName}
+        onUnlock={() => setUnlockModal((m) => ({ ...m, open: false }))}
       />
       <VideoCallModal
         open={Boolean(videoCallUserId)}

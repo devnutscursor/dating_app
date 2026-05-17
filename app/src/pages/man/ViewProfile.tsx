@@ -6,7 +6,14 @@ import { Button } from '@/components/ui/button';
 import UnlockContentModal from '@/components/modals/UnlockContentModal';
 import MediaPreviewModal from '@/components/modals/MediaPreviewModal';
 import { formatProfileLocation } from '@/lib/formatProfileLocation';
-import { fetchPublicUser } from '@/lib/social';
+import {
+  isPhotoVisibleToViewer,
+  isVideoVisibleToViewer,
+  lockedPhotoPlaceholder,
+  publicGalleryPhotoUrls,
+} from '@/lib/profileMedia';
+import { useAuth } from '@/contexts/AuthContext';
+import { fetchPublicUser, unlockMemberMedia } from '@/lib/social';
 import { createOrGetChat } from '@/lib/chats';
 import type { User } from '@/types';
 
@@ -19,15 +26,23 @@ type PreviewState =
 export default function ManViewProfile() {
   const navigate = useNavigate();
   const { userId } = useParams();
+  const { refreshUser: refreshAuthUser } = useAuth();
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
-  const [unlockModal, setUnlockModal] = useState<{ open: boolean; type: 'photo' | 'video'; price: number }>({
+  const [unlockModal, setUnlockModal] = useState<{
+    open: boolean;
+    type: 'photo' | 'video';
+    price: number;
+    mediaId: string;
+  }>({
     open: false,
     type: 'photo',
     price: 100,
+    mediaId: '',
   });
+  const [unlockBusy, setUnlockBusy] = useState(false);
   const [activeTab, setActiveTab] = useState<'photos' | 'videos'>('photos');
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [messageBusy, setMessageBusy] = useState(false);
@@ -81,7 +96,7 @@ export default function ManViewProfile() {
     );
   }
 
-  const galleryUrls = [user.profilePicture, ...user.photos.map((p) => p.url)].filter((u): u is string => Boolean(u));
+  const galleryUrls = publicGalleryPhotoUrls(user);
   const allPhotos = galleryUrls.length ? galleryUrls : [FALLBACK_AVATAR];
 
   const nextPhoto = () => {
@@ -90,6 +105,25 @@ export default function ManViewProfile() {
 
   const prevPhoto = () => {
     setActivePhotoIndex((prev) => (prev - 1 + allPhotos.length) % allPhotos.length);
+  };
+
+  const handleUnlock = async () => {
+    if (!userId || !unlockModal.mediaId) return;
+    setUnlockBusy(true);
+    try {
+      const result = await unlockMemberMedia(userId, {
+        mediaKind: unlockModal.type,
+        mediaId: unlockModal.mediaId,
+      });
+      setUser(result.user);
+      await refreshAuthUser();
+      toast.success(result.alreadyUnlocked ? 'Already unlocked' : 'Content unlocked');
+      setUnlockModal((m) => ({ ...m, open: false }));
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not unlock content');
+    } finally {
+      setUnlockBusy(false);
+    }
   };
 
   return (
@@ -255,41 +289,60 @@ export default function ManViewProfile() {
             <div className="p-4">
               {activeTab === 'photos' ? (
                 <div className="grid grid-cols-3 gap-2">
-                  {user.photos.map((photo) => (
-                    <div key={photo.id || photo.url} className="relative aspect-square overflow-hidden rounded-lg">
-                      {photo.isPublic ? (
-                        <button
-                          type="button"
-                          onClick={() => setPreview({ kind: 'photo', photoUrl: photo.url })}
-                          className="h-full w-full border-0 p-0"
-                          aria-label="Open photo preview"
-                        >
-                          <img src={photo.url} alt="" className="h-full w-full object-cover" />
-                        </button>
-                      ) : (
-                        <img src={photo.url} alt="" className="h-full w-full object-cover" />
-                      )}
-                      {!photo.isPublic && (
-                        <button
-                          type="button"
-                          onClick={() => setUnlockModal({ open: true, type: 'photo', price: photo.unlockPrice || 100 })}
-                          className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white"
-                        >
-                          <Lock className="w-6 h-6 mb-1" />
-                          <span className="text-xs flex items-center gap-1">
-                            <Coins className="w-3 h-3" />
-                            {photo.unlockPrice}
-                          </span>
-                        </button>
-                      )}
-                    </div>
-                  ))}
+                  {user.photos.map((photo) => {
+                    const canView = isPhotoVisibleToViewer(photo);
+                    return (
+                      <div
+                        key={photo.id || photo.url || `locked-${photo.unlockPrice}`}
+                        className="relative aspect-square overflow-hidden rounded-lg"
+                      >
+                        {canView ? (
+                          <button
+                            type="button"
+                            onClick={() => setPreview({ kind: 'photo', photoUrl: photo.url })}
+                            className="h-full w-full border-0 p-0"
+                            aria-label="Open photo preview"
+                          >
+                            <img src={photo.url} alt="" className="h-full w-full object-cover" />
+                          </button>
+                        ) : (
+                          <>
+                            <img src={lockedPhotoPlaceholder()} alt="" className="h-full w-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() => {
+                                if (!photo.id) {
+                                  toast.error('Cannot unlock this item');
+                                  return;
+                                }
+                                setUnlockModal({
+                                  open: true,
+                                  type: 'photo',
+                                  price: photo.unlockPrice || 100,
+                                  mediaId: photo.id,
+                                });
+                              }}
+                              className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 text-white"
+                            >
+                              <Lock className="mb-1 h-6 w-6" />
+                              <span className="flex items-center gap-1 text-xs">
+                                <Coins className="h-3 w-3" />
+                                {photo.unlockPrice ?? 100}
+                              </span>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
               ) : (
                 <div className="grid grid-cols-3 gap-2">
-                  {user.videos.map((video) => (
+                  {user.videos.map((video) => {
+                    const canViewVideo = isVideoVisibleToViewer(video);
+                    return (
                     <div key={video.id || video.url} className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
-                      {video.isPublic ? (
+                      {canViewVideo ? (
                         <button
                           type="button"
                           onClick={() =>
@@ -307,29 +360,34 @@ export default function ManViewProfile() {
                         </button>
                       ) : (
                         <>
-                          <img src={video.thumbnail} alt="" className="h-full w-full object-cover" />
-                          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/30">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90">
-                              <Video className="h-5 w-5 text-gray-700" />
-                            </div>
-                          </div>
+                          <img src={lockedPhotoPlaceholder()} alt="" className="h-full w-full object-cover" />
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!video.id) {
+                                toast.error('Cannot unlock this item');
+                                return;
+                              }
+                              setUnlockModal({
+                                open: true,
+                                type: 'video',
+                                price: video.unlockPrice || 500,
+                                mediaId: video.id,
+                              });
+                            }}
+                            className="absolute inset-0 flex flex-col items-center justify-center bg-black/75 text-white"
+                          >
+                            <Lock className="mb-1 h-6 w-6" />
+                            <span className="flex items-center gap-1 text-xs">
+                              <Coins className="h-3 w-3" />
+                              {video.unlockPrice ?? 500}
+                            </span>
+                          </button>
                         </>
                       )}
-                      {!video.isPublic && (
-                        <button
-                          type="button"
-                          onClick={() => setUnlockModal({ open: true, type: 'video', price: video.unlockPrice || 500 })}
-                          className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white"
-                        >
-                          <Lock className="w-6 h-6 mb-1" />
-                          <span className="text-xs flex items-center gap-1">
-                            <Coins className="w-3 h-3" />
-                            {video.unlockPrice}
-                          </span>
-                        </button>
-                      )}
                     </div>
-                  ))}
+                    );
+                  })}
                 </div>
               )}
             </div>
@@ -340,10 +398,12 @@ export default function ManViewProfile() {
       {/* Unlock Modal */}
       <UnlockContentModal
         open={unlockModal.open}
-        onClose={() => setUnlockModal({ ...unlockModal, open: false })}
+        onClose={() => setUnlockModal((m) => ({ ...m, open: false }))}
         contentType={unlockModal.type}
         price={unlockModal.price}
         userName={user.name}
+        unlocking={unlockBusy}
+        onUnlock={handleUnlock}
       />
 
       <MediaPreviewModal

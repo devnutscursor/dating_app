@@ -1,8 +1,23 @@
 import mongoose from 'mongoose';
 import { User } from '../models/User.model.js';
 import { Like } from '../models/Like.model.js';
+import { MediaUnlock } from '../models/MediaUnlock.model.js';
+import { Transaction } from '../models/Transaction.model.js';
 import { serializeUser } from '../utils/serializeUser.js';
+import { applyPublicMediaFilter } from '../utils/mediaVisibility.js';
 import { createActivity, recordProfileViewIfFresh } from '../services/activityLog.js';
+
+async function getUnlockedMediaIdSets(viewerId, ownerId) {
+  const rows = await MediaUnlock.find({ viewerId, ownerId }).lean();
+  const unlockedPhotoIds = new Set();
+  const unlockedVideoIds = new Set();
+  for (const row of rows) {
+    const id = row.mediaId?.toString?.() || String(row.mediaId);
+    if (row.mediaKind === 'photo') unlockedPhotoIds.add(id);
+    else unlockedVideoIds.add(id);
+  }
+  return { unlockedPhotoIds, unlockedVideoIds };
+}
 
 const PUBLIC_USER_SELECT =
   '-password -email -emailVerificationOtpHash -emailVerificationOtpExpires';
@@ -21,7 +36,11 @@ export async function discover(req, res) {
     .select(PUBLIC_USER_SELECT)
     .limit(60)
     .lean();
-  res.json({ users: users.map((u) => serializeUser({ ...u, _id: u._id })) });
+  res.json({
+    users: users.map((u) =>
+      applyPublicMediaFilter(serializeUser({ ...u, _id: u._id }), { isViewerOwnerOfProfile: false })
+    ),
+  });
 }
 
 /** Opposite-gender members who are online (for Online tab). */
@@ -39,7 +58,11 @@ export async function listOnline(req, res) {
     .select(PUBLIC_USER_SELECT)
     .limit(60)
     .lean();
-  res.json({ users: users.map((u) => serializeUser({ ...u, _id: u._id })) });
+  res.json({
+    users: users.map((u) =>
+      applyPublicMediaFilter(serializeUser({ ...u, _id: u._id }), { isViewerOwnerOfProfile: false })
+    ),
+  });
 }
 
 export async function getUserById(req, res) {
@@ -60,7 +83,134 @@ export async function getUserById(req, res) {
   }
   const data = serializeUser(user);
   if (data?.email !== undefined) delete data.email;
-  res.json({ user: data });
+  const isOwn = req.user._id.equals(user._id);
+  if (isOwn) {
+    return res.json({ user: data });
+  }
+  const { unlockedPhotoIds, unlockedVideoIds } = await getUnlockedMediaIdSets(req.user._id, user._id);
+  res.json({
+    user: applyPublicMediaFilter(data, {
+      isViewerOwnerOfProfile: false,
+      unlockedPhotoIds,
+      unlockedVideoIds,
+    }),
+  });
+}
+
+/** POST body: `{ mediaKind: 'photo'|'video', mediaId: string }` — male unlocks private media on a woman's profile */
+export async function unlockMedia(req, res) {
+  const ownerId = req.params.id;
+  if (!mongoose.Types.ObjectId.isValid(ownerId)) {
+    return res.status(400).json({ error: 'Invalid user id' });
+  }
+  if (req.user.gender !== 'male' || req.user.role !== 'male') {
+    return res.status(403).json({ error: 'Only male members can unlock paid content' });
+  }
+
+  const { mediaKind, mediaId } = req.body ?? {};
+  if (!['photo', 'video'].includes(String(mediaKind))) {
+    return res.status(400).json({ error: 'mediaKind must be photo or video' });
+  }
+  if (!mediaId || !mongoose.Types.ObjectId.isValid(String(mediaId))) {
+    return res.status(400).json({ error: 'Valid mediaId is required' });
+  }
+
+  const owner = await User.findById(ownerId);
+  if (!owner || owner.gender !== 'female' || owner.role !== 'female') {
+    return res.status(404).json({ error: 'Profile not found' });
+  }
+
+  const mediaOid = new mongoose.Types.ObjectId(String(mediaId));
+  const collection = mediaKind === 'photo' ? owner.photos : owner.videos;
+  const item = collection.id(mediaOid);
+  if (!item) {
+    return res.status(404).json({ error: 'Media not found' });
+  }
+  if (item.status !== 'approved') {
+    return res.status(400).json({ error: 'This content is not available to unlock yet' });
+  }
+  if (item.isPublic !== false) {
+    return res.status(400).json({ error: 'This content is already public' });
+  }
+
+  const existing = await MediaUnlock.findOne({
+    viewerId: req.user._id,
+    ownerId: owner._id,
+    mediaKind,
+    mediaId: mediaOid,
+  });
+  if (existing) {
+    const viewerFresh = await User.findById(req.user._id);
+    const { unlockedPhotoIds, unlockedVideoIds } = await getUnlockedMediaIdSets(req.user._id, owner._id);
+    return res.json({
+      ok: true,
+      alreadyUnlocked: true,
+      coins: viewerFresh?.coins ?? req.user.coins,
+      user: applyPublicMediaFilter(serializeUser(owner), {
+        isViewerOwnerOfProfile: false,
+        unlockedPhotoIds,
+        unlockedVideoIds,
+      }),
+    });
+  }
+
+  const defaultPrice = mediaKind === 'photo' ? 100 : 500;
+  const price = Number.isFinite(item.unlockPrice) && item.unlockPrice > 0 ? Math.floor(item.unlockPrice) : defaultPrice;
+
+  const viewer = await User.findById(req.user._id);
+  if (!viewer) {
+    return res.status(401).json({ error: 'User not found' });
+  }
+  if (viewer.coins < price) {
+    return res.status(400).json({ error: 'Insufficient coins' });
+  }
+
+  viewer.coins -= price;
+  owner.coins += price;
+  await viewer.save();
+  await owner.save();
+
+  await MediaUnlock.create({
+    viewerId: viewer._id,
+    ownerId: owner._id,
+    mediaKind,
+    mediaId: mediaOid,
+    coinsPaid: price,
+  });
+
+  const label = mediaKind === 'photo' ? 'photo' : 'video';
+  await Transaction.create({
+    userId: viewer._id,
+    type: 'unlock',
+    amount: price,
+    currency: 'coins',
+    description: `Unlocked private ${label} from ${owner.name}`,
+    status: 'completed',
+    relatedUserId: owner._id,
+  });
+  await Transaction.create({
+    userId: owner._id,
+    type: 'unlock',
+    amount: price,
+    currency: 'coins',
+    description: `Earned from ${label} unlock by ${viewer.name}`,
+    status: 'completed',
+    relatedUserId: viewer._id,
+  });
+
+  const { unlockedPhotoIds, unlockedVideoIds } = await getUnlockedMediaIdSets(viewer._id, owner._id);
+  const profile = applyPublicMediaFilter(serializeUser(owner), {
+    isViewerOwnerOfProfile: false,
+    unlockedPhotoIds,
+    unlockedVideoIds,
+  });
+
+  res.json({
+    ok: true,
+    alreadyUnlocked: false,
+    coins: viewer.coins,
+    user: profile,
+  });
 }
 
 export async function listLikes(req, res) {
@@ -82,7 +232,13 @@ export async function listLikes(req, res) {
       .populate(populateOpts)
       .lean();
     const users = likes
-      .map((l) => (l.fromUser ? serializeUser({ ...l.fromUser, _id: l.fromUser._id }) : null))
+      .map((l) =>
+        l.fromUser
+          ? applyPublicMediaFilter(serializeUser({ ...l.fromUser, _id: l.fromUser._id }), {
+              isViewerOwnerOfProfile: req.user._id.equals(l.fromUser._id),
+            })
+          : null
+      )
       .filter(Boolean);
     return res.json({ users, receivedCount, sentCount });
   }
@@ -92,7 +248,13 @@ export async function listLikes(req, res) {
     .populate(populateOpts)
     .lean();
   const users = likes
-    .map((l) => (l.toUser ? serializeUser({ ...l.toUser, _id: l.toUser._id }) : null))
+    .map((l) =>
+      l.toUser
+        ? applyPublicMediaFilter(serializeUser({ ...l.toUser, _id: l.toUser._id }), {
+            isViewerOwnerOfProfile: req.user._id.equals(l.toUser._id),
+          })
+        : null
+    )
     .filter(Boolean);
   res.json({ users, receivedCount, sentCount });
 }
@@ -148,35 +310,88 @@ function sanitizeInterests(input) {
   return [...new Set(input.map((i) => String(i).trim().slice(0, 80)).filter(Boolean))].slice(0, 50);
 }
 
-function sanitizePhotos(input) {
-  if (!Array.isArray(input)) return undefined;
+function cleanPhotoEntries(input) {
+  if (!Array.isArray(input)) return [];
   return input
     .slice(0, 40)
     .map((p) => ({
+      id: typeof p.id === 'string' && mongoose.Types.ObjectId.isValid(p.id) ? p.id : null,
       url: typeof p.url === 'string' ? p.url.slice(0, 2048) : '',
       thumbnail: typeof p.thumbnail === 'string' ? p.thumbnail.slice(0, 2048) : undefined,
       isPublic: p.isPublic !== false,
       isUnlocked: Boolean(p.isUnlocked),
-      unlockPrice: Number.isFinite(p.unlockPrice) ? Math.max(0, Math.floor(p.unlockPrice)) : undefined,
-      status: ['approved', 'pending', 'rejected'].includes(p.status) ? p.status : 'approved',
+      unlockPrice: Number.isFinite(Number(p.unlockPrice)) ? Math.max(0, Math.floor(Number(p.unlockPrice))) : undefined,
     }))
     .filter((p) => p.url);
 }
 
-function sanitizeVideos(input) {
-  if (!Array.isArray(input)) return undefined;
+function cleanVideoEntries(input) {
+  if (!Array.isArray(input)) return [];
   return input
     .slice(0, 40)
     .map((v) => ({
+      id: typeof v.id === 'string' && mongoose.Types.ObjectId.isValid(v.id) ? v.id : null,
       url: typeof v.url === 'string' ? v.url.slice(0, 2048) : '',
       thumbnail: typeof v.thumbnail === 'string' ? v.thumbnail.slice(0, 2048) : '',
       isPublic: v.isPublic !== false,
       isUnlocked: Boolean(v.isUnlocked),
-      unlockPrice: Number.isFinite(v.unlockPrice) ? Math.max(0, Math.floor(v.unlockPrice)) : undefined,
-      status: ['approved', 'pending', 'rejected'].includes(v.status) ? v.status : 'approved',
-      duration: Number.isFinite(v.duration) ? v.duration : undefined,
+      unlockPrice: Number.isFinite(Number(v.unlockPrice)) ? Math.max(0, Math.floor(Number(v.unlockPrice))) : undefined,
+      duration: Number.isFinite(Number(v.duration)) ? Number(v.duration) : undefined,
     }))
     .filter((v) => v.url && v.thumbnail);
+}
+
+function mergePhotosWithRetention(cleaned, existingPhotos, isFemaleMember) {
+  const byId = new Map((existingPhotos || []).map((d) => [d._id.toString(), d]));
+  const byUrl = new Map((existingPhotos || []).map((d) => [d.url, d]));
+  return cleaned.map((c) => {
+    const prev = (c.id ? byId.get(c.id) : undefined) || (c.url ? byUrl.get(c.url) : undefined);
+    let status;
+    if (isFemaleMember) {
+      if (!prev || prev.url !== c.url) status = 'pending';
+      else status = ['approved', 'pending', 'rejected'].includes(prev.status) ? prev.status : 'pending';
+    } else if (!prev || prev.url !== c.url) {
+      status = 'approved';
+    } else status = ['approved', 'pending', 'rejected'].includes(prev.status) ? prev.status : 'approved';
+
+    const o = {
+      url: c.url,
+      thumbnail: c.thumbnail,
+      isPublic: c.isPublic,
+      isUnlocked: c.isUnlocked,
+      unlockPrice: c.unlockPrice,
+      status,
+    };
+    if (prev?._id) o._id = prev._id;
+    return o;
+  });
+}
+
+function mergeVideosWithRetention(cleaned, existingVideos, isFemaleMember) {
+  const byId = new Map((existingVideos || []).map((d) => [d._id.toString(), d]));
+  const byUrl = new Map((existingVideos || []).map((d) => [d.url, d]));
+  return cleaned.map((c) => {
+    const prev = (c.id ? byId.get(c.id) : undefined) || (c.url ? byUrl.get(c.url) : undefined);
+    let status;
+    if (isFemaleMember) {
+      if (!prev || prev.url !== c.url || prev.thumbnail !== c.thumbnail) status = 'pending';
+      else status = ['approved', 'pending', 'rejected'].includes(prev.status) ? prev.status : 'pending';
+    } else if (!prev || prev.url !== c.url) {
+      status = 'approved';
+    } else status = ['approved', 'pending', 'rejected'].includes(prev.status) ? prev.status : 'approved';
+
+    const o = {
+      url: c.url,
+      thumbnail: c.thumbnail,
+      isPublic: c.isPublic,
+      isUnlocked: c.isUnlocked,
+      unlockPrice: c.unlockPrice,
+      duration: c.duration,
+      status,
+    };
+    if (prev?._id) o._id = prev._id;
+    return o;
+  });
 }
 
 function clampStr(s, max) {
@@ -185,6 +400,13 @@ function clampStr(s, max) {
 }
 
 export async function updateMe(req, res) {
+  const user = await User.findById(req.user._id);
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  const isFemaleMember = user.gender === 'female' && user.role === 'female';
+
   const updates = {};
   for (const key of allowedProfileFields) {
     if (req.body[key] !== undefined) updates[key] = req.body[key];
@@ -200,14 +422,27 @@ export async function updateMe(req, res) {
     updates.profilePicture = updates.profilePicture ? String(updates.profilePicture).slice(0, 2048) : '';
   }
   if (updates.interests !== undefined) updates.interests = sanitizeInterests(updates.interests);
-  if (updates.photos !== undefined) updates.photos = sanitizePhotos(updates.photos);
-  if (updates.videos !== undefined) updates.videos = sanitizeVideos(updates.videos);
   if (updates.age !== undefined) {
     const n = Number(updates.age);
     if (!Number.isFinite(n)) delete updates.age;
     else updates.age = Math.min(120, Math.max(18, Math.floor(n)));
   }
 
-  const user = await User.findByIdAndUpdate(req.user._id, { $set: updates }, { new: true });
+  const photosDirty = updates.photos !== undefined;
+  const videosDirty = updates.videos !== undefined;
+  if (photosDirty) {
+    user.photos = mergePhotosWithRetention(cleanPhotoEntries(updates.photos), user.photos, isFemaleMember);
+    delete updates.photos;
+  }
+  if (videosDirty) {
+    user.videos = mergeVideosWithRetention(cleanVideoEntries(updates.videos), user.videos, isFemaleMember);
+    delete updates.videos;
+  }
+
+  for (const [key, val] of Object.entries(updates)) {
+    if (val !== undefined) user[key] = val;
+  }
+
+  await user.save();
   res.json({ user: serializeUser(user) });
 }

@@ -2,6 +2,8 @@ import mongoose from 'mongoose';
 
 const reportSchema = new mongoose.Schema(
   {
+    /** Member chat thread the report came from — moderators review this transcript */
+    relatedChatId: { type: mongoose.Schema.Types.ObjectId, ref: 'Chat' },
     reporterId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     reportedId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     type: { type: String, enum: ['financial', 'profile', 'harassment'], required: true },

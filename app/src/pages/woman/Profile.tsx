@@ -26,12 +26,17 @@ export default function WomanProfile() {
   });
 
   const changeAvatar = async (file: File) => {
+    if (!currentWomanUser) return;
     setAvatarBusy(true);
     try {
       const { url } = await apiUploadFile<{ url: string }>('/uploads/image', file);
-      await apiPatch('/users/me', { profilePicture: url });
+      const photos = [
+        ...(currentWomanUser.photos ?? []),
+        { url, isPublic: true, isUnlocked: false },
+      ];
+      await apiPatch('/users/me', { profilePicture: url, photos });
       await refreshUser();
-      toast.success('Profile picture updated');
+      toast.success('Profile picture submitted for review');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Upload failed');
     } finally {
@@ -195,6 +200,15 @@ export default function WomanProfile() {
                       className="relative aspect-square w-full cursor-pointer overflow-hidden rounded-xl border-0 p-0 text-left ring-green-500/0 transition-shadow hover:ring-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
                     >
                       <img src={photo.url} alt="" className="h-full w-full object-cover" />
+                      {(photo.status === 'pending' || photo.status === 'rejected') && (
+                        <div
+                          className={`absolute bottom-2 left-2 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white ${
+                            photo.status === 'pending' ? 'bg-amber-600' : 'bg-red-600'
+                          }`}
+                        >
+                          {photo.status === 'pending' ? 'Review' : 'Rejected'}
+                        </div>
+                      )}
                       {!photo.isPublic && (
                         <div className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-yellow-500">
                           <Lock className="h-3 w-3 text-white" />
@@ -216,6 +230,15 @@ export default function WomanProfile() {
                     className="relative aspect-square w-full cursor-pointer overflow-hidden rounded-xl border-0 bg-gray-100 p-0 text-left ring-green-500/0 transition-shadow hover:ring-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
                   >
                     <img src={video.thumbnail} alt="" className="h-full w-full object-cover" />
+                    {(video.status === 'pending' || video.status === 'rejected') && (
+                      <div
+                        className={`absolute bottom-2 left-2 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white ${
+                          video.status === 'pending' ? 'bg-amber-600' : 'bg-red-600'
+                        }`}
+                      >
+                        {video.status === 'pending' ? 'Review' : 'Rejected'}
+                      </div>
+                    )}
                     <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90">
                         <Video className="h-5 w-5 text-gray-700" />

@@ -6,6 +6,16 @@ export type ChatUpdatePayload = { chatId: string; chat: Chat };
 let socket: Socket | null = null;
 const chatUpdateSubscribers = new Set<(payload: ChatUpdatePayload) => void>();
 
+export type NotificationNewPayload = {
+  id: string;
+  title: string;
+  body: string;
+  subtitle?: string;
+  kind: string;
+  createdAt: string;
+};
+const notificationSubscribers = new Set<(payload: NotificationNewPayload) => void>();
+
 function socketBaseUrl(): string {
   const custom = (import.meta.env.VITE_SOCKET_URL as string | undefined)?.trim();
   if (custom) return custom.replace(/\/$/, '');
@@ -44,6 +54,17 @@ export function connectChatSocket(token: string) {
     }
   });
 
+  socket.on('notification:new', (payload: NotificationNewPayload) => {
+    if (!payload?.id) return;
+    for (const cb of notificationSubscribers) {
+      try {
+        cb(payload);
+      } catch {
+        /* ignore */
+      }
+    }
+  });
+
   socket.on('connect_error', (err) => {
     console.warn('[chat socket]', err.message);
   });
@@ -61,6 +82,13 @@ export function subscribeChatUpdate(handler: (payload: ChatUpdatePayload) => voi
   chatUpdateSubscribers.add(handler);
   return () => {
     chatUpdateSubscribers.delete(handler);
+  };
+}
+
+export function subscribeNotificationNew(handler: (payload: NotificationNewPayload) => void) {
+  notificationSubscribers.add(handler);
+  return () => {
+    notificationSubscribers.delete(handler);
   };
 }
 

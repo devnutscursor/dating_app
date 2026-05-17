@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import type { ChangeEvent } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Phone, Video, MoreVertical, Send, Image, Gift, Lock, Flag, Search } from 'lucide-react';
+import { ArrowLeft, Phone, Video, MoreVertical, Send, Image, Gift, Lock, Flag, Search, Clapperboard } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import type { Chat, GiftOption } from '@/types';
@@ -34,13 +34,16 @@ export default function ManChatDetail() {
   const [videoCallOpen, setVideoCallOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [imageBusy, setImageBusy] = useState(false);
+  const [videoBusy, setVideoBusy] = useState(false);
   const [mediaPreview, setMediaPreview] = useState<{ kind: 'photo' | 'video'; url: string } | null>(null);
   const [accessError, setAccessError] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
 
   const user = chat?.participant;
   const messages = chat?.messages ?? [];
+  const isModSupport = Boolean(chat?.chatKind === 'moderator_support');
 
   const refreshThreads = useCallback(async () => {
     try {
@@ -167,6 +170,23 @@ export default function ManChatDetail() {
     }
   };
 
+  const handleVideoChange = async (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !chatId) return;
+    if (!isModSupport) return;
+    setVideoBusy(true);
+    try {
+      const { url } = await apiUploadFile<{ url: string }>('/uploads/video', file);
+      const { chat: next } = await postChatMessage(chatId, { type: 'video', mediaUrl: url, content: '' });
+      applyChatResponse(next);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : 'Could not send video');
+    } finally {
+      setVideoBusy(false);
+    }
+  };
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
@@ -243,7 +263,14 @@ export default function ManChatDetail() {
 
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="truncate font-semibold text-gray-900">{thread.participant.name}</h3>
+                    <div className="flex min-w-0 items-center gap-1.5">
+                      <h3 className="truncate font-semibold text-gray-900">{thread.participant.name}</h3>
+                      {thread.chatKind === 'moderator_support' && (
+                        <span className="shrink-0 rounded bg-amber-200 px-1 text-[10px] font-semibold uppercase text-amber-900">
+                          Mod
+                        </span>
+                      )}
+                    </div>
                     <span className="text-xs text-gray-400">{thread.lastMessage?.timestamp}</span>
                   </div>
                   <p className="mt-1 truncate text-sm text-gray-500">{chatPreviewLine(thread.lastMessage)}</p>
@@ -286,47 +313,75 @@ export default function ManChatDetail() {
           </div>
 
           <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setVideoCallOpen(true)}
-              className="p-2 hover:bg-gray-100 rounded-full"
-            >
-              <Video className="w-5 h-5 text-gray-600" />
-            </button>
-            <button className="p-2 hover:bg-gray-100 rounded-full">
-              <Phone className="w-5 h-5 text-gray-600" />
-            </button>
-            <div className="relative">
-              <button 
-                onClick={() => setMenuOpen(!menuOpen)}
-                className="p-2 hover:bg-gray-100 rounded-full"
-              >
-                <MoreVertical className="w-5 h-5 text-gray-600" />
-              </button>
-              
-              {menuOpen && (
-                <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-200 py-2 z-10">
-                  <button 
-                    onClick={() => { setBlockModalOpen(true); setMenuOpen(false); }}
-                    className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-left"
+            {!isModSupport && (
+              <>
+                <button
+                  onClick={() => setVideoCallOpen(true)}
+                  className="p-2 hover:bg-gray-100 rounded-full"
+                  type="button"
+                >
+                  <Video className="w-5 h-5 text-gray-600" />
+                </button>
+                <button className="p-2 hover:bg-gray-100 rounded-full" type="button">
+                  <Phone className="w-5 h-5 text-gray-600" />
+                </button>
+                <div className="relative">
+                  <button
+                    onClick={() => setMenuOpen(!menuOpen)}
+                    className="p-2 hover:bg-gray-100 rounded-full"
+                    type="button"
                   >
-                    <Lock className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm">Block User</span>
+                    <MoreVertical className="w-5 h-5 text-gray-600" />
                   </button>
-                  <button 
-                    onClick={() => { setReportModalOpen(true); setMenuOpen(false); }}
-                    className="w-full flex items-center gap-3 px-4 py-2 hover:bg-gray-50 text-left"
-                  >
-                    <Flag className="w-4 h-4 text-gray-500" />
-                    <span className="text-sm">Report User</span>
-                  </button>
+
+                  {menuOpen && (
+                    <div className="absolute right-0 top-full z-10 mt-2 w-48 rounded-xl border border-gray-200 bg-white py-2 shadow-lg">
+                      <button
+                        onClick={() => {
+                          setBlockModalOpen(true);
+                          setMenuOpen(false);
+                        }}
+                        className="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-gray-50"
+                        type="button"
+                      >
+                        <Lock className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">Block User</span>
+                      </button>
+                      <button
+                        onClick={() => {
+                          setReportModalOpen(true);
+                          setMenuOpen(false);
+                        }}
+                        className="flex w-full items-center gap-3 px-4 py-2 text-left hover:bg-gray-50"
+                        type="button"
+                      >
+                        <Flag className="h-4 w-4 text-gray-500" />
+                        <span className="text-sm">Report User</span>
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
+              </>
+            )}
+            {isModSupport && (
+              <span className="rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-900">
+                Moderation
+              </span>
+            )}
           </div>
         </div>
 
+        {isModSupport && (
+          <div className="shrink-0 border-b border-amber-300 bg-amber-50 px-4 py-2 text-center text-xs text-amber-950">
+            <strong>Official moderation chat</strong> — MemberDate team. You can reply in text only; dating
+            actions are turned off here.
+          </div>
+        )}
+
         {/* Messages */}
-        <div className="min-h-0 flex-1 overflow-y-auto bg-gray-50 p-4">
+        <div
+          className={`min-h-0 flex-1 overflow-y-auto p-4 ${isModSupport ? 'bg-amber-50/50' : 'bg-gray-50'}`}
+        >
           <div className="space-y-4">
             {messages.map((msg, index) => {
               const isMe = me?.id != null && msg.senderId === me.id;
@@ -349,14 +404,23 @@ export default function ManChatDetail() {
 
         {/* Input — stays above keyboard / viewport bottom (column layout) */}
         <div className="shrink-0 border-t border-gray-200 bg-white p-4">
-          <input
-            ref={imageInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => void handleImageChange(e)}
-          />
           <div className="flex items-center gap-2">
+            <input
+              ref={imageInputRef}
+              type="file"
+              accept="image/*"
+              className="hidden"
+              onChange={(e) => void handleImageChange(e)}
+            />
+            {isModSupport ? (
+              <input
+                ref={videoInputRef}
+                type="file"
+                accept="video/*"
+                className="hidden"
+                onChange={(e) => void handleVideoChange(e)}
+              />
+            ) : null}
             <button
               type="button"
               disabled={imageBusy || !chatId}
@@ -366,29 +430,52 @@ export default function ManChatDetail() {
             >
               <Image className="h-5 w-5 text-gray-500" />
             </button>
-            <button
-              type="button"
-              onClick={() => setGiftModalOpen(true)}
-              className="rounded-full p-2 hover:bg-gray-100"
-              aria-label="Send gift"
-            >
-              <Gift className="h-5 w-5 text-gray-500" />
-            </button>
+            {isModSupport && (
+              <button
+                type="button"
+                disabled={videoBusy || !chatId}
+                onClick={() => videoInputRef.current?.click()}
+                className="rounded-full p-2 hover:bg-gray-100 disabled:opacity-50"
+                aria-label="Send video"
+              >
+                <Clapperboard className="h-5 w-5 text-gray-500" />
+              </button>
+            )}
+            {!isModSupport && (
+              <button
+                type="button"
+                onClick={() => setGiftModalOpen(true)}
+                className="rounded-full p-2 hover:bg-gray-100"
+                aria-label="Send gift"
+              >
+                <Gift className="h-5 w-5 text-gray-500" />
+              </button>
+            )}
             <EmojiPickerButton onPick={(em) => setMessage((m) => m + em)} disabled={!chatId} />
             <input
               type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Type a message..."
-              className="flex-1 rounded-full bg-gray-100 px-4 py-2 outline-none focus:ring-2 focus:ring-green-500"
+              placeholder={
+                isModSupport ? 'Message — you can also attach a photo or video' : 'Type a message...'
+              }
+              className={`flex-1 rounded-full px-4 py-2 outline-none focus:ring-2 ${
+                isModSupport
+                  ? 'border border-amber-200 bg-amber-50/80 focus:ring-amber-500'
+                  : 'bg-gray-100 focus:ring-green-500'
+              }`}
             />
             <Button
               type="button"
               onClick={() => void handleSend()}
               disabled={!message.trim()}
               size="icon"
-              className="rounded-full bg-green-500 hover:bg-green-600"
+              className={
+                isModSupport
+                  ? 'rounded-full bg-amber-600 hover:bg-amber-700'
+                  : 'rounded-full bg-green-500 hover:bg-green-600'
+              }
             >
               <Send className="h-4 w-4" />
             </Button>
@@ -397,48 +484,52 @@ export default function ManChatDetail() {
       </div>
 
       {/* Modals */}
-      <BlockUserModal
-        open={blockModalOpen}
-        onClose={() => setBlockModalOpen(false)}
-        chatId={chatId!}
-        userName={user.name}
-        profilePicture={user.profilePicture}
-        onBlocked={() => {
-          void refreshThreads();
-          navigate('/man/chats');
-        }}
-      />
-      <ReportUserModal
-        open={reportModalOpen}
-        onClose={() => setReportModalOpen(false)}
-        chatId={chatId!}
-        userName={user.name}
-        profilePicture={user.profilePicture}
-        onSubmitted={() => {
-          void (async () => {
-            try {
-              const d = await apiGet<{ chat: Chat }>(`/chats/${chatId}`);
-              setChat(d.chat);
-            } catch {
-              /* ignore */
-            }
-          })();
-          void refreshThreads();
-        }}
-      />
-      <SendGiftModal
-        open={giftModalOpen}
-        onClose={() => setGiftModalOpen(false)}
-        userName={user.name}
-        onSendGift={handleGiftSend}
-      />
-      <VideoCallModal
-        open={videoCallOpen}
-        onClose={() => setVideoCallOpen(false)}
-        userId={user.id}
-        peerName={user.name}
-        peerPicture={user.profilePicture}
-      />
+      {!isModSupport && (
+        <>
+          <BlockUserModal
+            open={blockModalOpen}
+            onClose={() => setBlockModalOpen(false)}
+            chatId={chatId!}
+            userName={user.name}
+            profilePicture={user.profilePicture}
+            onBlocked={() => {
+              void refreshThreads();
+              navigate('/man/chats');
+            }}
+          />
+          <ReportUserModal
+            open={reportModalOpen}
+            onClose={() => setReportModalOpen(false)}
+            chatId={chatId!}
+            userName={user.name}
+            profilePicture={user.profilePicture}
+            onSubmitted={() => {
+              void (async () => {
+                try {
+                  const d = await apiGet<{ chat: Chat }>(`/chats/${chatId}`);
+                  setChat(d.chat);
+                } catch {
+                  /* ignore */
+                }
+              })();
+              void refreshThreads();
+            }}
+          />
+          <SendGiftModal
+            open={giftModalOpen}
+            onClose={() => setGiftModalOpen(false)}
+            userName={user.name}
+            onSendGift={handleGiftSend}
+          />
+          <VideoCallModal
+            open={videoCallOpen}
+            onClose={() => setVideoCallOpen(false)}
+            userId={user.id}
+            peerName={user.name}
+            peerPicture={user.profilePicture}
+          />
+        </>
+      )}
       <MediaPreviewModal
         open={Boolean(mediaPreview)}
         onClose={() => setMediaPreview(null)}

@@ -1,4 +1,4 @@
-import { Coins, Gift, Play } from 'lucide-react';
+import { AlertTriangle, Coins, Gift, Play } from 'lucide-react';
 import type { Message } from '@/types';
 import { cn } from '@/lib/utils';
 import { getGiftVisualTheme } from '@/lib/giftVisualThemes';
@@ -139,6 +139,26 @@ export function ChatMessageBubble({
   peerName,
   onMediaPreview,
 }: Props) {
+  if (msg.isPrivateNotice) {
+    return (
+      <div className="flex justify-center px-1">
+        <div className="w-full max-w-[min(100%,28rem)] rounded-xl border-2 border-amber-400/90 bg-gradient-to-b from-amber-50 to-amber-100/90 px-4 py-3 text-center shadow-sm">
+          <div className="flex items-center justify-center gap-2 text-amber-950">
+            <AlertTriangle className="h-4 w-4 shrink-0 text-amber-700" aria-hidden />
+            <p className="text-xs font-bold uppercase tracking-wide text-amber-900">Report submitted</p>
+          </div>
+          <p className="mt-3 whitespace-pre-wrap text-left text-sm font-medium leading-relaxed text-amber-950">
+            {msg.content}
+          </p>
+          <p className="mt-3 border-t border-amber-200/80 pt-2 text-[11px] leading-snug text-amber-900/85">
+            Only you can see this note. The other person is not notified in this conversation.
+          </p>
+          <span className="mt-2 block text-xs text-amber-800/80">{msg.timestamp}</span>
+        </div>
+      </div>
+    );
+  }
+
   if (msg.type === 'gift') {
     return (
       <div className={`flex ${isMe ? 'justify-end' : 'justify-start'}`}>

@@ -6,6 +6,7 @@ import {
 import BrandLogo from '@/components/BrandLogo';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiGet } from '@/lib/api';
+import { fetchPendingFemaleContent } from '@/lib/moderator';
 import type { Report } from '@/types';
 
 interface ModeratorSidebarProps {
@@ -24,6 +25,7 @@ export default function ModeratorSidebar({ onClose }: ModeratorSidebarProps) {
   const navigate = useNavigate();
   const location = useLocation();
   const [pendingReportCount, setPendingReportCount] = useState<number | null>(null);
+  const [pendingContentCount, setPendingContentCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (!location.pathname.startsWith('/moderator')) return;
@@ -33,6 +35,9 @@ export default function ModeratorSidebar({ onClose }: ModeratorSidebarProps) {
         setPendingReportCount(n);
       })
       .catch(() => setPendingReportCount(null));
+    void fetchPendingFemaleContent()
+      .then((items) => setPendingContentCount(items.length))
+      .catch(() => setPendingContentCount(null));
   }, [location.pathname]);
 
   const isActive = (href: string) => {
@@ -73,9 +78,9 @@ export default function ModeratorSidebar({ onClose }: ModeratorSidebarProps) {
             >
               <Icon className="w-5 h-5" />
               <span className="font-medium">{item.label}</span>
-              {item.id === 'content' && (
-                <span className="ml-auto bg-red-500 text-white text-xs px-2 py-0.5 rounded-full">
-                  5
+              {item.id === 'content' && pendingContentCount != null && pendingContentCount > 0 && (
+                <span className="ml-auto rounded-full bg-red-500 px-2 py-0.5 text-xs text-white">
+                  {pendingContentCount > 99 ? '99+' : pendingContentCount}
                 </span>
               )}
               {item.id === 'reports' && pendingReportCount != null && pendingReportCount > 0 && (

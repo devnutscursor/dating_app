@@ -1,11 +1,12 @@
 import type { User } from '@/types';
 import { apiGet, apiPost } from '@/lib/api';
+import { publicGalleryPhotoUrls } from '@/lib/profileMedia';
 
 const PHOTO_FALLBACK = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400';
 
-/** Public profile image URLs for gallery (never empty). */
+/** Public profile image URLs for gallery (never empty). Excludes private / locked media. */
 export function userGalleryPhotos(user: User, fallback = PHOTO_FALLBACK): string[] {
-  const urls = [user.profilePicture, ...user.photos.map((p) => p.url)].filter((u): u is string => Boolean(u));
+  const urls = publicGalleryPhotoUrls(user);
   return urls.length ? urls : [fallback];
 }
 
@@ -36,4 +37,11 @@ export async function sendLike(userId: string): Promise<{ ok: boolean; alreadyLi
 export async function fetchPublicUser(userId: string): Promise<User> {
   const data = await apiGet<{ user: User }>(`/users/${userId}`);
   return data.user;
+}
+
+export async function unlockMemberMedia(
+  ownerUserId: string,
+  body: { mediaKind: 'photo' | 'video'; mediaId: string }
+): Promise<{ ok: boolean; coins: number; user: User; alreadyUnlocked?: boolean }> {
+  return apiPost(`/users/${ownerUserId}/unlock-media`, body);
 }
