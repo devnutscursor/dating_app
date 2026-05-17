@@ -7,6 +7,11 @@ import apiRoutes from './routes/index.js';
 export function createApp() {
   const app = express();
 
+  // Render (and most PaaS providers) terminate TLS at a reverse proxy and
+  // forward the real client IP via X-Forwarded-For. Trust the first hop so
+  // express-rate-limit and req.ip work correctly.
+  app.set('trust proxy', 1);
+
   app.use(helmet());
   app.use(
     cors({
