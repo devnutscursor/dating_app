@@ -1,8 +1,11 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { CallProvider } from '@/contexts/CallContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import DefaultChatRedirect from '@/components/DefaultChatRedirect';
+import IncomingCallOverlay from '@/components/call/IncomingCallOverlay';
+import GlobalCallModal from '@/components/call/GlobalCallModal';
 
 // Landing Pages
 import LandingPage from '@/pages/landing/LandingPage';
@@ -66,6 +69,7 @@ function App() {
   return (
     <Router>
       <AuthProvider>
+        <CallProvider>
         <Routes>
           {/* Landing & Auth Routes */}
           <Route path="/" element={<LandingPage />} />
@@ -168,6 +172,9 @@ function App() {
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
         <Toaster position="top-right" />
+        <IncomingCallOverlay />
+        <GlobalCallModal />
+        </CallProvider>
       </AuthProvider>
     </Router>
   );

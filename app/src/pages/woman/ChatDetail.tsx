@@ -11,17 +11,18 @@ import { postChatMessage } from '@/lib/chats';
 import { layoutChatsListColumnHeaderClass, layoutConversationToolbarClass } from '@/config/design';
 import { subscribeChatUpdate } from '@/lib/chatSocket';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCall } from '@/contexts/CallContext';
 import { ChatMessageBubble } from '@/components/chat/ChatMessageBubble';
 import { EmojiPickerButton } from '@/components/chat/EmojiPickerButton';
 import BlockUserModal from '@/components/modals/BlockUserModal';
 import ReportUserModal from '@/components/modals/ReportUserModal';
-import VideoCallModal from '@/components/modals/VideoCallModal';
 import MediaPreviewModal from '@/components/modals/MediaPreviewModal';
 
 export default function WomanChatDetail() {
   const { chatId } = useParams();
   const navigate = useNavigate();
   const { user: me, refreshUser } = useAuth();
+  const { initiateCall, callStatus } = useCall();
   const [message, setMessage] = useState('');
   const [threads, setThreads] = useState<Chat[]>([]);
   const [chat, setChat] = useState<Chat | null>(null);
@@ -29,7 +30,6 @@ export default function WomanChatDetail() {
   const [chatLoading, setChatLoading] = useState(true);
   const [blockModalOpen, setBlockModalOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
-  const [videoCallOpen, setVideoCallOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [earnings, _setEarnings] = useState(0);
   const [imageBusy, setImageBusy] = useState(false);
@@ -311,13 +311,37 @@ export default function WomanChatDetail() {
                 </div>
 
                 <button
-                  onClick={() => setVideoCallOpen(true)}
-                  className="rounded-full p-2 hover:bg-gray-100"
+                  onClick={() =>
+                    void initiateCall(
+                      user.id,
+                      chatId!,
+                      'video',
+                      user.name,
+                      user.profilePicture
+                    )
+                  }
+                  disabled={callStatus !== 'idle'}
+                  className="rounded-full p-2 hover:bg-gray-100 disabled:opacity-40"
                   type="button"
+                  title="Video call"
                 >
                   <Video className="h-5 w-5 text-gray-600" />
                 </button>
-                <button className="rounded-full p-2 hover:bg-gray-100" type="button">
+                <button
+                  onClick={() =>
+                    void initiateCall(
+                      user.id,
+                      chatId!,
+                      'audio',
+                      user.name,
+                      user.profilePicture
+                    )
+                  }
+                  disabled={callStatus !== 'idle'}
+                  className="rounded-full p-2 hover:bg-gray-100 disabled:opacity-40"
+                  type="button"
+                  title="Audio call"
+                >
                   <Phone className="h-5 w-5 text-gray-600" />
                 </button>
                 <div className="relative">
@@ -498,14 +522,6 @@ export default function WomanChatDetail() {
               })();
               void refreshThreads();
             }}
-          />
-          <VideoCallModal
-            open={videoCallOpen}
-            onClose={() => setVideoCallOpen(false)}
-            userId={user.id}
-            peerName={user.name}
-            peerPicture={user.profilePicture}
-            isIncoming={false}
           />
         </>
       )}

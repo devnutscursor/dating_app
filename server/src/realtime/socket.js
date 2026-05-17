@@ -34,6 +34,44 @@ export function initSocketIO(httpServer) {
   io.on('connection', (socket) => {
     const uid = socket.data.userId;
     socket.join(`user:${uid}`);
+
+    // ── Audio / Video call signaling ──────────────────────────────────────────
+    // All events are pure relay: the server never inspects media.
+
+    // Caller → callee: announce an incoming call
+    socket.on('call:initiate', ({ targetUserId, chatId, callType }) => {
+      if (!targetUserId || !chatId) return;
+      io.to(`user:${targetUserId}`).emit('call:incoming', {
+        from: uid,
+        chatId,
+        callType: callType === 'audio' ? 'audio' : 'video',
+      });
+    });
+
+    // Callee → caller: call was accepted
+    socket.on('call:accepted', ({ targetUserId, chatId }) => {
+      if (!targetUserId || !chatId) return;
+      io.to(`user:${targetUserId}`).emit('call:accepted', { from: uid, chatId });
+    });
+
+    // Callee → caller: call was rejected / declined
+    socket.on('call:rejected', ({ targetUserId, chatId }) => {
+      if (!targetUserId || !chatId) return;
+      io.to(`user:${targetUserId}`).emit('call:rejected', { from: uid, chatId });
+    });
+
+    // Either peer → other peer: WebRTC signal data (offer / answer / ICE candidate)
+    socket.on('call:signal', ({ targetUserId, chatId, signal }) => {
+      if (!targetUserId || !chatId || !signal) return;
+      io.to(`user:${targetUserId}`).emit('call:signal', { from: uid, chatId, signal });
+    });
+
+    // Either peer → other peer: call has ended / hung up
+    socket.on('call:ended', ({ targetUserId, chatId }) => {
+      if (!targetUserId || !chatId) return;
+      io.to(`user:${targetUserId}`).emit('call:ended', { from: uid, chatId });
+    });
+    // ─────────────────────────────────────────────────────────────────────────
   });
 
   return io;

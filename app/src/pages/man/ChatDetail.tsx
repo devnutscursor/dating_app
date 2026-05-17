@@ -11,18 +11,19 @@ import { postChatMessage } from '@/lib/chats';
 import { layoutChatsListColumnHeaderClass, layoutConversationToolbarClass } from '@/config/design';
 import { subscribeChatUpdate } from '@/lib/chatSocket';
 import { useAuth } from '@/contexts/AuthContext';
+import { useCall } from '@/contexts/CallContext';
 import { ChatMessageBubble } from '@/components/chat/ChatMessageBubble';
 import { EmojiPickerButton } from '@/components/chat/EmojiPickerButton';
 import BlockUserModal from '@/components/modals/BlockUserModal';
 import ReportUserModal from '@/components/modals/ReportUserModal';
 import SendGiftModal from '@/components/modals/SendGiftModal';
-import VideoCallModal from '@/components/modals/VideoCallModal';
 import MediaPreviewModal from '@/components/modals/MediaPreviewModal';
 
 export default function ManChatDetail() {
   const { chatId } = useParams();
   const navigate = useNavigate();
   const { user: me, refreshUser } = useAuth();
+  const { initiateCall, callStatus } = useCall();
   const [message, setMessage] = useState('');
   const [threads, setThreads] = useState<Chat[]>([]);
   const [chat, setChat] = useState<Chat | null>(null);
@@ -31,7 +32,6 @@ export default function ManChatDetail() {
   const [blockModalOpen, setBlockModalOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [giftModalOpen, setGiftModalOpen] = useState(false);
-  const [videoCallOpen, setVideoCallOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [imageBusy, setImageBusy] = useState(false);
   const [videoBusy, setVideoBusy] = useState(false);
@@ -316,13 +316,37 @@ export default function ManChatDetail() {
             {!isModSupport && (
               <>
                 <button
-                  onClick={() => setVideoCallOpen(true)}
-                  className="p-2 hover:bg-gray-100 rounded-full"
+                  onClick={() =>
+                    void initiateCall(
+                      user.id,
+                      chatId!,
+                      'video',
+                      user.name,
+                      user.profilePicture
+                    )
+                  }
+                  disabled={callStatus !== 'idle'}
+                  className="p-2 hover:bg-gray-100 rounded-full disabled:opacity-40"
                   type="button"
+                  title="Video call"
                 >
                   <Video className="w-5 h-5 text-gray-600" />
                 </button>
-                <button className="p-2 hover:bg-gray-100 rounded-full" type="button">
+                <button
+                  onClick={() =>
+                    void initiateCall(
+                      user.id,
+                      chatId!,
+                      'audio',
+                      user.name,
+                      user.profilePicture
+                    )
+                  }
+                  disabled={callStatus !== 'idle'}
+                  className="p-2 hover:bg-gray-100 rounded-full disabled:opacity-40"
+                  type="button"
+                  title="Audio call"
+                >
                   <Phone className="w-5 h-5 text-gray-600" />
                 </button>
                 <div className="relative">
@@ -520,13 +544,6 @@ export default function ManChatDetail() {
             onClose={() => setGiftModalOpen(false)}
             userName={user.name}
             onSendGift={handleGiftSend}
-          />
-          <VideoCallModal
-            open={videoCallOpen}
-            onClose={() => setVideoCallOpen(false)}
-            userId={user.id}
-            peerName={user.name}
-            peerPicture={user.profilePicture}
           />
         </>
       )}
