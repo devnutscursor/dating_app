@@ -6,7 +6,8 @@ import { nodePolyfills } from 'vite-plugin-node-polyfills'
 
 // https://vite.dev/config/
 export default defineConfig({
-  base: './',
+  // Use absolute paths so assets load correctly on deep routes like /man/chats/123
+  base: '/',
   plugins: [inspectAttr(), react(), nodePolyfills()],
   server: {
     proxy: {
