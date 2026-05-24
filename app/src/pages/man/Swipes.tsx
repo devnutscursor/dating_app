@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { X, Heart, Star, MapPin, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
 import HoverPhotoGallery from '@/components/HoverPhotoGallery';
@@ -7,9 +7,12 @@ import { formatProfileLocation } from '@/lib/formatProfileLocation';
 import AppliedSearchFiltersBar from '@/components/AppliedSearchFiltersBar';
 import { useSearchFilters } from '@/contexts/SearchFiltersContext';
 import { fetchDiscoverUsers, sendLike, userGalleryPhotos } from '@/lib/social';
+import { profileReturnState } from '@/lib/profileNavigation';
 import type { User } from '@/types';
 
 export default function ManSwipes() {
+  const location = useLocation();
+  const profileNavState = profileReturnState(location.pathname + location.search);
   const { filters, userIdSearch, version } = useSearchFilters();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -119,11 +122,22 @@ export default function ManSwipes() {
           }`}
         >
           <div className="relative aspect-[3/4]">
-            <HoverPhotoGallery photos={userGalleryPhotos(currentUser)} alt={currentUser.name} className="h-full w-full" />
+            <Link
+              to={`/man/view-profile/${currentUser.id}`}
+              state={profileNavState.state}
+              className="absolute inset-0 z-0 block"
+              aria-label={`View ${currentUser.name}'s profile`}
+            >
+              <HoverPhotoGallery
+                photos={userGalleryPhotos(currentUser)}
+                alt={currentUser.name}
+                className="h-full w-full"
+              />
+            </Link>
 
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
 
-            <div className="absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 backdrop-blur-sm">
+            <div className="pointer-events-none absolute left-4 top-4 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 backdrop-blur-sm">
               <div
                 className={`h-2 w-2 rounded-full ${currentUser.isOnline ? 'animate-pulse bg-green-500' : 'bg-gray-400'}`}
               />
@@ -133,9 +147,15 @@ export default function ManSwipes() {
             </div>
 
             <div className="pointer-events-none absolute bottom-0 left-0 right-0 p-6 text-white">
-              <h2 className="mb-1 text-3xl font-bold">
-                {currentUser.name}, {currentUser.age}
-              </h2>
+              <Link
+                to={`/man/view-profile/${currentUser.id}`}
+                state={profileNavState.state}
+                className="pointer-events-auto mb-1 inline-block"
+              >
+                <h2 className="text-3xl font-bold transition-opacity hover:opacity-90">
+                  {currentUser.name}, {currentUser.age}
+                </h2>
+              </Link>
               <div className="mb-3 flex items-center gap-1 text-white/80">
                 <MapPin className="h-4 w-4" />
                 <span>{formatProfileLocation(currentUser.city, currentUser.country) || '—'}</span>

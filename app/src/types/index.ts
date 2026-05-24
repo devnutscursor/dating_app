@@ -25,6 +25,8 @@ export interface User {
   isVerified: boolean;
   /** When false, member must complete email verification before using the app. */
   emailVerified?: boolean;
+  /** From server: true only when admin setting requires verification and email is not verified yet. */
+  emailVerificationRequired?: boolean;
   isBlocked?: boolean;
   /** Set when the platform suspends a dating member (ToS). Shown on /auth/me for blocked users. */
   platformSuspendedReason?: string;
@@ -127,6 +129,8 @@ export interface PayoutRequest {
   status: 'pending' | 'processing' | 'completed' | 'rejected';
   requestedAt: string;
   processedAt?: string;
+  /** Set when admin rejects or adds a processing note */
+  adminNote?: string;
 }
 
 export interface Report {

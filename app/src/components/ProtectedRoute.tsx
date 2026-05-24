@@ -61,7 +61,7 @@ export function ProtectedRoute({
     return <Navigate to="/" replace />;
   }
 
-  if ((role === 'male' || role === 'female') && user.emailVerified === false) {
+  if ((role === 'male' || role === 'female') && user.emailVerificationRequired) {
     return <Navigate to="/verify-email" replace state={{ email: user.email }} />;
   }
 

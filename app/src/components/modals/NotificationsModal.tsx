@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
-import { X, Heart, Gift, Coins, Flag, MessageCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { X, Heart, Gift, Coins, Flag, MessageCircle, UserPlus, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   fetchNotifications,
@@ -14,6 +15,8 @@ interface NotificationsModalProps {
   onClose: () => void;
   /** After list changes so the bell badge can refresh */
   onListChange?: () => void;
+  /** When set, enables admin-specific icons and navigation */
+  variant?: 'member' | 'admin';
 }
 
 function rowTimestamp(iso: string) {
@@ -26,10 +29,19 @@ function rowTimestamp(iso: string) {
   }
 }
 
-export default function NotificationsModal({ open, onClose, onListChange }: NotificationsModalProps) {
+export default function NotificationsModal({ open, onClose, onListChange, variant = 'member' }: NotificationsModalProps) {
+  const navigate = useNavigate();
   const [rows, setRows] = useState<NotificationRow[]>([]);
   const [busy, setBusy] = useState(false);
   const [loadErr, setLoadErr] = useState<string | null>(null);
+
+  const adminPathFor = (row: NotificationRow): string | null => {
+    if (variant !== 'admin') return null;
+    if (row.kind === 'admin_new_report') return '/admin/reports';
+    if (row.kind === 'admin_new_user') return '/admin/users';
+    if (row.kind === 'admin_payout_request') return '/admin/payouts';
+    return null;
+  };
 
   const refresh = useCallback(async () => {
     setBusy(true);
@@ -52,6 +64,15 @@ export default function NotificationsModal({ open, onClose, onListChange }: Noti
   }, [open, refresh]);
 
   const getIcon = (row: NotificationRow) => {
+    if (row.kind === 'admin_new_user') {
+      return <UserPlus className="h-5 w-5 text-green-600" />;
+    }
+    if (row.kind === 'admin_new_report') {
+      return <Flag className="h-5 w-5 text-red-600" />;
+    }
+    if (row.kind === 'admin_payout_request') {
+      return <Wallet className="h-5 w-5 text-amber-600" />;
+    }
     if (row.kind === 'moderator_dm' || row.type === 'message') {
       return <MessageCircle className="h-5 w-5 text-amber-600" />;
     }
@@ -71,13 +92,19 @@ export default function NotificationsModal({ open, onClose, onListChange }: Noti
   };
 
   const onRowClick = async (row: NotificationRow) => {
-    if (row.isRead) return;
-    try {
-      await markNotificationRead(row.id);
-      setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, isRead: true } : r)));
-      onListChange?.();
-    } catch {
-      /* ignore */
+    if (!row.isRead) {
+      try {
+        await markNotificationRead(row.id);
+        setRows((prev) => prev.map((r) => (r.id === row.id ? { ...r, isRead: true } : r)));
+        onListChange?.();
+      } catch {
+        /* ignore */
+      }
+    }
+    const path = adminPathFor(row);
+    if (path) {
+      onClose();
+      navigate(path);
     }
   };
 

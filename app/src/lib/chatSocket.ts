@@ -13,6 +13,8 @@ export type NotificationNewPayload = {
   subtitle?: string;
   kind: string;
   createdAt: string;
+  reportId?: string;
+  relatedUserId?: string;
 };
 const notificationSubscribers = new Set<(payload: NotificationNewPayload) => void>();
 
@@ -70,6 +72,22 @@ const callAcceptedSubscribers = new Set<(payload: CallStatusPayload) => void>();
 const callRejectedSubscribers = new Set<(payload: CallStatusPayload) => void>();
 const callSignalSubscribers = new Set<(payload: CallSignalPayload) => void>();
 const callEndedSubscribers = new Set<(payload: CallStatusPayload) => void>();
+
+export type CallBillingFailedPayload = {
+  chatId: string;
+  reason: string;
+  message?: string;
+};
+
+export type CallCoinsUpdatedPayload = {
+  chatId: string;
+  coins: number;
+  amount: number;
+  earned?: boolean;
+};
+
+const callBillingFailedSubscribers = new Set<(payload: CallBillingFailedPayload) => void>();
+const callCoinsUpdatedSubscribers = new Set<(payload: CallCoinsUpdatedPayload) => void>();
 // ─────────────────────────────────────────────────────────────────────────
 
 function socketBaseUrl(): string {
@@ -170,6 +188,20 @@ export function connectChatSocket(token: string) {
       try { cb(payload); } catch { /* ignore */ }
     }
   });
+
+  socket.on('call:billing-failed', (payload: CallBillingFailedPayload) => {
+    if (!payload?.chatId) return;
+    for (const cb of callBillingFailedSubscribers) {
+      try { cb(payload); } catch { /* ignore */ }
+    }
+  });
+
+  socket.on('call:coins-updated', (payload: CallCoinsUpdatedPayload) => {
+    if (!payload?.chatId || typeof payload.coins !== 'number') return;
+    for (const cb of callCoinsUpdatedSubscribers) {
+      try { cb(payload); } catch { /* ignore */ }
+    }
+  });
   // ─────────────────────────────────────────────────────────────────────────
 }
 
@@ -253,5 +285,15 @@ export function subscribeCallSignal(handler: (payload: CallSignalPayload) => voi
 export function subscribeCallEnded(handler: (payload: CallStatusPayload) => void) {
   callEndedSubscribers.add(handler);
   return () => { callEndedSubscribers.delete(handler); };
+}
+
+export function subscribeCallBillingFailed(handler: (payload: CallBillingFailedPayload) => void) {
+  callBillingFailedSubscribers.add(handler);
+  return () => { callBillingFailedSubscribers.delete(handler); };
+}
+
+export function subscribeCallCoinsUpdated(handler: (payload: CallCoinsUpdatedPayload) => void) {
+  callCoinsUpdatedSubscribers.add(handler);
+  return () => { callCoinsUpdatedSubscribers.delete(handler); };
 }
 // ─────────────────────────────────────────────────────────────────────────

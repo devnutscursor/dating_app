@@ -3,6 +3,8 @@ import helmet from 'helmet';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import apiRoutes from './routes/index.js';
+import { paymentWebhook } from './controllers/payments.controller.js';
+import { asyncHandler } from './utils/asyncHandler.js';
 
 export function createApp() {
   const app = express();
@@ -19,6 +21,14 @@ export function createApp() {
       credentials: true,
     })
   );
+
+  // NOWPayments IPN — raw body required for HMAC signature verification
+  app.post(
+    '/api/payments/webhook',
+    express.raw({ type: 'application/json' }),
+    asyncHandler(paymentWebhook)
+  );
+
   app.use(express.json({ limit: '1mb' }));
   app.use(cookieParser());
 

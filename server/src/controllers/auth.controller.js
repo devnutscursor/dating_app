@@ -3,9 +3,11 @@ import crypto from 'crypto';
 import validator from 'validator';
 import { User } from '../models/User.model.js';
 import { signAccessToken } from '../utils/jwt.js';
-import { serializeUser } from '../utils/serializeUser.js';
+import { serializeUserForClient, memberNeedsEmailVerification } from '../utils/enrichMemberUser.js';
 import { sendVerificationEmail } from '../utils/mailer.js';
 import { forceUserOffline } from '../services/presence.js';
+import { notifyAdminsNewSignup } from '../services/adminAlerts.js';
+import { getPlatformSettings } from '../services/siteSettings.js';
 
 const SALT_ROUNDS = 12;
 const OTP_ROUNDS = 10;
@@ -59,8 +61,15 @@ export async function register(req, res) {
   }
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
   const age = computeAge(birthDate);
-  const plainOtp = generateSixDigitOtp();
-  const otpHash = await bcrypt.hash(plainOtp, OTP_ROUNDS);
+  const settings = await getPlatformSettings();
+  const requireVerification = Boolean(settings?.security?.requireVerification);
+
+  let plainOtp;
+  let otpHash;
+  if (requireVerification) {
+    plainOtp = generateSixDigitOtp();
+    otpHash = await bcrypt.hash(plainOtp, OTP_ROUNDS);
+  }
 
   try {
     const user = await User.create({
@@ -75,17 +84,31 @@ export async function register(req, res) {
       photos: [],
       videos: [],
       coins: 100,
-      emailVerified: false,
-      emailVerificationOtpHash: otpHash,
-      emailVerificationOtpExpires: new Date(Date.now() + OTP_TTL_MS),
+      emailVerified: !requireVerification,
+      ...(requireVerification
+        ? {
+            emailVerificationOtpHash: otpHash,
+            emailVerificationOtpExpires: new Date(Date.now() + OTP_TTL_MS),
+          }
+        : {}),
     });
 
-    await sendVerificationEmail({ to: user.email, code: plainOtp, name: user.name });
+    if (requireVerification) {
+      await sendVerificationEmail({ to: user.email, code: plainOtp, name: user.name });
+    }
+
+    const io = req.app.get('io');
+    void notifyAdminsNewSignup(io, {
+      userId: user._id,
+      name: user.name,
+      email: user.email,
+      gender: user.gender,
+    }).catch((err) => console.error('[adminAlerts] new signup', err));
 
     const accessToken = signAccessToken({ sub: user._id.toString() });
     return res.status(201).json({
       accessToken,
-      user: serializeUser(user),
+      user: await serializeUserForClient(user),
     });
   } catch (err) {
     if (err.code === 11000) {
@@ -120,7 +143,7 @@ export async function login(req, res) {
   const accessToken = signAccessToken({ sub: user._id.toString() });
   res.json({
     accessToken,
-    user: serializeUser(user),
+    user: await serializeUserForClient(user),
   });
 }
 
@@ -134,8 +157,15 @@ export async function verifyEmail(req, res) {
   if (!user) {
     return res.status(401).json({ error: 'User not found' });
   }
+  const settings = await getPlatformSettings();
+  if (!memberNeedsEmailVerification(user, settings)) {
+    return res.json({
+      user: await serializeUserForClient(user),
+      message: 'Email verification is not required',
+    });
+  }
   if (user.emailVerified) {
-    return res.json({ user: serializeUser(user), message: 'Email already verified' });
+    return res.json({ user: await serializeUserForClient(user), message: 'Email already verified' });
   }
   if (!user.emailVerificationOtpHash) {
     return res.status(400).json({ error: 'No verification code on file. Request a new code.' });
@@ -151,13 +181,17 @@ export async function verifyEmail(req, res) {
   user.emailVerificationOtpHash = undefined;
   user.emailVerificationOtpExpires = undefined;
   await user.save();
-  res.json({ user: serializeUser(user) });
+  res.json({ user: await serializeUserForClient(user) });
 }
 
 export async function resendVerification(req, res) {
   const user = await User.findById(req.user._id);
   if (!user) {
     return res.status(401).json({ error: 'User not found' });
+  }
+  const settings = await getPlatformSettings();
+  if (!memberNeedsEmailVerification(user, settings)) {
+    return res.json({ message: 'Email verification is not required for new accounts' });
   }
   if (user.emailVerified) {
     return res.json({ message: 'Email already verified' });
@@ -167,7 +201,32 @@ export async function resendVerification(req, res) {
 }
 
 export async function me(req, res) {
-  res.json({ user: serializeUser(req.user) });
+  res.json({ user: await serializeUserForClient(req.user) });
+}
+
+export async function changePassword(req, res) {
+  const { currentPassword, newPassword } = req.body;
+  if (!currentPassword || !newPassword) {
+    return res.status(400).json({ error: 'Current and new password are required' });
+  }
+  if (String(newPassword).length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  }
+  const role = req.user.role;
+  if (role !== 'male' && role !== 'female') {
+    return res.status(403).json({ error: 'Password change is only available for member accounts' });
+  }
+  const user = await User.findById(req.user._id).select('+password');
+  if (!user) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  const ok = await bcrypt.compare(String(currentPassword), user.password);
+  if (!ok) {
+    return res.status(401).json({ error: 'Current password is incorrect' });
+  }
+  user.password = await bcrypt.hash(String(newPassword), SALT_ROUNDS);
+  await user.save();
+  res.json({ message: 'Password updated' });
 }
 
 export async function logout(req, res) {
@@ -175,6 +234,6 @@ export async function logout(req, res) {
   const user = await User.findById(req.user._id);
   res.json({
     message: 'Logged out. Clear the token on the client.',
-    user: user ? serializeUser(user) : undefined,
+    user: user ? await serializeUserForClient(user) : undefined,
   });
 }

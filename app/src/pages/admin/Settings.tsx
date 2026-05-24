@@ -1,39 +1,101 @@
-import { useState } from 'react';
-import { Save, Coins, Video, Shield, Bell } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Save, Coins, Video, Shield, Bell, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { apiGet, apiPatch } from '@/lib/api';
+
+interface PlatformSettings {
+  coinPricing: {
+    photoUnlock: number;
+    videoUnlock: number;
+    audioCallPerMinute: number;
+    videoCallPerMinute: number;
+    messagePriority: number;
+    profileBoost: number;
+    messageCost: number;
+  };
+  videoCall: {
+    minDuration: number;
+    maxDuration: number;
+    quality: 'sd' | 'hd' | 'fhd';
+  };
+  security: {
+    requireVerification: boolean;
+    autoBlockReports: number;
+    contentModeration: boolean;
+  };
+  notifications: {
+    emailAdmins: boolean;
+    newUserAlerts: boolean;
+    reportAlerts: boolean;
+  };
+}
+
+const DEFAULTS: PlatformSettings = {
+  coinPricing: {
+    photoUnlock: 100,
+    videoUnlock: 500,
+    audioCallPerMinute: 5,
+    videoCallPerMinute: 10,
+    messagePriority: 5,
+    profileBoost: 100,
+    messageCost: 0,
+  },
+  videoCall: { minDuration: 1, maxDuration: 120, quality: 'hd' },
+  security: { requireVerification: false, autoBlockReports: 0, contentModeration: true },
+  notifications: { emailAdmins: false, newUserAlerts: false, reportAlerts: false },
+};
 
 export default function AdminSettings() {
-  const [settings, setSettings] = useState({
-    coinPricing: {
-      photoUnlock: 10,
-      videoUnlock: 50,
-      videoCallPerMinute: 10,
-      messagePriority: 5,
-      profileBoost: 100,
-      /** Per-message coin cost when enabled (0 = free messaging) */
-      messageCost: 0,
-    },
-    videoCall: {
-      minDuration: 1,
-      maxDuration: 120,
-      quality: 'hd',
-    },
-    security: {
-      requireVerification: true,
-      autoBlockReports: 3,
-      contentModeration: true,
-    },
-    notifications: {
-      emailAdmins: true,
-      newUserAlerts: false,
-      reportAlerts: true,
-    },
-  });
+  const [settings, setSettings] = useState<PlatformSettings>(DEFAULTS);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
 
-  const handleSave = () => {
-    // Save settings
-    alert('Settings saved successfully!');
+  useEffect(() => {
+    void (async () => {
+      try {
+        const data = await apiGet<{ settings: PlatformSettings }>('/admin/settings');
+        setSettings((prev) => ({ ...prev, ...data.settings }));
+      } catch (e) {
+        toast.error(e instanceof Error ? e.message : 'Could not load settings');
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      const data = await apiPatch<{ settings: PlatformSettings }>('/admin/settings', settings);
+      setSettings((prev) => ({ ...prev, ...data.settings }));
+      toast.success('Settings saved');
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not save settings');
+    } finally {
+      setSaving(false);
+    }
   };
+
+  const setPricing = (key: keyof PlatformSettings['coinPricing'], value: number) =>
+    setSettings((s) => ({ ...s, coinPricing: { ...s.coinPricing, [key]: value } }));
+
+  const setVideoCall = <K extends keyof PlatformSettings['videoCall']>(key: K, value: PlatformSettings['videoCall'][K]) =>
+    setSettings((s) => ({ ...s, videoCall: { ...s.videoCall, [key]: value } }));
+
+  const setSecurity = <K extends keyof PlatformSettings['security']>(key: K, value: PlatformSettings['security'][K]) =>
+    setSettings((s) => ({ ...s, security: { ...s.security, [key]: value } }));
+
+  const setNotif = (key: keyof PlatformSettings['notifications'], value: boolean) =>
+    setSettings((s) => ({ ...s, notifications: { ...s.notifications, [key]: value } }));
+
+  if (loading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-gray-500">
+        <Loader2 className="mr-2 h-5 w-5 animate-spin" /> Loading settings…
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -43,17 +105,17 @@ export default function AdminSettings() {
           <h1 className="text-2xl font-bold text-gray-900">Settings</h1>
           <p className="text-gray-500">Configure platform settings</p>
         </div>
-        <Button onClick={handleSave} className="bg-green-500 hover:bg-green-600 gap-2">
-          <Save className="w-4 h-4" />
-          Save Changes
+        <Button onClick={() => void handleSave()} disabled={saving} className="gap-2 bg-green-500 hover:bg-green-600">
+          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+          {saving ? 'Saving…' : 'Save Changes'}
         </Button>
       </div>
 
       {/* Coin Pricing */}
-      <div className="bg-white rounded-2xl shadow-sm p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-            <Coins className="w-5 h-5 text-yellow-600" />
+      <div className="rounded-2xl bg-white p-6 shadow-sm">
+        <div className="mb-6 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-yellow-100">
+            <Coins className="h-5 w-5 text-yellow-600" />
           </div>
           <div>
             <h2 className="font-semibold text-gray-900">Coin Pricing</h2>
@@ -61,91 +123,50 @@ export default function AdminSettings() {
           </div>
         </div>
 
-        <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {(
+            [
+              { key: 'photoUnlock', label: 'Photo Unlock', hint: 'Default when woman sets no individual price' },
+              { key: 'videoUnlock', label: 'Video Unlock', hint: 'Default when woman sets no individual price' },
+              { key: 'audioCallPerMinute', label: 'Voice Call (per min)', hint: 'Deducted from man every 60 s' },
+              { key: 'videoCallPerMinute', label: 'Video Chat (per min)', hint: 'Deducted from man every 60 s' },
+              { key: 'messageCost', label: 'Message cost (coins)', hint: 'Set to 0 for free messaging' },
+            ] as { key: keyof PlatformSettings['coinPricing']; label: string; hint: string }[]
+          ).map(({ key, label, hint }) => (
+            <div key={key}>
+              <label className="mb-1 block text-sm font-medium text-gray-700">{label}</label>
+              <input
+                type="number"
+                min={0}
+                value={settings.coinPricing[key]}
+                onChange={(e) => setPricing(key, Number(e.target.value))}
+                className="w-full rounded-lg border border-gray-200 px-4 py-2 outline-none focus:ring-2 focus:ring-green-500"
+              />
+              <p className="mt-1 text-xs text-gray-400">{hint}</p>
+            </div>
+          ))}
+
+          {/* Profile Boost — implement in a future release
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Photo Unlock</label>
-            <input
-              type="number"
-              value={settings.coinPricing.photoUnlock}
-              onChange={(e) => setSettings({
-                ...settings,
-                coinPricing: { ...settings.coinPricing, photoUnlock: Number(e.target.value) }
-              })}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Video Unlock</label>
-            <input
-              type="number"
-              value={settings.coinPricing.videoUnlock}
-              onChange={(e) => setSettings({
-                ...settings,
-                coinPricing: { ...settings.coinPricing, videoUnlock: Number(e.target.value) }
-              })}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Video Call (per min)</label>
-            <input
-              type="number"
-              value={settings.coinPricing.videoCallPerMinute}
-              onChange={(e) => setSettings({
-                ...settings,
-                coinPricing: { ...settings.coinPricing, videoCallPerMinute: Number(e.target.value) }
-              })}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Message Priority</label>
-            <input
-              type="number"
-              value={settings.coinPricing.messagePriority}
-              onChange={(e) => setSettings({
-                ...settings,
-                coinPricing: { ...settings.coinPricing, messagePriority: Number(e.target.value) }
-              })}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Profile Boost</label>
-            <input
-              type="number"
-              value={settings.coinPricing.profileBoost}
-              onChange={(e) => setSettings({
-                ...settings,
-                coinPricing: { ...settings.coinPricing, profileBoost: Number(e.target.value) }
-              })}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Message cost (coins)</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Profile Boost</label>
             <input
               type="number"
               min={0}
-              value={settings.coinPricing.messageCost}
-              onChange={(e) => setSettings({
-                ...settings,
-                coinPricing: { ...settings.coinPricing, messageCost: Number(e.target.value) }
-              })}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+              value={settings.coinPricing.profileBoost}
+              onChange={(e) => setPricing('profileBoost', Number(e.target.value))}
+              className="w-full rounded-lg border border-gray-200 px-4 py-2 outline-none focus:ring-2 focus:ring-green-500"
             />
-            <p className="mt-1 text-xs text-gray-500">
-              Set to 0 for free messaging. Use this later if you want to charge coins per message.
-            </p>
+            <p className="mt-1 text-xs text-gray-400">Coin cost for profile boost (coming soon)</p>
           </div>
+          */}
         </div>
       </div>
 
       {/* Video Call Settings */}
-      <div className="bg-white rounded-2xl shadow-sm p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-            <Video className="w-5 h-5 text-purple-600" />
+      <div className="rounded-2xl bg-white p-6 shadow-sm">
+        <div className="mb-6 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-purple-100">
+            <Video className="h-5 w-5 text-purple-600" />
           </div>
           <div>
             <h2 className="font-semibold text-gray-900">Video Call Settings</h2>
@@ -153,40 +174,24 @@ export default function AdminSettings() {
           </div>
         </div>
 
-        <div className="grid sm:grid-cols-3 gap-4">
+        <div className="grid gap-4 sm:grid-cols-2">
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Min Duration (min)</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Max Duration (min)</label>
             <input
               type="number"
-              value={settings.videoCall.minDuration}
-              onChange={(e) => setSettings({
-                ...settings,
-                videoCall: { ...settings.videoCall, minDuration: Number(e.target.value) }
-              })}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
-            />
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Max Duration (min)</label>
-            <input
-              type="number"
+              min={1}
               value={settings.videoCall.maxDuration}
-              onChange={(e) => setSettings({
-                ...settings,
-                videoCall: { ...settings.videoCall, maxDuration: Number(e.target.value) }
-              })}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+              onChange={(e) => setVideoCall('maxDuration', Number(e.target.value))}
+              className="w-full rounded-lg border border-gray-200 px-4 py-2 outline-none focus:ring-2 focus:ring-green-500"
             />
+            <p className="mt-1 text-xs text-gray-400">Call ends automatically at this duration</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Video Quality</label>
+            <label className="mb-1 block text-sm font-medium text-gray-700">Video Quality</label>
             <select
               value={settings.videoCall.quality}
-              onChange={(e) => setSettings({
-                ...settings,
-                videoCall: { ...settings.videoCall, quality: e.target.value }
-              })}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+              onChange={(e) => setVideoCall('quality', e.target.value as 'sd' | 'hd' | 'fhd')}
+              className="w-full rounded-lg border border-gray-200 px-4 py-2 outline-none focus:ring-2 focus:ring-green-500"
             >
               <option value="sd">SD (480p)</option>
               <option value="hd">HD (720p)</option>
@@ -197,10 +202,10 @@ export default function AdminSettings() {
       </div>
 
       {/* Security Settings */}
-      <div className="bg-white rounded-2xl shadow-sm p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-            <Shield className="w-5 h-5 text-green-600" />
+      <div className="rounded-2xl bg-white p-6 shadow-sm">
+        <div className="mb-6 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-green-100">
+            <Shield className="h-5 w-5 text-green-600" />
           </div>
           <div>
             <h2 className="font-semibold text-gray-900">Security Settings</h2>
@@ -209,59 +214,53 @@ export default function AdminSettings() {
         </div>
 
         <div className="space-y-4">
-          <label className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl cursor-pointer">
+          <label className="flex cursor-pointer items-center gap-3 rounded-xl bg-gray-50 p-4">
             <input
               type="checkbox"
               checked={settings.security.requireVerification}
-              onChange={(e) => setSettings({
-                ...settings,
-                security: { ...settings.security, requireVerification: e.target.checked }
-              })}
-              className="w-5 h-5 text-green-500"
+              onChange={(e) => setSecurity('requireVerification', e.target.checked)}
+              className="h-5 w-5 text-green-500"
             />
             <div>
               <p className="font-medium text-gray-900">Require Email Verification</p>
-              <p className="text-sm text-gray-500">Users must verify email before using platform</p>
+              <p className="text-sm text-gray-500">Users must verify email before using the platform</p>
             </div>
           </label>
 
-          <label className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl cursor-pointer">
+          <label className="flex cursor-pointer items-center gap-3 rounded-xl bg-gray-50 p-4">
             <input
               type="checkbox"
               checked={settings.security.contentModeration}
-              onChange={(e) => setSettings({
-                ...settings,
-                security: { ...settings.security, contentModeration: e.target.checked }
-              })}
-              className="w-5 h-5 text-green-500"
+              onChange={(e) => setSecurity('contentModeration', e.target.checked)}
+              className="h-5 w-5 text-green-500"
             />
             <div>
               <p className="font-medium text-gray-900">Enable Content Moderation</p>
-              <p className="text-sm text-gray-500">All uploads require approval before being visible</p>
+              <p className="text-sm text-gray-500">New female profile photos/videos require moderator approval</p>
             </div>
           </label>
 
-          <div className="p-4 bg-gray-50 rounded-xl">
-            <label className="block text-sm font-medium text-gray-700 mb-1">Auto-block after reports</label>
+          <div className="rounded-xl bg-gray-50 p-4">
+            <label className="mb-1 block text-sm font-medium text-gray-700">Auto-block after reports</label>
             <input
               type="number"
+              min={0}
               value={settings.security.autoBlockReports}
-              onChange={(e) => setSettings({
-                ...settings,
-                security: { ...settings.security, autoBlockReports: Number(e.target.value) }
-              })}
-              className="w-full px-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 outline-none"
+              onChange={(e) => setSecurity('autoBlockReports', Number(e.target.value))}
+              className="w-full rounded-lg border border-gray-200 px-4 py-2 outline-none focus:ring-2 focus:ring-green-500"
             />
-            <p className="text-sm text-gray-500 mt-1">Number of reports before auto-blocking user</p>
+            <p className="mt-1 text-sm text-gray-500">
+              Set to 0 to disable auto-blocking. Number of reports before a user is automatically suspended.
+            </p>
           </div>
         </div>
       </div>
 
       {/* Notification Settings */}
-      <div className="bg-white rounded-2xl shadow-sm p-6">
-        <div className="flex items-center gap-3 mb-6">
-          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-            <Bell className="w-5 h-5 text-blue-600" />
+      <div className="rounded-2xl bg-white p-6 shadow-sm">
+        <div className="mb-6 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-100">
+            <Bell className="h-5 w-5 text-blue-600" />
           </div>
           <div>
             <h2 className="font-semibold text-gray-900">Notification Settings</h2>
@@ -270,53 +269,26 @@ export default function AdminSettings() {
         </div>
 
         <div className="space-y-4">
-          <label className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl cursor-pointer">
-            <input
-              type="checkbox"
-              checked={settings.notifications.emailAdmins}
-              onChange={(e) => setSettings({
-                ...settings,
-                notifications: { ...settings.notifications, emailAdmins: e.target.checked }
-              })}
-              className="w-5 h-5 text-green-500"
-            />
-            <div>
-              <p className="font-medium text-gray-900">Email Admins</p>
-              <p className="text-sm text-gray-500">Send email notifications to admin team</p>
-            </div>
-          </label>
-
-          <label className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl cursor-pointer">
-            <input
-              type="checkbox"
-              checked={settings.notifications.newUserAlerts}
-              onChange={(e) => setSettings({
-                ...settings,
-                notifications: { ...settings.notifications, newUserAlerts: e.target.checked }
-              })}
-              className="w-5 h-5 text-green-500"
-            />
-            <div>
-              <p className="font-medium text-gray-900">New User Alerts</p>
-              <p className="text-sm text-gray-500">Notify when new users sign up</p>
-            </div>
-          </label>
-
-          <label className="flex items-center gap-3 p-4 bg-gray-50 rounded-xl cursor-pointer">
-            <input
-              type="checkbox"
-              checked={settings.notifications.reportAlerts}
-              onChange={(e) => setSettings({
-                ...settings,
-                notifications: { ...settings.notifications, reportAlerts: e.target.checked }
-              })}
-              className="w-5 h-5 text-green-500"
-            />
-            <div>
-              <p className="font-medium text-gray-900">Report Alerts</p>
-              <p className="text-sm text-gray-500">Notify when new reports are submitted</p>
-            </div>
-          </label>
+          {(
+            [
+              { key: 'emailAdmins', label: 'Email Admins', desc: 'Send email copies to all admin accounts for the alerts below' },
+              { key: 'newUserAlerts', label: 'New User Alerts', desc: 'Alert when someone registers (bell; email if Email Admins is on)' },
+              { key: 'reportAlerts', label: 'Report Alerts', desc: 'Alert when a member submits a report (bell; email if Email Admins is on)' },
+            ] as { key: keyof PlatformSettings['notifications']; label: string; desc: string }[]
+          ).map(({ key, label, desc }) => (
+            <label key={key} className="flex cursor-pointer items-center gap-3 rounded-xl bg-gray-50 p-4">
+              <input
+                type="checkbox"
+                checked={settings.notifications[key]}
+                onChange={(e) => setNotif(key, e.target.checked)}
+                className="h-5 w-5 text-green-500"
+              />
+              <div>
+                <p className="font-medium text-gray-900">{label}</p>
+                <p className="text-sm text-gray-500">{desc}</p>
+              </div>
+            </label>
+          ))}
         </div>
       </div>
     </div>

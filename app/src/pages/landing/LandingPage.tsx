@@ -318,7 +318,7 @@ export default function LandingPage() {
               Coin Packs
             </h2>
             <p className="text-lg text-amber-50/65 max-w-2xl mx-auto">
-              Purchase coins to unlock premium features and enhance your experience.
+              Purchase coins with cryptocurrency to unlock premium features and enhance your experience.
             </p>
           </div>
           <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8 max-w-4xl mx-auto">

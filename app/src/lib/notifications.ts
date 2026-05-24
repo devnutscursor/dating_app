@@ -11,6 +11,7 @@ export type NotificationRow = {
   timestamp: string;
   isRead: boolean;
   reportId?: string;
+  relatedUserId?: string;
 };
 
 export async function fetchNotifications(): Promise<NotificationRow[]> {

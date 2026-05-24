@@ -32,8 +32,12 @@ export default function EmailVerificationPage() {
     if (!token) {
       toast.error('Please sign in or register again.');
       navigate('/login', { replace: true });
+      return;
     }
-  }, [token, navigate]);
+    if (user && !user.emailVerificationRequired) {
+      navigate('/profile-setup', { replace: true });
+    }
+  }, [token, user, navigate]);
 
   const handleCodeChange = (index: number, value: string) => {
     const digit = value.replace(/\D/g, '').slice(-1);

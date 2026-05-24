@@ -88,7 +88,7 @@ export function EmojiPickerButton({ onPick, disabled }: Props) {
         <button
           type="button"
           disabled={disabled}
-          className="rounded-full p-2 hover:bg-gray-100 disabled:opacity-50"
+          className="shrink-0 rounded-full p-1.5 hover:bg-gray-100 disabled:opacity-50 sm:p-2"
           aria-label="Insert emoji"
         >
           <Smile className="h-5 w-5 text-gray-500" />

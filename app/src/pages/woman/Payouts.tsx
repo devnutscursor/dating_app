@@ -1,15 +1,42 @@
-import { useState } from 'react';
-import { Coins, DollarSign, History, Gift, Video, CreditCard, Copy, Check, Wallet, TrendingUp, Users } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Coins, CreditCard, DollarSign, History, Gift, Video, Copy, Check, Wallet, TrendingUp, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { mockTransactions } from '@/data/mockData';
 import { useAuth } from '@/contexts/AuthContext';
+import { fetchMyPayouts, requestPayout, type AdminPayout } from '@/lib/payouts';
+import { fetchMyTransactions } from '@/lib/payments';
+import type { Transaction } from '@/types';
 
 export default function WomanPayouts() {
-  const { user: currentWomanUser } = useAuth();
+  const { user: currentWomanUser, refreshUser, setCoins } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'withdraw' | 'history'>('overview');
   const [walletAddress, setWalletAddress] = useState('');
   const [copied, setCopied] = useState(false);
   const [withdrawAmount, setWithdrawAmount] = useState('');
+  const [payoutHistory, setPayoutHistory] = useState<AdminPayout[]>([]);
+  const [txHistory, setTxHistory] = useState<Transaction[]>([]);
+  const [submitting, setSubmitting] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [submitError, setSubmitError] = useState<string | null>(null);
+  const [coinToUsdRate, setCoinToUsdRate] = useState(0.15);
+  const [minWithdrawalUsd, setMinWithdrawalUsd] = useState(60);
+
+  const loadHistory = useCallback(async () => {
+    try {
+      const [payoutsRes, txs] = await Promise.all([fetchMyPayouts(), fetchMyTransactions()]);
+      setPayoutHistory(payoutsRes.payouts);
+      setWalletAddress((prev) => prev || payoutsRes.walletAddress || '');
+      setCoinToUsdRate(payoutsRes.config.coinToUsd);
+      setMinWithdrawalUsd(payoutsRes.config.minWithdrawalUsd);
+      setTxHistory(txs);
+      setLoadError(null);
+    } catch (e) {
+      setLoadError(e instanceof Error ? e.message : 'Failed to load payout data');
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadHistory();
+  }, [loadHistory]);
 
   if (!currentWomanUser) {
     return (
@@ -29,13 +56,31 @@ export default function WomanPayouts() {
   const videoCallEarnings = 700;
   const giftEarnings = 150;
   const totalEarnings = videoCallEarnings + giftEarnings;
-  const coinToUsdRate = 0.15;
-  const minWithdrawalUsd = 60;
   const minWithdrawalCoins = Math.ceil(minWithdrawalUsd / coinToUsdRate);
   const withdrawCoins = Number(withdrawAmount) || 0;
   const withdrawFeeCoins = Math.floor(withdrawCoins * 0.05);
   const withdrawUsd = withdrawCoins * coinToUsdRate * 0.95;
   const meetsMinimumWithdrawal = withdrawUsd >= minWithdrawalUsd;
+
+  const handleRequestWithdrawal = async () => {
+    setSubmitError(null);
+    setSubmitting(true);
+    try {
+      const res = await requestPayout({
+        amountCoins: withdrawCoins,
+        walletAddress: walletAddress.trim(),
+      });
+      setCoins(res.coins);
+      await refreshUser();
+      setWithdrawAmount('');
+      await loadHistory();
+      setActiveTab('history');
+    } catch (e) {
+      setSubmitError(e instanceof Error ? e.message : 'Withdrawal request failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   return (
     <div className="space-y-6">
@@ -73,6 +118,10 @@ export default function WomanPayouts() {
           <p className="text-white/70 text-sm">≈ ${(totalEarnings * 0.15).toFixed(2)} USD</p>
         </div>
       </div>
+
+      {loadError && (
+        <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{loadError}</div>
+      )}
 
       {/* Tabs */}
       <div className="flex gap-4 border-b border-gray-200">
@@ -279,17 +328,23 @@ export default function WomanPayouts() {
               </div>
             )}
 
-            <Button 
+            {submitError && (
+              <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">{submitError}</div>
+            )}
+
+            <Button
               className="w-full bg-green-500 hover:bg-green-600"
               disabled={
+                submitting ||
                 !withdrawAmount ||
                 withdrawCoins > currentWomanUser.coins ||
-                !walletAddress ||
+                !walletAddress.trim() ||
                 !meetsMinimumWithdrawal
               }
+              onClick={() => void handleRequestWithdrawal()}
             >
               <DollarSign className="w-4 h-4 mr-2" />
-              Request Withdrawal
+              {submitting ? 'Submitting…' : 'Request Withdrawal'}
             </Button>
           </div>
         </div>
@@ -298,7 +353,25 @@ export default function WomanPayouts() {
       {activeTab === 'history' && (
         <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
           <div className="divide-y divide-gray-100">
-            {mockTransactions.map((transaction) => (
+            {payoutHistory.length === 0 && txHistory.filter((t) => t.type !== 'payout').length === 0 ? (
+              <p className="p-8 text-center text-gray-500">No history yet</p>
+            ) : payoutHistory.map((p) => (
+              <div key={p.id} className="p-4 flex items-center justify-between gap-4">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center bg-orange-100 shrink-0">
+                    <Wallet className="w-5 h-5 text-orange-600" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="font-medium text-gray-900">Withdrawal — {p.amountCoins ?? p.amount} coins</p>
+                    <p className="text-sm text-gray-500">{new Date(p.requestedAt).toLocaleString()}</p>
+                  </div>
+                </div>
+                <span className={`text-xs font-medium px-2 py-1 rounded-full capitalize shrink-0 ${
+                  p.status === 'completed' ? 'bg-green-100 text-green-700' :
+                  p.status === 'rejected' ? 'bg-red-100 text-red-700' : 'bg-yellow-100 text-yellow-700'
+                }`}>{p.status}</span>
+              </div>
+            )).concat(txHistory.filter((t) => t.type !== 'payout').map((transaction) => (
               <div key={transaction.id} className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
@@ -314,16 +387,23 @@ export default function WomanPayouts() {
                   </div>
                   <div>
                     <p className="font-medium text-gray-900">{transaction.description}</p>
-                    <p className="text-sm text-gray-500">{transaction.timestamp}</p>
+                    <p className="text-sm text-gray-500">
+                      {new Date(transaction.timestamp).toLocaleString()}
+                    </p>
                   </div>
                 </div>
-                <div className={`font-semibold ${
-                  transaction.type === 'purchase' ? 'text-green-600' : 'text-red-600'
-                }`}>
-                  {transaction.type === 'purchase' ? '+' : '-'}{transaction.amount} coins
+                <div
+                  className={`font-semibold ${
+                    transaction.type === 'gift' || transaction.type === 'tip'
+                      ? 'text-green-600'
+                      : 'text-gray-700'
+                  }`}
+                >
+                  {transaction.type === 'gift' || transaction.type === 'tip' ? '+' : ''}
+                  {transaction.amount} coins
                 </div>
               </div>
-            ))}
+            )))}
           </div>
         </div>
       )}

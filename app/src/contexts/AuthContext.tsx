@@ -17,6 +17,8 @@ type AuthContextValue = {
   }) => Promise<User>;
   logout: () => void;
   refreshUser: () => Promise<void>;
+  /** Optimistic coin balance update (e.g. after per-minute video billing). */
+  setCoins: (coins: number) => void;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -25,6 +27,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [token, setToken] = useState<string | null>(() => getStoredToken());
   const [loading, setLoading] = useState(true);
+
+  const setCoins = useCallback((coins: number) => {
+    setUser((prev) => (prev ? { ...prev, coins } : prev));
+  }, []);
 
   const refreshUser = useCallback(async () => {
     const t = getStoredToken();
@@ -107,8 +113,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       register,
       logout,
       refreshUser,
+      setCoins,
     }),
-    [user, token, loading, login, register, logout, refreshUser]
+    [user, token, loading, login, register, logout, refreshUser, setCoins]
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

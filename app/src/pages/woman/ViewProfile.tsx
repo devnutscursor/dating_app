@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapPin, Heart, MessageCircle, Video, Lock, Image as ImageIcon, ChevronLeft, ChevronRight, Coins } from 'lucide-react';
+import { MapPin, MessageCircle, Video, Lock, Image as ImageIcon, ChevronLeft, ChevronRight, Coins } from 'lucide-react';
 import ProfileBackLink from '@/components/profile/ProfileBackLink';
+import ProfileLikeButton from '@/components/profile/ProfileLikeButton';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import UnlockContentModal from '@/components/modals/UnlockContentModal';
@@ -9,6 +10,7 @@ import MediaPreviewModal from '@/components/modals/MediaPreviewModal';
 import { formatProfileLocation } from '@/lib/formatProfileLocation';
 import { fetchPublicUser } from '@/lib/social';
 import { createOrGetChat } from '@/lib/chats';
+import { useCall } from '@/contexts/CallContext';
 import type { User } from '@/types';
 
 const FALLBACK_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400';
@@ -32,6 +34,8 @@ export default function WomanViewProfile() {
   const [activeTab, setActiveTab] = useState<'photos' | 'videos'>('photos');
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [messageBusy, setMessageBusy] = useState(false);
+  const [videoCallBusy, setVideoCallBusy] = useState(false);
+  const { initiateCall, callStatus } = useCall();
 
   useEffect(() => {
     if (!userId) {
@@ -190,13 +194,28 @@ export default function WomanViewProfile() {
               <MessageCircle className="h-5 w-5" />
               {messageBusy ? 'Opening…' : 'Message'}
             </Button>
-            <Button variant="outline" className="flex-1 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1 gap-2"
+              disabled={videoCallBusy || callStatus !== 'idle' || !user}
+              onClick={() => {
+                if (!user) return;
+                setVideoCallBusy(true);
+                void createOrGetChat(user.id)
+                  .then((chat) =>
+                    initiateCall(user.id, chat.id, 'video', user.name, user.profilePicture)
+                  )
+                  .catch((e) =>
+                    toast.error(e instanceof Error ? e.message : 'Could not start video call')
+                  )
+                  .finally(() => setVideoCallBusy(false));
+              }}
+            >
               <Video className="w-5 h-5" />
-              Video Call
+              {videoCallBusy ? 'Starting…' : 'Video Call'}
             </Button>
-            <Button variant="outline" size="icon">
-              <Heart className="w-5 h-5" />
-            </Button>
+            {userId ? <ProfileLikeButton userId={userId} /> : null}
           </div>
 
           {/* About */}

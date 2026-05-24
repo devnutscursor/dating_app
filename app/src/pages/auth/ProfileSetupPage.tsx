@@ -30,7 +30,7 @@ export default function ProfileSetupPage() {
 
   useEffect(() => {
     if (authLoading) return;
-    if (user && user.emailVerified === false && (user.role === 'male' || user.role === 'female')) {
+    if (user?.emailVerificationRequired) {
       navigate('/verify-email', { replace: true, state: { email: user.email } });
     }
   }, [authLoading, user, navigate]);

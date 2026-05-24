@@ -6,6 +6,11 @@ export async function createOrGetChat(participantId: string): Promise<Chat> {
   return data.chat;
 }
 
+export async function createOrGetSupportChat(): Promise<Chat> {
+  const data = await apiPost<{ chat: Chat }>('/chats/support', {});
+  return data.chat;
+}
+
 export type PostChatMessageBody = {
   content?: string;
   type?: 'text' | 'image' | 'video' | 'gift';

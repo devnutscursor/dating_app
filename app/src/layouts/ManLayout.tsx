@@ -69,8 +69,8 @@ export default function ManLayout() {
         </div>
       </div>
 
-      {/* Support Chat */}
-      <SupportChat />
+      {/* Hide floating support widget on chat — it overlaps the send button on mobile */}
+      {!isChatDetailRoute && <SupportChat />}
     </div>
     </SearchFiltersProvider>
   );

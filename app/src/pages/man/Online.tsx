@@ -1,12 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { MapPin, MessageCircle, Video } from 'lucide-react';
+import { MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import VideoCallModal from '@/components/modals/VideoCallModal';
-import HoverPhotoGallery from '@/components/HoverPhotoGallery';
+import VideoCallConfirmModal from '@/components/modals/VideoCallConfirmModal';
+import { useCall } from '@/contexts/CallContext';
+import { useCallPricing } from '@/lib/callPricing';
+import DiscoverProfileCardImage from '@/components/profile/DiscoverProfileCardImage';
+import DiscoverCardActionButtons from '@/components/profile/DiscoverCardActionButtons';
 import { formatProfileLocation } from '@/lib/formatProfileLocation';
-import { fetchOnlineUsers, userGalleryPhotos } from '@/lib/social';
+import { fetchOnlineUsers } from '@/lib/social';
 import { subscribePresenceChanged } from '@/lib/chatSocket';
 import { createOrGetChat } from '@/lib/chats';
 import { profileReturnState } from '@/lib/profileNavigation';
@@ -18,7 +21,10 @@ export default function ManOnline() {
   const profileNavState = profileReturnState(location.pathname + location.search);
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
-  const [videoCallUserId, setVideoCallUserId] = useState<string | null>(null);
+  const callPricing = useCallPricing();
+  const { initiateCall, callStatus } = useCall();
+  const [videoConfirmUserId, setVideoConfirmUserId] = useState<string | null>(null);
+  const [videoCallBusy, setVideoCallBusy] = useState(false);
   const [openingChatUserId, setOpeningChatUserId] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -56,7 +62,21 @@ export default function ManOnline() {
     };
   }, [load]);
 
-  const videoPeer = videoCallUserId ? users.find((u) => u.id === videoCallUserId) : undefined;
+  const videoPeer = videoConfirmUserId ? users.find((u) => u.id === videoConfirmUserId) : undefined;
+
+  const startVideoCall = async () => {
+    if (!videoPeer || videoCallBusy || callStatus !== 'idle') return;
+    setVideoCallBusy(true);
+    try {
+      const chat = await createOrGetChat(videoPeer.id);
+      await initiateCall(videoPeer.id, chat.id, 'video', videoPeer.name, videoPeer.profilePicture);
+      setVideoConfirmUserId(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not start video call');
+    } finally {
+      setVideoCallBusy(false);
+    }
+  };
 
   const openChatWith = async (user: User) => {
     setOpeningChatUserId(user.id);
@@ -93,39 +113,36 @@ export default function ManOnline() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {users.map((user) => (
-            <div key={user.id} className="overflow-hidden rounded-2xl bg-white shadow-sm transition-shadow hover:shadow-md">
-              <div className="relative aspect-[3/4]">
-                <HoverPhotoGallery photos={userGalleryPhotos(user)} alt={user.name} className="h-full w-full" />
-
-                {user.isOnline && (
-                  <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-green-500 px-2 py-1">
-                    <div className="h-2 w-2 animate-pulse rounded-full bg-white" />
-                    <span className="text-xs font-medium text-white">Online</span>
-                  </div>
-                )}
-
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                  <div className="flex items-center justify-between">
-                    <button
-                      type="button"
-                      disabled={openingChatUserId === user.id}
-                      onClick={() => void openChatWith(user)}
-                      className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm transition-colors hover:bg-white/30 disabled:opacity-50"
-                      aria-label={`Message ${user.name}`}
-                    >
-                      <MessageCircle className="h-5 w-5 text-white" />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setVideoCallUserId(user.id)}
-                      className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500 transition-colors hover:bg-green-600"
-                      aria-label={`Video call ${user.name}`}
-                    >
-                      <Video className="h-5 w-5 text-white" />
-                    </button>
-                  </div>
-                </div>
-              </div>
+            <div key={user.id} className="rounded-2xl bg-white shadow-sm transition-shadow hover:shadow-md">
+              <DiscoverProfileCardImage
+                user={user}
+                profilePath={`/man/view-profile/${user.id}`}
+                profileState={profileNavState}
+                topLeft={
+                  user.isOnline ? (
+                    <div className="flex items-center gap-1.5 rounded-full bg-green-500 px-2 py-1">
+                      <div className="h-2 w-2 animate-pulse rounded-full bg-white" />
+                      <span className="text-xs font-medium text-white">Online</span>
+                    </div>
+                  ) : null
+                }
+                bottomActions={
+                  <DiscoverCardActionButtons
+                    onMessage={(e) => {
+                      e.stopPropagation();
+                      void openChatWith(user);
+                    }}
+                    onVideo={(e) => {
+                      e.stopPropagation();
+                      setVideoConfirmUserId(user.id);
+                    }}
+                    messageDisabled={openingChatUserId === user.id}
+                    videoDisabled={callStatus !== 'idle'}
+                    messageLabel={`Message ${user.name}`}
+                    videoLabel={`Video call ${user.name}`}
+                  />
+                }
+              />
 
               <div className="p-4">
                 <Link to={`/man/view-profile/${user.id}`} state={profileNavState.state}>
@@ -143,12 +160,16 @@ export default function ManOnline() {
         </div>
       )}
 
-      <VideoCallModal
-        open={Boolean(videoCallUserId)}
-        onClose={() => setVideoCallUserId(null)}
-        userId={videoCallUserId || users[0]?.id || ''}
+      <VideoCallConfirmModal
+        open={Boolean(videoConfirmUserId)}
+        onClose={() => !videoCallBusy && setVideoConfirmUserId(null)}
+        onConfirm={() => void startVideoCall()}
         peerName={videoPeer?.name}
         peerPicture={videoPeer?.profilePicture}
+        busy={videoCallBusy}
+        callType="video"
+        audioRate={callPricing.audioCallPerMinute}
+        videoRate={callPricing.videoCallPerMinute}
       />
     </div>
   );

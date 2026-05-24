@@ -74,25 +74,25 @@ export default function RefundPage() {
                 <li>Contact our support team within 14 days of the transaction</li>
                 <li>Provide your transaction ID and reason for the refund</li>
                 <li>Our team will review your request within 3-5 business days</li>
-                <li>If approved, refunds will be processed to the original payment method</li>
+                <li>If approved, refunds will be sent to the same cryptocurrency wallet or payment used for the purchase, where technically possible</li>
               </ol>
             </section>
 
             <section>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">5. Refund Timeline</h2>
               <p className="text-gray-600 leading-relaxed">
-                Approved refunds are typically processed within 5-10 business days. The time it 
-                takes for the refund to appear in your account depends on your payment provider 
-                and may take additional time.
+                Approved refunds are typically processed within 5-10 business days. The time it
+                takes for funds to appear depends on the cryptocurrency network and your wallet
+                provider and may take additional time.
               </p>
             </section>
 
             <section>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">6. Disputes and Chargebacks</h2>
               <p className="text-gray-600 leading-relaxed">
-                We encourage users to contact us directly for refund requests before initiating 
-                chargebacks with their bank. Unauthorized chargebacks may result in account 
-                suspension.
+                We encourage users to contact us directly for refund requests before disputing a
+                crypto payment with their wallet or exchange. Unauthorized or abusive disputes may
+                result in account suspension.
               </p>
             </section>
 

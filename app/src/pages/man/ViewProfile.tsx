@@ -1,7 +1,8 @@
 import { useEffect, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import ProfileBackLink from '@/components/profile/ProfileBackLink';
-import { MapPin, Heart, MessageCircle, Video, Lock, Image as ImageIcon, ChevronLeft, ChevronRight, Coins } from 'lucide-react';
+import ProfileLikeButton from '@/components/profile/ProfileLikeButton';
+import { MapPin, MessageCircle, Video, Lock, Image as ImageIcon, ChevronLeft, ChevronRight, Coins } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import UnlockContentModal from '@/components/modals/UnlockContentModal';
@@ -11,11 +12,15 @@ import {
   isPhotoVisibleToViewer,
   isVideoVisibleToViewer,
   lockedPhotoPlaceholder,
-  publicGalleryPhotoUrls,
+  visibleGalleryPhotoUrls,
 } from '@/lib/profileMedia';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchPublicUser, unlockMemberMedia } from '@/lib/social';
 import { createOrGetChat } from '@/lib/chats';
+import { useCall } from '@/contexts/CallContext';
+import VideoCallConfirmModal from '@/components/modals/VideoCallConfirmModal';
+import { useCallPricing } from '@/lib/callPricing';
+import type { ProfileLocationState } from '@/lib/profileNavigation';
 import type { User } from '@/types';
 
 const FALLBACK_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400';
@@ -26,6 +31,7 @@ type PreviewState =
 
 export default function ManViewProfile() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { userId } = useParams();
   const { refreshUser: refreshAuthUser } = useAuth();
   const [user, setUser] = useState<User | null>(null);
@@ -47,6 +53,17 @@ export default function ManViewProfile() {
   const [activeTab, setActiveTab] = useState<'photos' | 'videos'>('photos');
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [messageBusy, setMessageBusy] = useState(false);
+  const [videoCallBusy, setVideoCallBusy] = useState(false);
+  const [videoConfirmOpen, setVideoConfirmOpen] = useState(false);
+  const callPricing = useCallPricing();
+  const { initiateCall, callStatus } = useCall();
+
+  useEffect(() => {
+    const tab = (location.state as ProfileLocationState | null)?.mediaTab;
+    if (tab === 'photos' || tab === 'videos') {
+      setActiveTab(tab);
+    }
+  }, [location.state, userId]);
 
   useEffect(() => {
     if (!userId) {
@@ -95,7 +112,7 @@ export default function ManViewProfile() {
     );
   }
 
-  const galleryUrls = publicGalleryPhotoUrls(user);
+  const galleryUrls = visibleGalleryPhotoUrls(user);
   const allPhotos = galleryUrls.length ? galleryUrls : [FALLBACK_AVATAR];
 
   const nextPhoto = () => {
@@ -224,13 +241,17 @@ export default function ManViewProfile() {
               <MessageCircle className="h-5 w-5" />
               {messageBusy ? 'Opening…' : 'Message'}
             </Button>
-            <Button variant="outline" className="flex-1 gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1 gap-2"
+              disabled={videoCallBusy || callStatus !== 'idle' || !user}
+              onClick={() => setVideoConfirmOpen(true)}
+            >
               <Video className="w-5 h-5" />
-              Video Call
+              {videoCallBusy ? 'Starting…' : 'Video Call'}
             </Button>
-            <Button variant="outline" size="icon">
-              <Heart className="w-5 h-5" />
-            </Button>
+            {userId ? <ProfileLikeButton userId={userId} /> : null}
           </div>
 
           {/* About */}
@@ -409,6 +430,29 @@ export default function ManViewProfile() {
         imageUrl={preview?.kind === 'photo' ? preview.photoUrl : undefined}
         videoUrl={preview?.kind === 'video' ? preview.videoUrl : undefined}
         posterUrl={preview?.kind === 'video' ? preview.posterUrl : undefined}
+      />
+
+      <VideoCallConfirmModal
+        open={videoConfirmOpen}
+        onClose={() => !videoCallBusy && setVideoConfirmOpen(false)}
+        onConfirm={() => {
+          if (!user || videoCallBusy || callStatus !== 'idle') return;
+          setVideoCallBusy(true);
+          void createOrGetChat(user.id)
+            .then((chat) =>
+              initiateCall(user.id, chat.id, 'video', user.name, user.profilePicture).then(() => {
+                setVideoConfirmOpen(false);
+              })
+            )
+            .catch((e) => toast.error(e instanceof Error ? e.message : 'Could not start video call'))
+            .finally(() => setVideoCallBusy(false));
+        }}
+        peerName={user.name}
+        peerPicture={user.profilePicture}
+        busy={videoCallBusy}
+        callType="video"
+        audioRate={callPricing.audioCallPerMinute}
+        videoRate={callPricing.videoCallPerMinute}
       />
     </div>
   );

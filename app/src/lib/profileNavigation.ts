@@ -1,6 +1,8 @@
 /** Passed via React Router `location.state` when opening a member profile. */
 export type ProfileLocationState = {
   returnTo?: string;
+  /** Open profile on Photos or Videos tab (e.g. from discover lock badge). */
+  mediaTab?: 'photos' | 'videos';
 };
 
 /** Build router state so profile “Go back” returns to the current page. */

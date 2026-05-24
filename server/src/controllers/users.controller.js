@@ -6,6 +6,7 @@ import { Transaction } from '../models/Transaction.model.js';
 import { serializeUser } from '../utils/serializeUser.js';
 import { applyPublicMediaFilter } from '../utils/mediaVisibility.js';
 import { createActivity, recordProfileViewIfFresh } from '../services/activityLog.js';
+import { getPlatformSettings } from '../services/siteSettings.js';
 
 async function getUnlockedMediaIdSets(viewerId, ownerId) {
   const rows = await MediaUnlock.find({ viewerId, ownerId }).lean();
@@ -17,6 +18,42 @@ async function getUnlockedMediaIdSets(viewerId, ownerId) {
     else unlockedVideoIds.add(id);
   }
   return { unlockedPhotoIds, unlockedVideoIds };
+}
+
+/** One query for discover/online lists — per-owner unlock id sets. */
+async function getUnlockedSetsByOwner(viewerId, ownerIds) {
+  const map = new Map();
+  const ids = ownerIds.map((id) => id?.toString?.()).filter(Boolean);
+  for (const id of ids) {
+    map.set(id, { unlockedPhotoIds: new Set(), unlockedVideoIds: new Set() });
+  }
+  if (ids.length === 0) return map;
+
+  const rows = await MediaUnlock.find({
+    viewerId,
+    ownerId: { $in: ids.map((id) => new mongoose.Types.ObjectId(id)) },
+  }).lean();
+
+  for (const row of rows) {
+    const ownerKey = row.ownerId?.toString?.() || String(row.ownerId);
+    const entry = map.get(ownerKey) || { unlockedPhotoIds: new Set(), unlockedVideoIds: new Set() };
+    const mediaId = row.mediaId?.toString?.() || String(row.mediaId);
+    if (row.mediaKind === 'photo') entry.unlockedPhotoIds.add(mediaId);
+    else entry.unlockedVideoIds.add(mediaId);
+    map.set(ownerKey, entry);
+  }
+  return map;
+}
+
+function mapUserForViewer(viewerId, u, unlockByOwner) {
+  const ownerKey = u._id?.toString?.() || String(u._id);
+  const { unlockedPhotoIds, unlockedVideoIds } =
+    unlockByOwner?.get(ownerKey) || { unlockedPhotoIds: new Set(), unlockedVideoIds: new Set() };
+  return applyPublicMediaFilter(serializeUser({ ...u, _id: u._id }), {
+    isViewerOwnerOfProfile: false,
+    unlockedPhotoIds,
+    unlockedVideoIds,
+  });
 }
 
 const PUBLIC_USER_SELECT =
@@ -43,14 +80,10 @@ export async function discover(req, res) {
 
   if (userId && mongoose.Types.ObjectId.isValid(String(userId))) {
     const target = await User.findOne({ ...baseFilter, _id: userId }).select(PUBLIC_USER_SELECT).lean();
+    if (!target) return res.json({ users: [] });
+    const unlockByOwner = await getUnlockedSetsByOwner(self._id, [target._id]);
     return res.json({
-      users: target
-        ? [
-            applyPublicMediaFilter(serializeUser({ ...target, _id: target._id }), {
-              isViewerOwnerOfProfile: false,
-            }),
-          ]
-        : [],
+      users: [mapUserForViewer(self._id, target, unlockByOwner)],
     });
   }
 
@@ -79,10 +112,12 @@ export async function discover(req, res) {
     .select(PUBLIC_USER_SELECT)
     .limit(60)
     .lean();
+  const unlockByOwner = await getUnlockedSetsByOwner(
+    self._id,
+    users.map((u) => u._id)
+  );
   res.json({
-    users: users.map((u) =>
-      applyPublicMediaFilter(serializeUser({ ...u, _id: u._id }), { isViewerOwnerOfProfile: false })
-    ),
+    users: users.map((u) => mapUserForViewer(self._id, u, unlockByOwner)),
   });
 }
 
@@ -101,10 +136,12 @@ export async function listOnline(req, res) {
     .select(PUBLIC_USER_SELECT)
     .limit(60)
     .lean();
+  const unlockByOwner = await getUnlockedSetsByOwner(
+    self._id,
+    users.map((u) => u._id)
+  );
   res.json({
-    users: users.map((u) =>
-      applyPublicMediaFilter(serializeUser({ ...u, _id: u._id }), { isViewerOwnerOfProfile: false })
-    ),
+    users: users.map((u) => mapUserForViewer(self._id, u, unlockByOwner)),
   });
 }
 
@@ -197,7 +234,10 @@ export async function unlockMedia(req, res) {
     });
   }
 
-  const defaultPrice = mediaKind === 'photo' ? 100 : 500;
+  const s = await getPlatformSettings();
+  const defaultPrice = mediaKind === 'photo'
+    ? (s.coinPricing?.photoUnlock ?? 100)
+    : (s.coinPricing?.videoUnlock ?? 500);
   const price = Number.isFinite(item.unlockPrice) && item.unlockPrice > 0 ? Math.floor(item.unlockPrice) : defaultPrice;
 
   const viewer = await User.findById(req.user._id);
@@ -384,13 +424,13 @@ function cleanVideoEntries(input) {
     .filter((v) => v.url && v.thumbnail);
 }
 
-function mergePhotosWithRetention(cleaned, existingPhotos, isFemaleMember) {
+function mergePhotosWithRetention(cleaned, existingPhotos, isFemaleMember, moderationEnabled = true) {
   const byId = new Map((existingPhotos || []).map((d) => [d._id.toString(), d]));
   const byUrl = new Map((existingPhotos || []).map((d) => [d.url, d]));
   return cleaned.map((c) => {
     const prev = (c.id ? byId.get(c.id) : undefined) || (c.url ? byUrl.get(c.url) : undefined);
     let status;
-    if (isFemaleMember) {
+    if (isFemaleMember && moderationEnabled) {
       if (!prev || prev.url !== c.url) status = 'pending';
       else status = ['approved', 'pending', 'rejected'].includes(prev.status) ? prev.status : 'pending';
     } else if (!prev || prev.url !== c.url) {
@@ -410,13 +450,13 @@ function mergePhotosWithRetention(cleaned, existingPhotos, isFemaleMember) {
   });
 }
 
-function mergeVideosWithRetention(cleaned, existingVideos, isFemaleMember) {
+function mergeVideosWithRetention(cleaned, existingVideos, isFemaleMember, moderationEnabled = true) {
   const byId = new Map((existingVideos || []).map((d) => [d._id.toString(), d]));
   const byUrl = new Map((existingVideos || []).map((d) => [d.url, d]));
   return cleaned.map((c) => {
     const prev = (c.id ? byId.get(c.id) : undefined) || (c.url ? byUrl.get(c.url) : undefined);
     let status;
-    if (isFemaleMember) {
+    if (isFemaleMember && moderationEnabled) {
       if (!prev || prev.url !== c.url || prev.thumbnail !== c.thumbnail) status = 'pending';
       else status = ['approved', 'pending', 'rejected'].includes(prev.status) ? prev.status : 'pending';
     } else if (!prev || prev.url !== c.url) {
@@ -473,13 +513,17 @@ export async function updateMe(req, res) {
 
   const photosDirty = updates.photos !== undefined;
   const videosDirty = updates.videos !== undefined;
-  if (photosDirty) {
-    user.photos = mergePhotosWithRetention(cleanPhotoEntries(updates.photos), user.photos, isFemaleMember);
-    delete updates.photos;
-  }
-  if (videosDirty) {
-    user.videos = mergeVideosWithRetention(cleanVideoEntries(updates.videos), user.videos, isFemaleMember);
-    delete updates.videos;
+  if (photosDirty || videosDirty) {
+    const siteSettings = await getPlatformSettings();
+    const moderationEnabled = siteSettings?.security?.contentModeration !== false;
+    if (photosDirty) {
+      user.photos = mergePhotosWithRetention(cleanPhotoEntries(updates.photos), user.photos, isFemaleMember, moderationEnabled);
+      delete updates.photos;
+    }
+    if (videosDirty) {
+      user.videos = mergeVideosWithRetention(cleanVideoEntries(updates.videos), user.videos, isFemaleMember, moderationEnabled);
+      delete updates.videos;
+    }
   }
 
   for (const [key, val] of Object.entries(updates)) {

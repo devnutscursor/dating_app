@@ -14,10 +14,17 @@ const transactionSchema = new mongoose.Schema(
     status: { type: String, enum: ['completed', 'pending', 'failed'], default: 'completed' },
     relatedUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     timestamp: { type: String, default: () => new Date().toISOString().slice(0, 10) },
+    /** NOWPayments / checkout */
+    orderId: { type: String, index: true },
+    packId: String,
+    priceUsd: Number,
+    nowPaymentId: String,
+    nowPaymentStatus: String,
   },
   { timestamps: true }
 );
 
 transactionSchema.index({ userId: 1 });
+transactionSchema.index({ orderId: 1 }, { unique: true, sparse: true });
 
 export const Transaction = mongoose.model('Transaction', transactionSchema);
