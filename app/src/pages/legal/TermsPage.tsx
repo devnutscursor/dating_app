@@ -83,8 +83,9 @@ export default function TermsPage() {
             <section>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">6. Payments</h2>
               <p className="text-gray-600 leading-relaxed">
-                Certain features of MemberDate require payment. All purchases are final and 
-                non-refundable unless otherwise specified. Prices are subject to change without 
+                Certain features of MemberDate require payment. Coin packs are purchased with
+                cryptocurrency only through our secure checkout provider. All purchases are final
+                and non-refundable unless otherwise specified. Prices are subject to change without
                 notice.
               </p>
             </section>

@@ -67,8 +67,7 @@ export default function WomanLayout() {
         </div>
       </div>
 
-      {/* Support Chat */}
-      <SupportChat />
+      {!isChatDetailRoute && <SupportChat />}
     </div>
     </SearchFiltersProvider>
   );

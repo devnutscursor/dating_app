@@ -8,6 +8,7 @@ const router = Router();
 router.use(asyncHandler(authenticate));
 router.get('/', asyncHandler(chats.listChats));
 router.post('/', asyncHandler(chats.createOrGetChat));
+router.post('/support', asyncHandler(chats.createOrGetSupportChat));
 router.get('/:chatId', asyncHandler(chats.getChat));
 router.post('/:chatId/block', asyncHandler(chats.blockChat));
 router.post('/:chatId/report', asyncHandler(chats.reportUserInChat));

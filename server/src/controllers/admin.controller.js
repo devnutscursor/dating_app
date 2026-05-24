@@ -3,11 +3,14 @@ import bcrypt from 'bcryptjs';
 import validator from 'validator';
 import { User } from '../models/User.model.js';
 import { Transaction } from '../models/Transaction.model.js';
+import { PayoutRequest } from '../models/PayoutRequest.model.js';
 import { Report } from '../models/Report.model.js';
 import { Chat } from '../models/Chat.model.js';
 import { Activity } from '../models/Activity.model.js';
 import { serializeUser } from '../utils/serializeUser.js';
 import { countPendingFemaleMedia } from '../utils/countPendingFemaleMedia.js';
+import { SiteSettings } from '../models/SiteSettings.model.js';
+import { getPlatformSettings, invalidateSettingsCache } from '../services/siteSettings.js';
 
 const SALT_ROUNDS = 12;
 const SORT_FIELDS = new Set(['name', 'coins', 'createdAt', 'role', 'isOnline', 'isBlocked']);
@@ -94,7 +97,7 @@ export async function dashboardStats(req, res) {
     User.countDocuments({ ...MEMBER_ROLES, createdAt: { $lt: weekAgo } }),
     Report.countDocuments({ status: { $in: ['pending', 'reviewing'] } }),
     countPendingFemaleMedia(),
-    Transaction.countDocuments({ type: 'payout', status: 'pending' }),
+    PayoutRequest.countDocuments({ status: 'pending' }),
     Transaction.find()
       .sort({ createdAt: -1 })
       .limit(4)
@@ -395,38 +398,175 @@ export async function deleteUser(req, res) {
   res.json({ message: 'User deleted' });
 }
 
-export async function listTransactions(req, res) {
-  const rows = await Transaction.find().sort({ createdAt: -1 }).limit(200).lean();
-  const list = rows.map((t) => ({
+function serializeAdminTransaction(t) {
+  const u = t.userId;
+  const userName =
+    u && typeof u === 'object' && u.name ? String(u.name) : undefined;
+  const userEmail =
+    u && typeof u === 'object' && u.email ? String(u.email) : undefined;
+  return {
     id: t._id.toString(),
-    userId: t.userId?.toString(),
+    userId: u?._id?.toString?.() || t.userId?.toString?.() || String(t.userId),
+    userName,
+    userEmail,
     type: t.type,
     amount: t.amount,
     currency: t.currency,
     description: t.description,
-    timestamp: t.timestamp,
+    timestamp: t.createdAt?.toISOString?.() || t.timestamp || '',
     status: t.status,
     relatedUserId: t.relatedUserId?.toString(),
-  }));
-  res.json({ transactions: list });
+    priceUsd: t.priceUsd,
+  };
 }
 
-/** Stub: persist to `SiteSettings` collection in a later phase */
-export async function getSettings(req, res) {
+export async function listTransactions(req, res) {
+  const { type = 'all', search = '', limit = '200' } = req.query;
+  const filter = {};
+  if (type && type !== 'all') {
+    filter.type = type;
+  }
+  const cap = Math.min(Math.max(parseInt(String(limit), 10) || 200, 1), 500);
+
+  let rows = await Transaction.find(filter)
+    .sort({ createdAt: -1 })
+    .limit(cap)
+    .populate('userId', 'name email')
+    .lean();
+
+  const q = String(search).trim().toLowerCase();
+  if (q) {
+    rows = rows.filter((t) => {
+      const u = t.userId;
+      const name = (u?.name || '').toLowerCase();
+      const email = (u?.email || '').toLowerCase();
+      const desc = (t.description || '').toLowerCase();
+      return name.includes(q) || email.includes(q) || desc.includes(q);
+    });
+  }
+
+  res.json({ transactions: rows.map(serializeAdminTransaction) });
+}
+
+export async function transactionStats(req, res) {
+  const weekAgo = new Date();
+  weekAgo.setDate(weekAgo.getDate() - 7);
+  const twoWeeksAgo = new Date();
+  twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
+
+  const [
+    purchaseUsdAgg,
+    purchaseCount,
+    purchasesThisWeek,
+    purchasesLastWeek,
+    videoCallMinutesAgg,
+    videoCallsThisWeek,
+    videoCallsLastWeek,
+  ] = await Promise.all([
+    Transaction.aggregate([
+      { $match: { type: 'purchase', status: 'completed' } },
+      { $group: { _id: null, total: { $sum: { $ifNull: ['$priceUsd', 0] } } } },
+    ]),
+    Transaction.countDocuments({ type: 'purchase', status: 'completed' }),
+    Transaction.countDocuments({ type: 'purchase', status: 'completed', createdAt: { $gte: weekAgo } }),
+    Transaction.countDocuments({
+      type: 'purchase',
+      status: 'completed',
+      createdAt: { $gte: twoWeeksAgo, $lt: weekAgo },
+    }),
+    Transaction.aggregate([
+      { $match: { type: 'videoCall', status: 'completed' } },
+      { $group: { _id: null, total: { $sum: '$amount' } } },
+    ]),
+    Transaction.countDocuments({ type: 'videoCall', createdAt: { $gte: weekAgo } }),
+    Transaction.countDocuments({
+      type: 'videoCall',
+      createdAt: { $gte: twoWeeksAgo, $lt: weekAgo },
+    }),
+  ]);
+
+  const totalRevenueUsd = Math.round((purchaseUsdAgg[0]?.total ?? 0) * 100) / 100;
+  const videoCallMinutes = videoCallMinutesAgg[0]?.total ?? 0;
+
   res.json({
-    settings: {
-      coinPricing: {
-        photoUnlock: 10,
-        videoUnlock: 50,
-        videoCallPerMinute: 10,
-        messagePriority: 5,
-        profileBoost: 100,
-        messageCost: 0,
-      },
+    stats: {
+      totalRevenueUsd,
+      coinPurchases: purchaseCount,
+      videoCallMinutes,
+      purchasesChange: pctChangeLabel(purchasesThisWeek, purchasesLastWeek),
+      videoCallsChange: pctChangeLabel(videoCallsThisWeek, videoCallsLastWeek),
     },
   });
 }
 
+export async function getSettings(req, res) {
+  const settings = await getPlatformSettings();
+  res.json({ settings });
+}
+
 export async function patchSettings(req, res) {
-  res.json({ message: 'Settings accepted (stub — wire Mongo persistence next)', body: req.body });
+  const { coinPricing, videoCall, security, notifications } = req.body ?? {};
+
+  const update = {};
+
+  if (coinPricing && typeof coinPricing === 'object') {
+    const fields = [
+      'photoUnlock',
+      'videoUnlock',
+      'audioCallPerMinute',
+      'videoCallPerMinute',
+      'messagePriority',
+      'profileBoost',
+      'messageCost',
+    ];
+    for (const f of fields) {
+      if (coinPricing[f] !== undefined) {
+        const n = Number(coinPricing[f]);
+        if (!Number.isFinite(n) || n < 0) return res.status(400).json({ error: `coinPricing.${f} must be a non-negative number` });
+        update[`coinPricing.${f}`] = Math.floor(n);
+      }
+    }
+  }
+
+  if (videoCall && typeof videoCall === 'object') {
+    if (videoCall.minDuration !== undefined) {
+      const n = Number(videoCall.minDuration);
+      if (!Number.isFinite(n) || n < 0) return res.status(400).json({ error: 'videoCall.minDuration must be a non-negative number' });
+      update['videoCall.minDuration'] = Math.floor(n);
+    }
+    if (videoCall.maxDuration !== undefined) {
+      const n = Number(videoCall.maxDuration);
+      if (!Number.isFinite(n) || n < 1) return res.status(400).json({ error: 'videoCall.maxDuration must be >= 1' });
+      update['videoCall.maxDuration'] = Math.floor(n);
+    }
+    if (videoCall.quality !== undefined) {
+      if (!['sd', 'hd', 'fhd'].includes(videoCall.quality)) return res.status(400).json({ error: 'videoCall.quality must be sd, hd or fhd' });
+      update['videoCall.quality'] = videoCall.quality;
+    }
+  }
+
+  if (security && typeof security === 'object') {
+    if (security.requireVerification !== undefined) update['security.requireVerification'] = Boolean(security.requireVerification);
+    if (security.contentModeration !== undefined) update['security.contentModeration'] = Boolean(security.contentModeration);
+    if (security.autoBlockReports !== undefined) {
+      const n = Number(security.autoBlockReports);
+      if (!Number.isFinite(n) || n < 0) return res.status(400).json({ error: 'security.autoBlockReports must be >= 0' });
+      update['security.autoBlockReports'] = Math.floor(n);
+    }
+  }
+
+  if (notifications && typeof notifications === 'object') {
+    for (const f of ['emailAdmins', 'newUserAlerts', 'reportAlerts']) {
+      if (notifications[f] !== undefined) update[`notifications.${f}`] = Boolean(notifications[f]);
+    }
+  }
+
+  if (Object.keys(update).length === 0) {
+    return res.status(400).json({ error: 'No valid fields to update' });
+  }
+
+  await SiteSettings.updateOne({ _id: 'global' }, { $set: update }, { upsert: true });
+  invalidateSettingsCache();
+  const fresh = await getPlatformSettings();
+  res.json({ settings: fresh });
 }

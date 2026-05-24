@@ -19,11 +19,60 @@ function getEtherealAccount() {
   return etherealAccountPromise;
 }
 
+function createSmtpTransporter() {
+  const host = envTrim('SMTP_HOST');
+  const port = Number(envTrim('SMTP_PORT')) || 587;
+  const secure = envTrim('SMTP_SECURE') === 'true' || port === 465;
+  const isMailtrap = host.toLowerCase().includes('mailtrap');
+
+  return nodemailer.createTransport({
+    host,
+    port,
+    secure,
+    auth: {
+      user: envTrim('SMTP_USER'),
+      pass: envTrim('SMTP_PASS'),
+    },
+    ...(isMailtrap && !secure ? { requireTLS: true } : {}),
+    connectionTimeout: 25_000,
+    greetingTimeout: 25_000,
+    socketTimeout: 25_000,
+  });
+}
+
+function defaultFrom() {
+  return envTrim('SMTP_FROM') || envTrim('SMTP_USER') || 'MemberDate <noreply@localhost>';
+}
+
 /**
- * Sends a 6-digit verification email.
- * - If SMTP_* is set: uses your provider.
- * - Else in development: tries Ethereal (free fake SMTP + browser preview link in server logs).
- * - Else: logs the code to the server console.
+ * Send email via configured SMTP. Used for verification, admin alerts, etc.
+ * @param {{ to: string, subject: string, text: string, html?: string, logLabel?: string }} opts
+ */
+export async function sendSmtpMail({ to, subject, text, html, logLabel = 'mail' }) {
+  if (!isMailConfigured()) {
+    return { sent: false, reason: 'smtp_not_configured' };
+  }
+
+  const transporter = createSmtpTransporter();
+  try {
+    const info = await transporter.sendMail({
+      from: defaultFrom(),
+      to,
+      subject,
+      text,
+      html: html || `<p>${text.replace(/\n/g, '<br>')}</p>`,
+    });
+    console.log(`[${logLabel}] Sent via SMTP to ${to} (messageId: ${info.messageId || 'ok'})`);
+    return { sent: true, transport: 'smtp', messageId: info.messageId };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[${logLabel}] SMTP send failed to ${to}:`, message);
+    return { sent: false, reason: 'smtp_send_failed', error: message };
+  }
+}
+
+/**
+ * Sends a 6-digit verification email when admin requires email verification.
  */
 export async function sendVerificationEmail({ to, code, name }) {
   const greeting = name ? `Hi ${name},` : 'Hi,';
@@ -32,40 +81,7 @@ export async function sendVerificationEmail({ to, code, name }) {
   const html = `<p>${greeting}</p><p>Your verification code is:</p><p style="font-size:24px;font-weight:bold;letter-spacing:4px">${code}</p><p>This code expires in 15 minutes.</p>`;
 
   if (isMailConfigured()) {
-    const from = envTrim('SMTP_FROM') || envTrim('SMTP_USER') || 'MemberDate <noreply@localhost>';
-    const host = envTrim('SMTP_HOST');
-    const port = Number(envTrim('SMTP_PORT')) || 587;
-    const secure = envTrim('SMTP_SECURE') === 'true' || port === 465;
-    const isMailtrap = host.toLowerCase().includes('mailtrap');
-
-    /** Mailtrap sandbox expects STARTTLS on 2525/587; port 25 is often blocked by ISPs. */
-    const transporter = nodemailer.createTransport({
-      host,
-      port,
-      secure,
-      auth: {
-        user: envTrim('SMTP_USER'),
-        pass: envTrim('SMTP_PASS'),
-      },
-      ...(isMailtrap && !secure
-        ? { requireTLS: true }
-        : {}),
-      connectionTimeout: 25_000,
-      greetingTimeout: 25_000,
-      socketTimeout: 25_000,
-    });
-
-    try {
-      await transporter.sendMail({ from, to, subject, text, html });
-      return { sent: true, transport: 'smtp' };
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      console.error('[mail] SMTP send failed:', message);
-      if (process.env.NODE_ENV !== 'production') {
-        console.warn(`[mail] Verification code for ${to} (email delivery failed): ${code}`);
-      }
-      return { sent: false, reason: 'smtp_send_failed', error: message };
-    }
+    return sendSmtpMail({ to, subject, text, html, logLabel: 'mail:verify' });
   }
 
   if (process.env.NODE_ENV === 'production') {
@@ -104,5 +120,26 @@ export async function sendVerificationEmail({ to, code, name }) {
   }
 
   console.warn(`[mail] SMTP not configured. Verification code for ${to}: ${code}`);
+  return { sent: false, reason: 'smtp_not_configured' };
+}
+
+/**
+ * Admin alert email — uses SMTP when configured (no Ethereal fallback).
+ */
+export async function sendAdminAlertEmail({ to, subject, text, html }) {
+  if (!to || !subject) {
+    return { sent: false, reason: 'missing_recipient_or_subject' };
+  }
+
+  const safeText = text || subject;
+  const safeHtml = html || `<p>${safeText.replace(/\n/g, '<br>')}</p>`;
+
+  if (isMailConfigured()) {
+    return sendSmtpMail({ to, subject, text: safeText, html: safeHtml, logLabel: 'mail:admin' });
+  }
+
+  console.error(
+    `[mail:admin] SMTP not configured (set SMTP_HOST, SMTP_USER, SMTP_PASS in .env). Alert not emailed to ${to}: ${subject}`
+  );
   return { sent: false, reason: 'smtp_not_configured' };
 }

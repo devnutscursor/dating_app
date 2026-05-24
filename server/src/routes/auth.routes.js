@@ -18,6 +18,7 @@ router.post('/login', authLimiter, asyncHandler(auth.login));
 router.post('/verify-email', asyncHandler(authenticate), asyncHandler(auth.verifyEmail));
 router.post('/resend-verification', asyncHandler(authenticate), asyncHandler(auth.resendVerification));
 router.get('/me', asyncHandler(authenticate), asyncHandler(auth.me));
+router.post('/change-password', authLimiter, asyncHandler(authenticate), asyncHandler(auth.changePassword));
 router.post('/logout', asyncHandler(authenticate), asyncHandler(auth.logout));
 
 export default router;

@@ -179,6 +179,7 @@ export const breakpoints = {
 export const coinPricing = {
   photoUnlock: 10,
   videoUnlock: 50,
+  audioCallPerMinute: 5,
   videoCallPerMinute: 10,
   messagePriority: 5,
   profileBoost: 100,
@@ -220,17 +221,19 @@ export const datingGoals = [
   { value: 'just-fun', label: 'Just have fun' },
 ];
 
-// Countries list (simplified)
-export const countries = [
-  { value: 'ua', label: 'Ukraine', flag: '🇺🇦' },
-  { value: 'us', label: 'United States', flag: '🇺🇸' },
-  { value: 'gb', label: 'United Kingdom', flag: '🇬🇧' },
-  { value: 'de', label: 'Germany', flag: '🇩🇪' },
-  { value: 'fr', label: 'France', flag: '🇫🇷' },
-  { value: 'it', label: 'Italy', flag: '🇮🇹' },
-  { value: 'es', label: 'Spain', flag: '🇪🇸' },
-  { value: 'pl', label: 'Poland', flag: '🇵🇱' },
-];
+/** Discover / online card overlay buttons — solid backgrounds (no backdrop-blur) for consistent rendering. */
+/** 36px circles — fits 4-column discover grid at 1080p + 150% OS scale without clipping. */
+export const discoverCardActionButtonClass =
+  'box-border flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/20 bg-black/40 text-white transition-colors hover:bg-black/55 disabled:cursor-not-allowed disabled:opacity-50';
+
+export const discoverCardVideoButtonClass =
+  'box-border flex h-9 w-9 shrink-0 items-center justify-center rounded-full border border-white/20 bg-green-500 text-white transition-colors hover:bg-green-600 disabled:cursor-not-allowed disabled:opacity-50';
+
+export const discoverCardActionIconClass = 'pointer-events-none size-4 shrink-0';
+
+import { countries, type CountryOption } from './countries';
+
+export { countries, type CountryOption };
 
 // Report types
 export const reportTypes = [

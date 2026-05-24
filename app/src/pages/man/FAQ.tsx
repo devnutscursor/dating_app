@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { ChevronDown, ChevronUp, HelpCircle, MessageCircle, Shield, CreditCard, Lock } from 'lucide-react';
+import { ChevronDown, ChevronUp, HelpCircle, MessageCircle, Shield, Coins, Lock } from 'lucide-react';
 
 const faqCategories = [
   {
@@ -24,7 +24,7 @@ const faqCategories = [
   {
     id: 'coins',
     title: 'Coins & Payments',
-    icon: CreditCard,
+    icon: Coins,
     faqs: [
       {
         question: 'What are coins used for?',
@@ -32,7 +32,8 @@ const faqCategories = [
       },
       {
         question: 'How do I purchase coins?',
-        answer: 'Go to "My Wallet" and select a coin pack. We accept various payment methods including credit cards and PayPal.',
+        answer:
+          'Go to "My Wallet", choose a coin pack, and tap "Purchase with Crypto". Checkout is handled by our payment partner (NOWPayments). We accept cryptocurrency only—such as Bitcoin, Ethereum, and USDT. Coins are added to your balance after the payment is confirmed on the blockchain.',
       },
       {
         question: 'Can I get a refund?',
@@ -65,8 +66,9 @@ const faqCategories = [
     icon: Lock,
     faqs: [
       {
-        question: 'How do video calls work?',
-        answer: 'Click the video icon in any chat to start a video call. Video calls are charged per minute using coins.',
+        question: 'How do calls work?',
+        answer:
+          'Voice calls cost 5 coins per minute. Video chats cost 10 coins per minute. Coins are deducted from your balance while the call is connected.',
       },
       {
         question: 'What is profile boost?',

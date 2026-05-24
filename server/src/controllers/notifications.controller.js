@@ -1,8 +1,11 @@
 import { InAppNotification } from '../models/InAppNotification.model.js';
 
 function rowToClient(n) {
-  const type =
-    n.kind === 'moderator_dm' ? 'message' : n.kind === 'report_outcome' ? 'system' : 'system';
+  let type = 'system';
+  if (n.kind === 'moderator_dm') type = 'message';
+  else if (n.kind === 'report_outcome') type = 'system';
+  else if (n.kind === 'admin_new_user' || n.kind === 'admin_new_report') type = 'system';
+
   return {
     id: n._id.toString(),
     kind: n.kind,
@@ -13,6 +16,7 @@ function rowToClient(n) {
     timestamp: n.createdAt,
     isRead: n.read,
     reportId: n.reportId?.toString?.() ?? undefined,
+    relatedUserId: n.relatedUserId?.toString?.() ?? undefined,
   };
 }
 

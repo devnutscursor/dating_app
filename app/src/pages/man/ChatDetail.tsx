@@ -21,13 +21,19 @@ import BlockUserModal from '@/components/modals/BlockUserModal';
 import ReportUserModal from '@/components/modals/ReportUserModal';
 import SendGiftModal from '@/components/modals/SendGiftModal';
 import MediaPreviewModal from '@/components/modals/MediaPreviewModal';
+import VideoCallConfirmModal from '@/components/modals/VideoCallConfirmModal';
+import { useCallPricing } from '@/lib/callPricing';
+import type { CallType } from '@/lib/chatSocket';
 
 export default function ManChatDetail() {
   const { chatId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const { user: me, refreshUser } = useAuth();
+  const callPricing = useCallPricing();
   const { initiateCall, callStatus } = useCall();
+  const [callConfirmType, setCallConfirmType] = useState<CallType | null>(null);
+  const [callStartBusy, setCallStartBusy] = useState(false);
   const [message, setMessage] = useState('');
   const [threads, setThreads] = useState<Chat[]>([]);
   const [chat, setChat] = useState<Chat | null>(null);
@@ -48,6 +54,19 @@ export default function ManChatDetail() {
 
   const user = chat?.participant;
   const messages = chat?.messages ?? [];
+
+  const startConfirmedCall = async () => {
+    if (!user || !chatId || !callConfirmType || callStartBusy || callStatus !== 'idle') return;
+    setCallStartBusy(true);
+    try {
+      await initiateCall(user.id, chatId, callConfirmType, user.name, user.profilePicture);
+      setCallConfirmType(null);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not start call');
+    } finally {
+      setCallStartBusy(false);
+    }
+  };
   const isModSupport = Boolean(chat?.chatKind === 'moderator_support');
 
   const refreshThreads = useCallback(async () => {
@@ -339,9 +358,17 @@ export default function ManChatDetail() {
         {/* Header */}
         <div className={`${layoutConversationToolbarClass} justify-between`}>
           <div className="flex items-center gap-3">
-            <Link to="/man/chats" className="lg:hidden p-2 -ml-2 hover:bg-gray-100 rounded-full">
+            <button
+              type="button"
+              onClick={() => {
+                if (window.history.length > 1) navigate(-1);
+                else navigate('/man/chats', { replace: true });
+              }}
+              className="lg:hidden p-2 -ml-2 hover:bg-gray-100 rounded-full"
+              aria-label="Go back"
+            >
               <ArrowLeft className="w-5 h-5" />
-            </Link>
+            </button>
             {peerProfilePath ? (
               <Link
                 to={peerProfilePath}
@@ -391,15 +418,7 @@ export default function ManChatDetail() {
             {!isModSupport && (
               <>
                 <button
-                  onClick={() =>
-                    void initiateCall(
-                      user.id,
-                      chatId!,
-                      'video',
-                      user.name,
-                      user.profilePicture
-                    )
-                  }
+                  onClick={() => setCallConfirmType('video')}
                   disabled={callStatus !== 'idle'}
                   className="p-2 hover:bg-gray-100 rounded-full disabled:opacity-40"
                   type="button"
@@ -408,19 +427,11 @@ export default function ManChatDetail() {
                   <Video className="w-5 h-5 text-gray-600" />
                 </button>
                 <button
-                  onClick={() =>
-                    void initiateCall(
-                      user.id,
-                      chatId!,
-                      'audio',
-                      user.name,
-                      user.profilePicture
-                    )
-                  }
+                  onClick={() => setCallConfirmType('audio')}
                   disabled={callStatus !== 'idle'}
                   className="p-2 hover:bg-gray-100 rounded-full disabled:opacity-40"
                   type="button"
-                  title="Audio call"
+                  title="Voice call"
                 >
                   <Phone className="w-5 h-5 text-gray-600" />
                 </button>
@@ -514,8 +525,8 @@ export default function ManChatDetail() {
         </div>
 
         {/* Input — stays above keyboard / viewport bottom (column layout) */}
-        <div className="shrink-0 border-t border-gray-200 bg-white p-4">
-          <div className="flex items-center gap-2">
+        <div className="shrink-0 border-t border-gray-200 bg-white px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4 sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
+          <div className="flex min-w-0 items-center gap-1 sm:gap-2">
             <input
               ref={imageInputRef}
               type="file"
@@ -532,37 +543,39 @@ export default function ManChatDetail() {
                 onChange={(e) => void handleVideoChange(e)}
               />
             ) : null}
-            <button
-              type="button"
-              disabled={imageBusy || !chatId}
-              onClick={() => imageInputRef.current?.click()}
-              className="rounded-full p-2 hover:bg-gray-100 disabled:opacity-50"
-              aria-label="Send photo"
-            >
-              <Image className="h-5 w-5 text-gray-500" />
-            </button>
-            {isModSupport && (
+            <div className="flex shrink-0 items-center">
               <button
                 type="button"
-                disabled={videoBusy || !chatId}
-                onClick={() => videoInputRef.current?.click()}
-                className="rounded-full p-2 hover:bg-gray-100 disabled:opacity-50"
-                aria-label="Send video"
+                disabled={imageBusy || !chatId}
+                onClick={() => imageInputRef.current?.click()}
+                className="rounded-full p-1.5 hover:bg-gray-100 disabled:opacity-50 sm:p-2"
+                aria-label="Send photo"
               >
-                <Clapperboard className="h-5 w-5 text-gray-500" />
+                <Image className="h-5 w-5 text-gray-500" />
               </button>
-            )}
-            {!isModSupport && (
-              <button
-                type="button"
-                onClick={() => setGiftModalOpen(true)}
-                className="rounded-full p-2 hover:bg-gray-100"
-                aria-label="Send gift"
-              >
-                <Gift className="h-5 w-5 text-gray-500" />
-              </button>
-            )}
-            <EmojiPickerButton onPick={(em) => setMessage((m) => m + em)} disabled={!chatId} />
+              {isModSupport && (
+                <button
+                  type="button"
+                  disabled={videoBusy || !chatId}
+                  onClick={() => videoInputRef.current?.click()}
+                  className="rounded-full p-1.5 hover:bg-gray-100 disabled:opacity-50 sm:p-2"
+                  aria-label="Send video"
+                >
+                  <Clapperboard className="h-5 w-5 text-gray-500" />
+                </button>
+              )}
+              {!isModSupport && (
+                <button
+                  type="button"
+                  onClick={() => setGiftModalOpen(true)}
+                  className="rounded-full p-1.5 hover:bg-gray-100 sm:p-2"
+                  aria-label="Send gift"
+                >
+                  <Gift className="h-5 w-5 text-gray-500" />
+                </button>
+              )}
+              <EmojiPickerButton onPick={(em) => setMessage((m) => m + em)} disabled={!chatId} />
+            </div>
             <input
               type="text"
               value={message}
@@ -571,7 +584,7 @@ export default function ManChatDetail() {
               placeholder={
                 isModSupport ? 'Message — you can also attach a photo or video' : 'Type a message...'
               }
-              className={`flex-1 rounded-full px-4 py-2 outline-none focus:ring-2 ${
+              className={`min-w-0 flex-1 rounded-full px-3 py-2 text-sm outline-none focus:ring-2 sm:px-4 ${
                 isModSupport
                   ? 'border border-amber-200 bg-amber-50/80 focus:ring-amber-500'
                   : 'bg-gray-100 focus:ring-green-500'
@@ -582,11 +595,16 @@ export default function ManChatDetail() {
               onClick={() => void handleSend()}
               disabled={!message.trim()}
               size="icon"
-              className={
+              aria-label="Send message"
+              className={`size-9 shrink-0 rounded-full ${
                 isModSupport
-                  ? 'rounded-full bg-amber-600 hover:bg-amber-700'
-                  : 'rounded-full bg-green-500 hover:bg-green-600'
-              }
+                  ? message.trim()
+                    ? 'bg-amber-600 hover:bg-amber-700'
+                    : 'bg-gray-200 text-gray-400 hover:bg-gray-200'
+                  : message.trim()
+                    ? 'bg-green-500 hover:bg-green-600'
+                    : 'bg-gray-200 text-gray-400 hover:bg-gray-200'
+              } disabled:pointer-events-none disabled:opacity-100`}
             >
               <Send className="h-4 w-4" />
             </Button>
@@ -631,6 +649,17 @@ export default function ManChatDetail() {
             onClose={() => setGiftModalOpen(false)}
             userName={user.name}
             onSendGift={handleGiftSend}
+          />
+          <VideoCallConfirmModal
+            open={callConfirmType !== null}
+            onClose={() => !callStartBusy && setCallConfirmType(null)}
+            onConfirm={() => void startConfirmedCall()}
+            peerName={user.name}
+            peerPicture={user.profilePicture}
+            busy={callStartBusy}
+            callType={callConfirmType ?? 'video'}
+            audioRate={callPricing.audioCallPerMinute}
+            videoRate={callPricing.videoCallPerMinute}
           />
         </>
       )}

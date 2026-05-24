@@ -1,11 +1,26 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { layoutConversationToolbarClass } from '@/config/design';
 import { Heart, Gift, Eye, MessageCircle } from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 import { fetchActivities } from '@/lib/activities';
 import { formatRelativeTime } from '@/lib/formatRelativeTime';
-import type { ActivityFeedItem } from '@/types';
+import { profileReturnState } from '@/lib/profileNavigation';
+import type { ActivityFeedItem, User } from '@/types';
+
+function actorCanOpenProfile(actor: User): boolean {
+  const role = actor.role ?? actor.gender;
+  return Boolean(actor.id) && (role === 'male' || role === 'female');
+}
 
 export default function ActivityPanel() {
+  const location = useLocation();
+  const { user: me } = useAuth();
+  const area = me?.role === 'female' ? 'woman' : 'man';
+  const profileNavState = useMemo(
+    () => profileReturnState(location.pathname + location.search),
+    [location.pathname, location.search]
+  );
   const [items, setItems] = useState<ActivityFeedItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -100,21 +115,36 @@ export default function ActivityPanel() {
         )}
         {!loading &&
           !error &&
-          items.map((activity) => (
-            <div
-              key={activity.id}
-              className="flex cursor-pointer items-start gap-3 rounded-lg p-3 transition-colors hover:bg-gray-50"
-            >
-              {getIcon(activity.type)}
-              <div className="min-w-0 flex-1">
-                <p className="text-sm text-gray-900">
-                  <span className="font-medium">{activity.actor.name}</span>{' '}
-                  <span className="text-gray-600">{getMessage(activity)}</span>
-                </p>
-                <p className="mt-1 text-xs text-gray-400">{formatRelativeTime(activity.createdAt)}</p>
+          items.map((activity) => {
+            const profilePath = `/${area}/view-profile/${activity.actor.id}`;
+            const nameEl = actorCanOpenProfile(activity.actor) ? (
+              <Link
+                to={profilePath}
+                state={profileNavState.state}
+                className={`font-medium hover:underline ${area === 'woman' ? 'text-rose-600 hover:text-rose-700' : 'text-green-600 hover:text-green-700'}`}
+              >
+                {activity.actor.name}
+              </Link>
+            ) : (
+              <span className="font-medium">{activity.actor.name}</span>
+            );
+
+            return (
+              <div
+                key={activity.id}
+                className="flex items-start gap-3 rounded-lg p-3 transition-colors hover:bg-gray-50"
+              >
+                {getIcon(activity.type)}
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-gray-900">
+                    {nameEl}{' '}
+                    <span className="text-gray-600">{getMessage(activity)}</span>
+                  </p>
+                  <p className="mt-1 text-xs text-gray-400">{formatRelativeTime(activity.createdAt)}</p>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
 
         {!loading && !error && items.length === 0 && (
           <div className="py-8 text-center">

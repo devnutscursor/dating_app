@@ -36,7 +36,7 @@ export default function LoginPage() {
     setSubmitting(true);
     try {
       const user = await login(email.trim(), password);
-      if (user.emailVerified === false && (user.role === 'male' || user.role === 'female')) {
+      if (user.emailVerificationRequired) {
         navigate('/verify-email', { replace: true, state: { email: user.email ?? email.trim() } });
         return;
       }

@@ -43,14 +43,18 @@ export default function RegisterPage() {
     registerOnceRef.current = true;
     setSubmitting(true);
     try {
-      await register({
+      const user = await register({
         name: formData.name.trim(),
         email: formData.email.trim(),
         password: formData.password,
         gender: formData.gender,
         birthDate: formData.birthDate,
       });
-      navigate('/verify-email', { replace: true, state: { email: formData.email.trim() } });
+      if (user.emailVerificationRequired) {
+        navigate('/verify-email', { replace: true, state: { email: formData.email.trim() } });
+      } else {
+        navigate('/profile-setup', { replace: true });
+      }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Registration failed');
     } finally {

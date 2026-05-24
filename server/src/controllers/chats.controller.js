@@ -7,6 +7,8 @@ import { serializeChatDoc, isMessageVisibleToViewer } from '../utils/serializeCh
 import { emitChatUpdatedToParticipants } from '../realtime/emitChatUpdate.js';
 import { createActivity } from '../services/activityLog.js';
 import { createInAppNotification } from '../services/inAppNotifications.js';
+import { getPlatformSettings } from '../services/siteSettings.js';
+import { notifyAdminsNewReport } from '../services/adminAlerts.js';
 
 function otherParticipantId(chat, selfId) {
   const selfStr = selfId.toString();
@@ -236,6 +238,39 @@ export async function createOrGetChat(req, res) {
   res.status(201).json({ chat: serializeChatDoc(populated, req.user._id) });
 }
 
+/** Member ↔ moderator support thread (reused if it already exists). */
+export async function createOrGetSupportChat(req, res) {
+  const role = req.user.role || req.user.gender;
+  if (!['male', 'female'].includes(role)) {
+    return res.status(403).json({ error: 'Support chat is only available for members' });
+  }
+  const moderator = await User.findOne({ role: 'moderator' }).select('_id');
+  if (!moderator) {
+    return res.status(503).json({ error: 'Support is unavailable right now. Please try again later.' });
+  }
+  const memberId = req.user._id;
+  const modId = moderator._id;
+  let chat = await Chat.findOne({
+    chatKind: 'moderator_support',
+    participants: { $all: [memberId, modId], $size: 2 },
+  }).populate('participants', '-password');
+  if (!chat) {
+    chat = await Chat.create({
+      participants: [memberId, modId],
+      messages: [],
+      chatKind: 'moderator_support',
+      unreadCount: 0,
+      isBlocked: false,
+      isReported: false,
+    });
+    chat = await Chat.findById(chat._id).populate('participants', '-password');
+  }
+  if (chat.isBlocked) {
+    return res.status(403).json({ error: 'This support conversation has been blocked' });
+  }
+  res.json({ chat: serializeChatDoc(chat, req.user._id) });
+}
+
 export async function setChatPinned(req, res) {
   const pinned = req.body?.pinned !== false;
   const chat = await Chat.findOne({
@@ -296,6 +331,33 @@ export async function sendMessage(req, res) {
     return persistGiftMessage(req, res, chat, amt, content, giftComment);
   }
 
+  // Charge messageCost coins from male senders when enabled
+  let coinsAfterMessage;
+  if (chat.chatKind !== 'moderator_support' && req.user.gender === 'male' && ['text', 'image', 'video'].includes(msgType)) {
+    const platformSettings = await getPlatformSettings();
+    const cost = Math.floor(Number(platformSettings?.coinPricing?.messageCost) || 0);
+    if (cost > 0) {
+      const senderAfter = await User.findOneAndUpdate(
+        { _id: req.user._id, coins: { $gte: cost } },
+        { $inc: { coins: -cost } },
+        { new: true }
+      );
+      if (!senderAfter) {
+        return res.status(400).json({ error: 'Insufficient coins to send a message' });
+      }
+      coinsAfterMessage = senderAfter.coins;
+      const ts = new Date().toISOString().slice(0, 10);
+      const recipientId = otherParticipantId(chat, req.user._id);
+      if (recipientId) {
+        await User.findByIdAndUpdate(recipientId, { $inc: { coins: cost } });
+        Transaction.create([
+          { userId: req.user._id, type: 'tip', amount: cost, currency: 'coins', description: 'Message cost', status: 'completed', relatedUserId: recipientId, timestamp: ts },
+          { userId: recipientId, type: 'tip', amount: cost, currency: 'coins', description: 'Message received', status: 'completed', relatedUserId: req.user._id, timestamp: ts },
+        ]).catch((e) => console.error('messageCost ledger', e));
+      }
+    }
+  }
+
   const msg = {
     senderId: req.user._id,
     content: typeof content === 'string' ? content : '',
@@ -351,7 +413,9 @@ export async function sendMessage(req, res) {
   }
 
   emitChatUpdatedToParticipants(io, populated);
-  res.status(201).json({ chat: serializeChatDoc(populated, req.user._id) });
+  const result = { chat: serializeChatDoc(populated, req.user._id) };
+  if (coinsAfterMessage !== undefined) result.coins = coinsAfterMessage;
+  res.status(201).json(result);
 }
 
 const REPORT_TYPES = new Set(['financial', 'profile', 'harassment']);
@@ -418,7 +482,7 @@ export async function reportUserInChat(req, res) {
     return res.status(400).json({ error: 'Cannot report this user' });
   }
 
-  await Report.create({
+  const reportDoc = await Report.create({
     reporterId: req.user._id,
     reportedId,
     relatedChatId: chat._id,
@@ -428,6 +492,27 @@ export async function reportUserInChat(req, res) {
     status: 'pending',
     createdAt: new Date().toISOString().slice(0, 10),
   });
+
+  const io = req.app.get('io');
+  const reporterName = req.user.name?.trim() || 'A member';
+  void notifyAdminsNewReport(io, {
+    reportId: reportDoc._id,
+    reporterName,
+    reportedName: target.name?.trim() || 'a member',
+    type: String(type),
+    topic: topicStr,
+    commentPreview: commentStr,
+  }).catch((err) => console.error('[adminAlerts] new report', err));
+
+  // Auto-block when report count reaches admin threshold
+  const siteSettings = await getPlatformSettings();
+  const autoBlockThreshold = Math.floor(Number(siteSettings?.security?.autoBlockReports) || 0);
+  if (autoBlockThreshold > 0) {
+    const reportCount = await Report.countDocuments({ reportedId, status: { $in: ['pending', 'reviewing'] } });
+    if (reportCount >= autoBlockThreshold) {
+      await User.findByIdAndUpdate(reportedId, { $set: { isBlocked: true } });
+    }
+  }
 
   const reportedName = target.name?.trim() || 'this member';
   const summaryComment = commentStr.length > 800 ? `${commentStr.slice(0, 797)}…` : commentStr;
@@ -452,7 +537,6 @@ export async function reportUserInChat(req, res) {
   await chat.save();
 
   const populated = await Chat.findById(chat._id).populate('participants', '-password');
-  const io = req.app.get('io');
   emitChatUpdatedToParticipants(io, populated);
   return res.status(201).json({ ok: true, chat: serializeChatDoc(populated, req.user._id) });
 }

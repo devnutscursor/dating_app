@@ -7,6 +7,17 @@ import {
   onSocketDisconnect,
   touchPresence,
 } from '../services/presence.js';
+import {
+  getConfiguredCoinsPerMinute,
+  callerHasCoinsForCall,
+  resolveVideoCallBilling,
+  startVideoCallBilling,
+  stopVideoCallBilling,
+  stopVideoCallBillingForUser,
+  setPendingCallType,
+  consumePendingCallType,
+  clearPendingCallType,
+} from '../services/videoCallBilling.js';
 
 /**
  * @param {import('http').Server} httpServer
@@ -51,28 +62,61 @@ export function initSocketIO(httpServer) {
     });
 
     socket.on('disconnect', () => {
+      stopVideoCallBillingForUser(uid);
       void onSocketDisconnect(uid, socket.id);
     });
 
     // ── Audio / Video call signaling ──────────────────────────────────────────
     // All events are pure relay: the server never inspects media.
 
-    socket.on('call:initiate', ({ targetUserId, chatId, callType }) => {
+    socket.on('call:initiate', async ({ targetUserId, chatId, callType }) => {
       if (!targetUserId || !chatId) return;
+      const type = callType === 'audio' ? 'audio' : 'video';
+      setPendingCallType(chatId, type);
+      const hasCoins = await callerHasCoinsForCall(uid, type);
+      if (!hasCoins) {
+        clearPendingCallType(chatId);
+        const cpm = await getConfiguredCoinsPerMinute(type);
+        const label = type === 'audio' ? 'voice call' : 'video chat';
+        socket.emit('call:billing-failed', {
+          chatId,
+          reason: 'insufficient',
+          message: `You need at least ${cpm} coins to start a ${label}.`,
+        });
+        return;
+      }
       io.to(`user:${targetUserId}`).emit('call:incoming', {
         from: uid,
         chatId,
-        callType: callType === 'audio' ? 'audio' : 'video',
+        callType: type,
       });
     });
 
-    socket.on('call:accepted', ({ targetUserId, chatId }) => {
+    socket.on('call:accepted', async ({ targetUserId, chatId }) => {
       if (!targetUserId || !chatId) return;
+
+      const callType = consumePendingCallType(chatId);
+      const parties = await resolveVideoCallBilling(uid, targetUserId, chatId);
+      if (parties) {
+        const billingStarted = await startVideoCallBilling(io, chatId, parties, callType);
+        if (!billingStarted) {
+          io.to(`user:${targetUserId}`).emit('call:billing-failed', {
+            chatId,
+            reason: 'insufficient',
+            message: 'Caller does not have enough coins for this call.',
+          });
+          io.to(`user:${targetUserId}`).emit('call:rejected', { from: uid, chatId });
+          return;
+        }
+      }
+
       io.to(`user:${targetUserId}`).emit('call:accepted', { from: uid, chatId });
     });
 
     socket.on('call:rejected', ({ targetUserId, chatId }) => {
       if (!targetUserId || !chatId) return;
+      clearPendingCallType(chatId);
+      stopVideoCallBilling(chatId);
       io.to(`user:${targetUserId}`).emit('call:rejected', { from: uid, chatId });
     });
 
@@ -83,6 +127,7 @@ export function initSocketIO(httpServer) {
 
     socket.on('call:ended', ({ targetUserId, chatId }) => {
       if (!targetUserId || !chatId) return;
+      stopVideoCallBilling(chatId);
       io.to(`user:${targetUserId}`).emit('call:ended', { from: uid, chatId });
     });
     // ─────────────────────────────────────────────────────────────────────────

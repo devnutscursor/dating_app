@@ -34,12 +34,12 @@ export default function HoverPhotoGallery({ photos, alt, className = '' }: Hover
 
   return (
     <div
-      className={`relative overflow-hidden ${className}`}
+      className={`relative h-full w-full overflow-hidden ${className}`}
       onMouseEnter={() => setIsHovering(true)}
       onMouseLeave={() => setIsHovering(false)}
     >
-      {gallery.length > 1 && (
-        <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex gap-1.5">
+      {gallery.length > 1 && isHovering && (
+        <div className="pointer-events-none absolute inset-x-3 top-12 z-10 flex gap-1.5">
           {gallery.map((photo, index) => (
             <div key={`${photo}-progress`} className="h-1 flex-1 overflow-hidden rounded-full bg-white/35">
               <div
@@ -59,7 +59,8 @@ export default function HoverPhotoGallery({ photos, alt, className = '' }: Hover
           key={`${photo}-${index}`}
           src={photo}
           alt={alt}
-          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 ${
+          draggable={false}
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-500 select-none ${
             index === activeIndex ? 'opacity-100' : 'opacity-0'
           }`}
         />

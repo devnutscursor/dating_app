@@ -58,6 +58,8 @@ const userSchema = new mongoose.Schema(
     photos: [photoSchema],
     videos: [videoSchema],
     coins: { type: Number, default: 0 },
+    /** Saved USDT TRC20 address for withdrawals (women) */
+    usdtWalletAddress: { type: String, default: '' },
     likesReceivedCount: { type: Number, default: 0 },
     isVerified: { type: Boolean, default: false },
     isBlocked: { type: Boolean, default: false },

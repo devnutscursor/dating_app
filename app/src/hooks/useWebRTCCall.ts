@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import SimplePeer from 'simple-peer';
 import type { CallType } from '@/lib/chatSocket';
 export type { CallType };
+import { apiGet } from '@/lib/api';
 import {
   emitCallInitiate,
   emitCallAccepted,
@@ -108,10 +109,24 @@ export function useWebRTCCall(): UseWebRTCCallReturn {
   }, [destroyPeer, stopLocalStream]);
 
   const getMedia = useCallback(async (type: CallType): Promise<MediaStream> => {
-    const constraints: MediaStreamConstraints = {
-      audio: true,
-      video: type === 'video' ? { width: 1280, height: 720, facingMode: 'user' } : false,
-    };
+    let videoConstraints: boolean | MediaTrackConstraints = false;
+    if (type === 'video') {
+      let quality = 'hd';
+      try {
+        const data = await apiGet<{ videoCall?: { quality?: string } }>('/settings/public');
+        quality = data.videoCall?.quality ?? 'hd';
+      } catch {
+        /* use default */
+      }
+      const resolutions: Record<string, { width: number; height: number }> = {
+        sd: { width: 854, height: 480 },
+        hd: { width: 1280, height: 720 },
+        fhd: { width: 1920, height: 1080 },
+      };
+      const res = resolutions[quality] ?? resolutions.hd;
+      videoConstraints = { ...res, facingMode: 'user' };
+    }
+    const constraints: MediaStreamConstraints = { audio: true, video: videoConstraints };
     const stream = await navigator.mediaDevices.getUserMedia(constraints);
     localStreamRef.current = stream;
     setLocalStream(stream);

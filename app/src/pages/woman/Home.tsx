@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { MapPin, Heart, MessageCircle, Video, Lock } from 'lucide-react';
+import { MapPin, Heart, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import UnlockContentModal from '@/components/modals/UnlockContentModal';
-import VideoCallModal from '@/components/modals/VideoCallModal';
+import { useCall } from '@/contexts/CallContext';
 import HoverPhotoGallery from '@/components/HoverPhotoGallery';
+import DiscoverCardActionButtons from '@/components/profile/DiscoverCardActionButtons';
 import { formatProfileLocation } from '@/lib/formatProfileLocation';
 import { fetchDiscoverUsers, sendLike, userGalleryPhotos } from '@/lib/social';
 import AppliedSearchFiltersBar from '@/components/AppliedSearchFiltersBar';
@@ -27,6 +28,7 @@ export default function WomanHome() {
     type: 'photo',
     price: 100,
   });
+  const { initiateCall, callStatus } = useCall();
   const [videoCallUserId, setVideoCallUserId] = useState<string | null>(null);
   const [openingChatUserId, setOpeningChatUserId] = useState<string | null>(null);
 
@@ -51,7 +53,19 @@ export default function WomanHome() {
   }, [loadDiscover]);
 
   const unlockUserName = users.find((u) => u.id === unlockModal.userId)?.name ?? '';
-  const videoPeer = videoCallUserId ? users.find((u) => u.id === videoCallUserId) : undefined;
+
+  const startVideoCall = async (user: User) => {
+    if (callStatus !== 'idle') return;
+    setVideoCallUserId(user.id);
+    try {
+      const chat = await createOrGetChat(user.id);
+      await initiateCall(user.id, chat.id, 'video', user.name, user.profilePicture);
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Could not start video call');
+    } finally {
+      setVideoCallUserId(null);
+    }
+  };
 
   const openChatWith = async (user: User) => {
     setOpeningChatUserId(user.id);
@@ -104,11 +118,13 @@ export default function WomanHome() {
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {users.map((user) => (
-            <div key={user.id} className="overflow-hidden rounded-2xl bg-white shadow-sm transition-shadow hover:shadow-md">
-              <div className="relative aspect-[3/4]">
-                <HoverPhotoGallery photos={userGalleryPhotos(user)} alt={user.name} className="h-full w-full" />
+            <div key={user.id} className="rounded-2xl bg-white shadow-sm transition-shadow hover:shadow-md">
+              <div className="relative aspect-[3/4] w-full">
+                <div className="absolute inset-0 overflow-hidden rounded-t-2xl">
+                  <HoverPhotoGallery photos={userGalleryPhotos(user)} alt={user.name} className="h-full w-full" />
+                </div>
 
-                <div className="absolute left-3 top-3 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 backdrop-blur-sm">
+                <div className="absolute left-2.5 top-2.5 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 backdrop-blur-sm sm:left-3 sm:top-3">
                   <div
                     className={`h-2 w-2 rounded-full ${user.isOnline ? 'animate-pulse bg-green-500' : 'bg-gray-400'}`}
                   />
@@ -125,34 +141,17 @@ export default function WomanHome() {
                   </button>
                 )}
 
-                <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex gap-2">
-                      <button
-                        type="button"
-                        onClick={() => void handleQuickLike(user)}
-                        className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm transition-colors hover:bg-white/30"
-                        aria-label="Like"
-                      >
-                        <Heart className="h-5 w-5 text-white" />
-                      </button>
-                      <button
-                        type="button"
-                        disabled={openingChatUserId === user.id}
-                        onClick={() => void openChatWith(user)}
-                        className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 backdrop-blur-sm transition-colors hover:bg-white/30 disabled:opacity-50"
-                        aria-label={`Message ${user.name}`}
-                      >
-                        <MessageCircle className="h-5 w-5 text-white" />
-                      </button>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => setVideoCallUserId(user.id)}
-                      className="flex h-10 w-10 items-center justify-center rounded-full bg-green-500 transition-colors hover:bg-green-600"
-                    >
-                      <Video className="h-5 w-5 text-white" />
-                    </button>
+                <div className="pointer-events-none absolute bottom-2.5 left-2.5 right-2.5 z-20 rounded-lg bg-gradient-to-t from-black/85 via-black/45 to-transparent pb-2 pt-9 sm:bottom-3 sm:left-3 sm:right-3 sm:pb-2.5 sm:pt-10">
+                  <div className="pointer-events-auto w-full min-w-0 max-w-full">
+                    <DiscoverCardActionButtons
+                      onLike={() => void handleQuickLike(user)}
+                      onMessage={() => void openChatWith(user)}
+                      onVideo={() => void startVideoCall(user)}
+                      messageDisabled={openingChatUserId === user.id}
+                      videoDisabled={callStatus !== 'idle' || videoCallUserId === user.id}
+                      messageLabel={`Message ${user.name}`}
+                      videoLabel={`Video call ${user.name}`}
+                    />
                   </div>
                 </div>
               </div>
@@ -196,13 +195,6 @@ export default function WomanHome() {
         price={unlockModal.price}
         userName={unlockUserName}
         onUnlock={() => setUnlockModal((m) => ({ ...m, open: false }))}
-      />
-      <VideoCallModal
-        open={Boolean(videoCallUserId)}
-        onClose={() => setVideoCallUserId(null)}
-        userId={videoCallUserId || ''}
-        peerName={videoPeer?.name}
-        peerPicture={videoPeer?.profilePicture}
       />
     </div>
   );

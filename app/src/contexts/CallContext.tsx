@@ -8,8 +8,13 @@ import {
   type ReactNode,
 } from 'react';
 import { useWebRTCCall, type UseWebRTCCallReturn, type CallType } from '@/hooks/useWebRTCCall';
-import { subscribeCallIncoming } from '@/lib/chatSocket';
+import {
+  subscribeCallIncoming,
+  subscribeCallBillingFailed,
+  subscribeCallCoinsUpdated,
+} from '@/lib/chatSocket';
 import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 import { apiGet } from '@/lib/api';
 import type { User } from '@/types';
 
@@ -38,7 +43,7 @@ interface CallContextValue extends UseWebRTCCallReturn {
 const CallContext = createContext<CallContextValue | null>(null);
 
 export function CallProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuth();
+  const { user, setCoins, refreshUser } = useAuth();
   const rtc = useWebRTCCall();
 
   const [incomingCallInfo, setIncomingCallInfo] = useState<IncomingCallInfo | null>(null);
@@ -66,6 +71,37 @@ export function CallProvider({ children }: { children: ReactNode }) {
       setActivePeerPicture(undefined);
     }
   }, [rtc.callStatus]);
+
+  // Per-minute billing: update balance or end call when coins run out
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubBilling = subscribeCallBillingFailed(({ chatId, message, reason }) => {
+      if (rtc.chatId && chatId !== rtc.chatId) return;
+      if (!rtc.chatId && rtc.callStatus === 'idle') return;
+      const text =
+        message ||
+        (reason === 'insufficient'
+          ? 'Not enough coins for this call. Voice calls are 5 coins/min; video chats are 10 coins/min.'
+          : 'Could not bill this call.');
+      toast.error(text);
+      rtc.endCall();
+    });
+
+    const unsubCoins = subscribeCallCoinsUpdated(({ chatId, coins, earned }) => {
+      if (chatId !== rtc.chatId) return;
+      if (!earned) {
+        setCoins(coins);
+      } else {
+        void refreshUser();
+      }
+    });
+
+    return () => {
+      unsubBilling();
+      unsubCoins();
+    };
+  }, [user, rtc.chatId, rtc.endCall, setCoins, refreshUser]);
 
   // Subscribe to incoming call socket events
   useEffect(() => {

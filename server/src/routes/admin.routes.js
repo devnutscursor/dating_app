@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { authenticate } from '../middleware/authenticate.js';
 import { authorize } from '../middleware/authorize.js';
 import * as admin from '../controllers/admin.controller.js';
+import * as payouts from '../controllers/payouts.controller.js';
 import * as mod from '../controllers/moderator.controller.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 
@@ -18,6 +19,10 @@ router.post('/users', asyncHandler(admin.createUser));
 router.patch('/users/:id', asyncHandler(admin.patchUser));
 router.delete('/users/:id', asyncHandler(admin.deleteUser));
 router.get('/transactions', asyncHandler(admin.listTransactions));
+router.get('/transactions/stats', asyncHandler(admin.transactionStats));
+router.get('/payouts', asyncHandler(payouts.listPayoutsAdmin));
+router.get('/payouts/stats', asyncHandler(payouts.payoutStatsAdmin));
+router.patch('/payouts/:id', asyncHandler(payouts.patchPayoutAdmin));
 router.post('/members/:userId/suspend', asyncHandler(mem.suspendPlatformMember));
 router.post('/members/:userId/unsuspend', asyncHandler(mem.unsuspendPlatformMember));
 router.get('/reports', asyncHandler(mod.listReports));
