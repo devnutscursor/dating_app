@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import type { ChangeEvent } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Phone, Video, MoreVertical, Send, Image, Gift, Lock, Flag, Search, Clapperboard, Pin } from 'lucide-react';
@@ -12,6 +12,7 @@ import { postChatMessage, setChatPinned } from '@/lib/chats';
 import { profileReturnState } from '@/lib/profileNavigation';
 import { layoutChatsListColumnHeaderClass, layoutConversationToolbarClass } from '@/config/design';
 import { subscribeChatUpdate, subscribePresenceChanged } from '@/lib/chatSocket';
+import { clearCachedChat, setCachedChat, setChatDraft } from '@/lib/chatCache';
 import { patchChatWithPresence, patchThreadsWithPresence } from '@/lib/presence';
 import { useAuth } from '@/contexts/AuthContext';
 import { useCall } from '@/contexts/CallContext';
@@ -24,6 +25,7 @@ import MediaPreviewModal from '@/components/modals/MediaPreviewModal';
 import VideoCallConfirmModal from '@/components/modals/VideoCallConfirmModal';
 import { useCallPricing } from '@/lib/callPricing';
 import type { CallType } from '@/lib/chatSocket';
+import { useChatDetailLoader } from '@/hooks/useChatDetailLoader';
 
 export default function ManChatDetail() {
   const { chatId } = useParams();
@@ -34,11 +36,19 @@ export default function ManChatDetail() {
   const { initiateCall, callStatus } = useCall();
   const [callConfirmType, setCallConfirmType] = useState<CallType | null>(null);
   const [callStartBusy, setCallStartBusy] = useState(false);
-  const [message, setMessage] = useState('');
-  const [threads, setThreads] = useState<Chat[]>([]);
-  const [chat, setChat] = useState<Chat | null>(null);
-  const [listLoading, setListLoading] = useState(true);
-  const [chatLoading, setChatLoading] = useState(true);
+  const {
+    threads,
+    setThreads,
+    chat,
+    setChat,
+    showInitialLoading,
+    accessError,
+    setAccessError,
+    message,
+    setMessage,
+    refreshThreads,
+    applyChatResponse,
+  } = useChatDetailLoader(chatId, me?.id);
   const [blockModalOpen, setBlockModalOpen] = useState(false);
   const [reportModalOpen, setReportModalOpen] = useState(false);
   const [giftModalOpen, setGiftModalOpen] = useState(false);
@@ -46,7 +56,6 @@ export default function ManChatDetail() {
   const [imageBusy, setImageBusy] = useState(false);
   const [videoBusy, setVideoBusy] = useState(false);
   const [mediaPreview, setMediaPreview] = useState<{ kind: 'photo' | 'video'; url: string } | null>(null);
-  const [accessError, setAccessError] = useState<string | null>(null);
   const [chatListSearch, setChatListSearch] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const imageInputRef = useRef<HTMLInputElement>(null);
@@ -69,78 +78,35 @@ export default function ManChatDetail() {
   };
   const isModSupport = Boolean(chat?.chatKind === 'moderator_support');
 
-  const refreshThreads = useCallback(async () => {
-    try {
-      const data = await apiGet<{ chats: Chat[] }>('/chats');
-      setThreads(data.chats);
-    } catch {
-      setThreads([]);
-    }
-  }, []);
-
-  useEffect(() => {
-    if (!chatId) return;
-    let cancelled = false;
-    (async () => {
-      setListLoading(true);
-      setChatLoading(true);
-      setAccessError(null);
-      try {
-        const chatRes = await apiGet<{ chat: Chat }>(`/chats/${chatId}`);
-        if (cancelled) return;
-        setChat(chatRes.chat);
-        setMessage('');
-        const listRes = await apiGet<{ chats: Chat[] }>('/chats');
-        if (!cancelled) setThreads(listRes.chats);
-      } catch (e) {
-        if (!cancelled) {
-          setChat(null);
-          setThreads([]);
-          setAccessError(e instanceof Error ? e.message : 'Could not load chat');
-        }
-      } finally {
-        if (!cancelled) {
-          setListLoading(false);
-          setChatLoading(false);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [chatId]);
-
   useEffect(() => {
     const unsubPresence = subscribePresenceChanged((payload) => {
       setThreads((prev) => patchThreadsWithPresence(prev, payload));
       setChat((c) => (c ? patchChatWithPresence(c, payload) : c));
     });
     return unsubPresence;
-  }, []);
+  }, [setThreads, setChat]);
 
   useEffect(() => {
     if (!chatId) return;
     const unsub = subscribeChatUpdate((payload) => {
-      if (payload.chatId !== chatId) return;
+      if (payload.chatId !== chatId) {
+        setCachedChat(payload.chat);
+        void refreshThreads();
+        return;
+      }
       if (payload.chat.isBlocked) {
         setAccessError('This conversation has been blocked');
+        clearCachedChat(chatId);
         setChat(null);
         void refreshThreads();
         return;
       }
+      setCachedChat(payload.chat);
       setChat(payload.chat);
-      void (async () => {
-        try {
-          const d = await apiGet<{ chat: Chat }>(`/chats/${chatId}`);
-          setChat(d.chat);
-        } catch {
-          /* keep optimistic payload */
-        }
-        await refreshThreads();
-      })();
+      void refreshThreads();
     });
     return unsub;
-  }, [chatId, refreshThreads]);
+  }, [chatId, refreshThreads, setAccessError, setChat]);
 
   const displayThreads = useMemo(() => {
     if (!chat || !chatId) return threads;
@@ -164,20 +130,13 @@ export default function ManChatDetail() {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const applyChatResponse = useCallback(
-    (next: Chat) => {
-      setChat(next);
-      void refreshThreads();
-    },
-    [refreshThreads]
-  );
-
   const handleSend = async () => {
     if (!message.trim() || !chatId) return;
     try {
       const { chat: next } = await postChatMessage(chatId, { content: message.trim(), type: 'text' });
       applyChatResponse(next);
       setMessage('');
+      setChatDraft(chatId, '');
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not send message');
     }
@@ -253,7 +212,7 @@ export default function ManChatDetail() {
     }
   };
 
-  if (listLoading || chatLoading) {
+  if (showInitialLoading) {
     return (
       <div className="flex h-full min-h-0 flex-1 items-center justify-center text-gray-500">
         Loading chat…

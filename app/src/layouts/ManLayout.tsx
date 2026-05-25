@@ -6,6 +6,7 @@ import Header from '@/components/Header';
 import ActivityPanel from '@/components/ActivityPanel';
 import SupportChat from '@/components/SupportChat';
 import { SearchFiltersProvider } from '@/contexts/SearchFiltersContext';
+import MemberDataPrefetch from '@/components/MemberDataPrefetch';
 
 export default function ManLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -15,6 +16,7 @@ export default function ManLayout() {
 
   return (
     <SearchFiltersProvider>
+    <MemberDataPrefetch />
     <div className="flex h-[100dvh] min-h-0 overflow-hidden bg-gray-50">
       {/* Sidebar - Desktop */}
       <div className="hidden min-h-0 shrink-0 lg:block lg:h-full">

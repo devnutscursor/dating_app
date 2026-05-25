@@ -1,6 +1,9 @@
 import { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { usePublicProfile } from '@/hooks/usePublicProfile';
 import { useParams, useNavigate } from 'react-router-dom';
-import { MapPin, MessageCircle, Video, Lock, Image as ImageIcon, ChevronLeft, ChevronRight, Coins } from 'lucide-react';
+import { MapPin, MessageCircle, Video, Lock, Image as ImageIcon, Coins } from 'lucide-react';
+import HoverPhotoGallery from '@/components/HoverPhotoGallery';
 import ProfileBackLink from '@/components/profile/ProfileBackLink';
 import ProfileLikeButton from '@/components/profile/ProfileLikeButton';
 import { toast } from 'sonner';
@@ -8,11 +11,8 @@ import { Button } from '@/components/ui/button';
 import UnlockContentModal from '@/components/modals/UnlockContentModal';
 import MediaPreviewModal from '@/components/modals/MediaPreviewModal';
 import { formatProfileLocation } from '@/lib/formatProfileLocation';
-import { fetchPublicUser } from '@/lib/social';
 import { createOrGetChat } from '@/lib/chats';
 import { useCall } from '@/contexts/CallContext';
-import type { User } from '@/types';
-
 const FALLBACK_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400';
 
 type PreviewState =
@@ -22,9 +22,9 @@ type PreviewState =
 export default function WomanViewProfile() {
   const navigate = useNavigate();
   const { userId } = useParams();
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [loadError, setLoadError] = useState<string | null>(null);
+  const { user: me } = useAuth();
+  const { data: user, showInitialLoading: loading } = usePublicProfile(userId, me?.id);
+  const loadError = !loading && !user && userId ? 'Failed to load profile' : null;
   const [activePhotoIndex, setActivePhotoIndex] = useState(0);
   const [unlockModal, setUnlockModal] = useState<{ open: boolean; type: 'photo' | 'video'; price: number }>({
     open: false,
@@ -38,34 +38,17 @@ export default function WomanViewProfile() {
   const { initiateCall, callStatus } = useCall();
 
   useEffect(() => {
-    if (!userId) {
-      setLoading(false);
-      setLoadError('Missing profile');
-      return;
-    }
-    let cancelled = false;
-    setLoading(true);
-    void fetchPublicUser(userId)
-      .then((u) => {
-        if (!cancelled) {
-          setUser(u);
-          setActivePhotoIndex(0);
-          setLoadError(null);
-        }
-      })
-      .catch((e) => {
-        if (!cancelled) {
-          setUser(null);
-          setLoadError(e instanceof Error ? e.message : 'Failed to load profile');
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
+    setActivePhotoIndex(0);
   }, [userId]);
+
+  if (!userId) {
+    return (
+      <div className="flex h-full min-h-[40vh] flex-col items-center justify-center gap-3 text-center">
+        <p className="text-gray-600">Missing profile</p>
+        <ProfileBackLink area="woman" className="text-green-600 hover:underline" />
+      </div>
+    );
+  }
 
   if (loading) {
     return (
@@ -87,14 +70,6 @@ export default function WomanViewProfile() {
   const galleryUrls = [user.profilePicture, ...user.photos.map((p) => p.url)].filter((u): u is string => Boolean(u));
   const allPhotos = galleryUrls.length ? galleryUrls : [FALLBACK_AVATAR];
 
-  const nextPhoto = () => {
-    setActivePhotoIndex((prev) => (prev + 1) % allPhotos.length);
-  };
-
-  const prevPhoto = () => {
-    setActivePhotoIndex((prev) => (prev - 1 + allPhotos.length) % allPhotos.length);
-  };
-
   return (
     <div className="space-y-6">
       {/* Back Button */}
@@ -104,37 +79,17 @@ export default function WomanViewProfile() {
         {/* Photo Gallery */}
         <div className="space-y-4">
           <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-gray-100">
-            <button
-              type="button"
+            <HoverPhotoGallery
+              photos={allPhotos}
+              alt={user.name}
+              className="h-full w-full cursor-zoom-in"
+              activeIndex={activePhotoIndex}
+              onActiveIndexChange={setActivePhotoIndex}
               onClick={() => setPreview({ kind: 'photo', photoUrl: allPhotos[activePhotoIndex] })}
-              className="relative block h-full w-full cursor-zoom-in border-0 p-0 text-left"
-              aria-label="Open photo preview"
-            >
-              <img src={allPhotos[activePhotoIndex]} alt={user.name} className="h-full w-full object-cover" />
-            </button>
-
-            {/* Navigation */}
-            {allPhotos.length > 1 && (
-              <>
-                <button
-                  type="button"
-                  onClick={prevPhoto}
-                  className="absolute left-4 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
-                >
-                  <ChevronLeft className="h-6 w-6" />
-                </button>
-                <button
-                  type="button"
-                  onClick={nextPhoto}
-                  className="absolute right-4 top-1/2 z-10 flex h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-black/50 text-white backdrop-blur-sm transition-colors hover:bg-black/70"
-                >
-                  <ChevronRight className="h-6 w-6" />
-                </button>
-              </>
-            )}
+            />
 
             {/* Online / offline status */}
-            <div className="absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 backdrop-blur-sm">
+            <div className="pointer-events-none absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 backdrop-blur-sm">
               <div
                 className={`h-2 w-2 rounded-full ${user.isOnline ? 'animate-pulse bg-green-500' : 'bg-gray-400'}`}
               />
@@ -142,7 +97,7 @@ export default function WomanViewProfile() {
             </div>
 
             {/* Photo Counter */}
-            <div className="absolute right-4 top-4 z-10 rounded-full bg-black/50 px-3 py-1 backdrop-blur-sm">
+            <div className="pointer-events-none absolute right-4 top-4 z-10 rounded-full bg-black/50 px-3 py-1 backdrop-blur-sm">
               <span className="text-xs text-white">
                 {activePhotoIndex + 1} / {allPhotos.length}
               </span>

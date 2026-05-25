@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCachedQuery } from '@/hooks/useCachedQuery';
+import { CACHE } from '@/lib/cacheKeys';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { MapPin } from 'lucide-react';
 import { toast } from 'sonner';
@@ -17,46 +20,38 @@ export default function WomanOnline() {
   const navigate = useNavigate();
   const location = useLocation();
   const profileNavState = profileReturnState(location.pathname + location.search);
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { user: me } = useAuth();
+  const {
+    data: users = [],
+    setData: setUsers,
+    showInitialLoading: loading,
+    refresh: refreshOnline,
+  } = useCachedQuery<User[]>({
+    cacheKey: CACHE.online,
+    fetcher: fetchOnlineUsers,
+    userId: me?.id,
+  });
   const { initiateCall, callStatus } = useCall();
   const [videoCallUserId, setVideoCallUserId] = useState<string | null>(null);
   const [openingChatUserId, setOpeningChatUserId] = useState<string | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const list = await fetchOnlineUsers();
-      setUsers(list);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not load online members');
-      setUsers([]);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    void load();
-  }, [load]);
-
   useEffect(() => {
     const unsub = subscribePresenceChanged((payload) => {
       if (payload.isOnline) {
-        void load();
+        void refreshOnline(true);
       } else {
-        setUsers((prev) => prev.filter((u) => u.id !== payload.userId));
+        setUsers((prev) => (prev ?? []).filter((u) => u.id !== payload.userId));
       }
     });
-    const onFocus = () => void load();
+    const onFocus = () => void refreshOnline(true);
     window.addEventListener('focus', onFocus);
-    const poll = window.setInterval(() => void load(), 60_000);
+    const poll = window.setInterval(() => void refreshOnline(true), 60_000);
     return () => {
       unsub();
       window.removeEventListener('focus', onFocus);
       clearInterval(poll);
     };
-  }, [load]);
+  }, [refreshOnline, setUsers]);
 
   const startVideoCall = async (user: User) => {
     if (callStatus !== 'idle') return;
@@ -113,7 +108,7 @@ export default function WomanOnline() {
                 </div>
 
                 {user.isOnline && (
-                  <div className="absolute left-2.5 top-2.5 flex items-center gap-1.5 rounded-full bg-green-500 px-2 py-1 sm:left-3 sm:top-3">
+                  <div className="pointer-events-none absolute left-2.5 top-2.5 flex items-center gap-1.5 rounded-full bg-green-500 px-2 py-1 sm:left-3 sm:top-3">
                     <div className="h-2 w-2 animate-pulse rounded-full bg-white" />
                     <span className="text-xs font-medium text-white">Online</span>
                   </div>
