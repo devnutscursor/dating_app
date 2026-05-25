@@ -61,7 +61,7 @@ export default function WomanSwipes() {
     }
     void sendLike(id)
       .then((res) => {
-        if (res.alreadyLiked) toast('Already liked');
+        if (res.liked) toast('Like sent');
         setTimeout(advanceDeck, 300);
       })
       .catch((e) => {

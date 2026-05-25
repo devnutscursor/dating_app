@@ -43,25 +43,30 @@ export function isPublicApprovedPhoto(photo: Photo): boolean {
   return photo.status === 'approved' && photo.isPublic !== false && Boolean(photo.url?.trim());
 }
 
-/** URLs for profile carousel / discover cards — public approved only. */
+/** Public approved photo URLs without duplicating profile picture when it is already in the album. */
 export function publicGalleryPhotoUrls(user: User, profilePicture?: string): string[] {
-  const pic = profilePicture ?? user.profilePicture;
-  const fromPhotos = (user.photos ?? []).filter(isPublicApprovedPhoto).map((p) => p.url);
-  const urls = [pic, ...fromPhotos].filter((u): u is string => Boolean(u?.trim()));
-  const unique = [...new Set(urls)];
+  const pic = (profilePicture ?? user.profilePicture)?.trim() || '';
+  const fromPhotos = (user.photos ?? [])
+    .filter(isPublicApprovedPhoto)
+    .map((p) => p.url!.trim())
+    .filter(Boolean);
+  const unique = [...new Set(fromPhotos)];
+  if (unique.length === 0) return pic ? [pic] : [];
+  if (pic && !unique.includes(pic)) return [pic, ...unique];
   return unique;
 }
 
 /** Hero carousel: all photos the viewer may see (public + unlocked private). */
 export function visibleGalleryPhotoUrls(user: User, profilePicture?: string): string[] {
-  const pic = profilePicture ?? user.profilePicture;
-  const fromPhotos = (user.photos ?? []).filter(isPhotoVisibleToViewer).map((p) => p.url);
-  const visible = fromPhotos.filter((u): u is string => Boolean(u?.trim()));
-  let hero = pic?.trim() || '';
-  if (hero && !visible.includes(hero)) {
-    hero = visible[0] || '';
-  }
-  return [...new Set([hero, ...visible].filter(Boolean))];
+  const pic = (profilePicture ?? user.profilePicture)?.trim() || '';
+  const fromPhotos = (user.photos ?? [])
+    .filter(isPhotoVisibleToViewer)
+    .map((p) => p.url!.trim())
+    .filter(Boolean);
+  const unique = [...new Set(fromPhotos)];
+  if (unique.length === 0) return pic ? [pic] : [];
+  if (pic && !unique.includes(pic)) return [pic, ...unique];
+  return unique;
 }
 
 export function lockedPhotoPlaceholder(): string {

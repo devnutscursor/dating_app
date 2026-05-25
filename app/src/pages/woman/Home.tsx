@@ -3,15 +3,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useCachedQuery } from '@/hooks/useCachedQuery';
 import { CACHE } from '@/lib/cacheKeys';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { MapPin, Heart, Lock } from 'lucide-react';
+import { MapPin, Heart } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import UnlockContentModal from '@/components/modals/UnlockContentModal';
 import { useCall } from '@/contexts/CallContext';
-import HoverPhotoGallery from '@/components/HoverPhotoGallery';
+import DiscoverProfileCardImage from '@/components/profile/DiscoverProfileCardImage';
 import DiscoverCardActionButtons from '@/components/profile/DiscoverCardActionButtons';
 import { formatProfileLocation } from '@/lib/formatProfileLocation';
-import { fetchDiscoverUsers, sendLike, userGalleryPhotos } from '@/lib/social';
+import { fetchDiscoverUsers, sendLike } from '@/lib/social';
 import AppliedSearchFiltersBar from '@/components/AppliedSearchFiltersBar';
 import { useSearchFilters } from '@/contexts/SearchFiltersContext';
 import { createOrGetChat } from '@/lib/chats';
@@ -46,12 +45,6 @@ export default function WomanHome() {
     fetcher: fetchDiscover,
     userId: me?.id,
   });
-  const [unlockModal, setUnlockModal] = useState<{ open: boolean; userId: string; type: 'photo' | 'video'; price: number }>({
-    open: false,
-    userId: '',
-    type: 'photo',
-    price: 100,
-  });
   const { initiateCall, callStatus } = useCall();
   const [videoCallUserId, setVideoCallUserId] = useState<string | null>(null);
   const [openingChatUserId, setOpeningChatUserId] = useState<string | null>(null);
@@ -63,8 +56,6 @@ export default function WomanHome() {
       toast.error(e instanceof Error ? e.message : 'Could not load discover');
     }
   }, [refreshDiscover]);
-
-  const unlockUserName = users.find((u) => u.id === unlockModal.userId)?.name ?? '';
 
   const startVideoCall = async (user: User) => {
     if (callStatus !== 'idle') return;
@@ -94,10 +85,12 @@ export default function WomanHome() {
   const handleQuickLike = async (user: User) => {
     try {
       const res = await sendLike(user.id);
-      toast.success(res.alreadyLiked ? 'Already liked' : 'Like sent');
-      if (!res.alreadyLiked) setUsers((prev) => (prev ?? []).filter((u) => u.id !== user.id));
+      toast.success(res.liked ? 'Like sent' : 'Like removed');
+      setUsers((prev) =>
+        (prev ?? []).map((u) => (u.id === user.id ? { ...u, likedByMe: res.liked } : u))
+      );
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not send like');
+      toast.error(e instanceof Error ? e.message : 'Could not update like');
     }
   };
 
@@ -131,42 +124,31 @@ export default function WomanHome() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {users.map((user) => (
             <div key={user.id} className="rounded-2xl bg-white shadow-sm transition-shadow hover:shadow-md">
-              <div className="relative aspect-[3/4] w-full">
-                <div className="absolute inset-0 overflow-hidden rounded-t-2xl">
-                  <HoverPhotoGallery photos={userGalleryPhotos(user)} alt={user.name} className="h-full w-full" />
-                </div>
-
-                <div className="pointer-events-none absolute left-2.5 top-2.5 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 backdrop-blur-sm sm:left-3 sm:top-3">
-                  <div
-                    className={`h-2 w-2 rounded-full ${user.isOnline ? 'animate-pulse bg-green-500' : 'bg-gray-400'}`}
-                  />
-                  <span className="text-xs font-medium text-white">{user.isOnline ? 'Online' : 'Offline'}</span>
-                </div>
-
-                {user.photos.some((p) => !p.isPublic) && (
-                  <button
-                    type="button"
-                    onClick={() => setUnlockModal({ open: true, userId: user.id, type: 'photo', price: 100 })}
-                    className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full bg-yellow-500 transition-colors hover:bg-yellow-600"
-                  >
-                    <Lock className="h-4 w-4 text-white" />
-                  </button>
-                )}
-
-                <div className="pointer-events-none absolute bottom-2.5 left-2.5 right-2.5 z-20 rounded-lg bg-gradient-to-t from-black/85 via-black/45 to-transparent pb-2 pt-9 sm:bottom-3 sm:left-3 sm:right-3 sm:pb-2.5 sm:pt-10">
-                  <div className="pointer-events-auto w-full min-w-0 max-w-full">
-                    <DiscoverCardActionButtons
-                      onLike={() => void handleQuickLike(user)}
-                      onMessage={() => void openChatWith(user)}
-                      onVideo={() => void startVideoCall(user)}
-                      messageDisabled={openingChatUserId === user.id}
-                      videoDisabled={callStatus !== 'idle' || videoCallUserId === user.id}
-                      messageLabel={`Message ${user.name}`}
-                      videoLabel={`Video call ${user.name}`}
+              <DiscoverProfileCardImage
+                user={user}
+                profilePath={`/woman/view-profile/${user.id}`}
+                profileState={profileNavState}
+                topLeft={
+                  <div className="flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 backdrop-blur-sm">
+                    <div
+                      className={`h-2 w-2 rounded-full ${user.isOnline ? 'animate-pulse bg-green-500' : 'bg-gray-400'}`}
                     />
+                    <span className="text-xs font-medium text-white">{user.isOnline ? 'Online' : 'Offline'}</span>
                   </div>
-                </div>
-              </div>
+                }
+                bottomActions={
+                  <DiscoverCardActionButtons
+                    liked={Boolean(user.likedByMe)}
+                    onLike={() => void handleQuickLike(user)}
+                    onMessage={() => void openChatWith(user)}
+                    onVideo={() => void startVideoCall(user)}
+                    messageDisabled={openingChatUserId === user.id}
+                    videoDisabled={callStatus !== 'idle' || videoCallUserId === user.id}
+                    messageLabel={`Message ${user.name}`}
+                    videoLabel={`Video call ${user.name}`}
+                  />
+                }
+              />
 
               <div className="p-4">
                 <div className="mb-2 flex items-center justify-between">
@@ -200,14 +182,6 @@ export default function WomanHome() {
         </div>
       )}
 
-      <UnlockContentModal
-        open={unlockModal.open}
-        onClose={() => setUnlockModal({ ...unlockModal, open: false })}
-        contentType={unlockModal.type}
-        price={unlockModal.price}
-        userName={unlockUserName}
-        onUnlock={() => setUnlockModal((m) => ({ ...m, open: false }))}
-      />
     </div>
   );
 }

@@ -30,15 +30,15 @@ export default function ProfileLikeButton({ userId, className }: ProfileLikeButt
     };
   }, [userId]);
 
-  const handleLike = async () => {
-    if (busy || liked) return;
+  const handleToggle = async () => {
+    if (busy) return;
     setBusy(true);
     try {
       const res = await sendLike(userId);
-      setLiked(true);
-      toast.success(res.alreadyLiked ? 'Already liked' : 'Like sent');
+      setLiked(res.liked);
+      toast.success(res.liked ? 'Like sent' : 'Like removed');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not send like');
+      toast.error(e instanceof Error ? e.message : 'Could not update like');
     } finally {
       setBusy(false);
     }
@@ -50,9 +50,10 @@ export default function ProfileLikeButton({ userId, className }: ProfileLikeButt
       variant="outline"
       size="icon"
       className={className}
-      disabled={busy || liked}
-      onClick={() => void handleLike()}
-      aria-label={liked ? 'Already liked' : 'Like profile'}
+      disabled={busy}
+      onClick={() => void handleToggle()}
+      aria-label={liked ? 'Unlike profile' : 'Like profile'}
+      aria-pressed={liked}
     >
       <Heart className={cn('h-5 w-5', liked && 'fill-rose-500 text-rose-500')} />
     </Button>

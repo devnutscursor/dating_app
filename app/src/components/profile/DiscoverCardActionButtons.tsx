@@ -1,5 +1,6 @@
 import type { MouseEvent } from 'react';
 import { Heart, MessageCircle, Video } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import {
   discoverCardActionButtonClass,
   discoverCardActionIconClass,
@@ -12,6 +13,7 @@ type DiscoverCardActionButtonsProps = {
   onLike?: (e: MouseEvent<HTMLButtonElement>) => void;
   onMessage: (e: MouseEvent<HTMLButtonElement>) => void;
   onVideo: (e: MouseEvent<HTMLButtonElement>) => void;
+  liked?: boolean;
   messageDisabled?: boolean;
   videoDisabled?: boolean;
   likeLabel?: string;
@@ -24,6 +26,7 @@ export default function DiscoverCardActionButtons({
   onLike,
   onMessage,
   onVideo,
+  liked = false,
   messageDisabled,
   videoDisabled,
   likeLabel = 'Like',
@@ -37,9 +40,10 @@ export default function DiscoverCardActionButtons({
           type="button"
           onClick={onLike}
           className={discoverCardActionButtonClass}
-          aria-label={likeLabel}
+          aria-label={liked ? 'Unlike' : likeLabel}
+          aria-pressed={liked}
         >
-          <Heart {...iconProps} />
+          <Heart {...iconProps} className={cn(iconProps.className, liked && 'fill-rose-500 text-rose-500')} />
         </button>
       ) : null}
       <button

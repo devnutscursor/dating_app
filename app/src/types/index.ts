@@ -33,6 +33,8 @@ export interface User {
   createdAt?: string;
   updatedAt?: string;
   profilePicture?: string;
+  /** True when the current member has liked this profile (discover / online cards). */
+  likedByMe?: boolean;
 }
 
 export interface Photo {
