@@ -7,10 +7,10 @@ import { MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useCall } from '@/contexts/CallContext';
-import HoverPhotoGallery from '@/components/HoverPhotoGallery';
+import DiscoverProfileCardImage from '@/components/profile/DiscoverProfileCardImage';
 import DiscoverCardActionButtons from '@/components/profile/DiscoverCardActionButtons';
 import { formatProfileLocation } from '@/lib/formatProfileLocation';
-import { fetchOnlineUsers, userGalleryPhotos } from '@/lib/social';
+import { fetchOnlineUsers } from '@/lib/social';
 import { subscribePresenceChanged } from '@/lib/chatSocket';
 import { createOrGetChat } from '@/lib/chats';
 import { profileReturnState } from '@/lib/profileNavigation';
@@ -102,31 +102,29 @@ export default function WomanOnline() {
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {users.map((user) => (
             <div key={user.id} className="rounded-2xl bg-white shadow-sm transition-shadow hover:shadow-md">
-              <div className="relative aspect-[3/4] w-full">
-                <div className="absolute inset-0 overflow-hidden rounded-t-2xl">
-                  <HoverPhotoGallery photos={userGalleryPhotos(user)} alt={user.name} className="h-full w-full" />
-                </div>
-
-                {user.isOnline && (
-                  <div className="pointer-events-none absolute left-2.5 top-2.5 flex items-center gap-1.5 rounded-full bg-green-500 px-2 py-1 sm:left-3 sm:top-3">
-                    <div className="h-2 w-2 animate-pulse rounded-full bg-white" />
-                    <span className="text-xs font-medium text-white">Online</span>
-                  </div>
-                )}
-
-                <div className="pointer-events-none absolute bottom-2.5 left-2.5 right-2.5 z-20 rounded-lg bg-gradient-to-t from-black/85 via-black/45 to-transparent pb-2 pt-9 sm:bottom-3 sm:left-3 sm:right-3 sm:pb-2.5 sm:pt-10">
-                  <div className="pointer-events-auto w-full min-w-0 max-w-full">
-                    <DiscoverCardActionButtons
-                      onMessage={() => void openChatWith(user)}
-                      onVideo={() => void startVideoCall(user)}
-                      messageDisabled={openingChatUserId === user.id}
-                      videoDisabled={callStatus !== 'idle' || videoCallUserId === user.id}
-                      messageLabel={`Message ${user.name}`}
-                      videoLabel={`Video call ${user.name}`}
-                    />
-                  </div>
-                </div>
-              </div>
+              <DiscoverProfileCardImage
+                user={user}
+                profilePath={`/woman/view-profile/${user.id}`}
+                profileState={profileNavState}
+                topLeft={
+                  user.isOnline ? (
+                    <div className="flex items-center gap-1.5 rounded-full bg-green-500 px-2 py-1">
+                      <div className="h-2 w-2 animate-pulse rounded-full bg-white" />
+                      <span className="text-xs font-medium text-white">Online</span>
+                    </div>
+                  ) : null
+                }
+                bottomActions={
+                  <DiscoverCardActionButtons
+                    onMessage={() => void openChatWith(user)}
+                    onVideo={() => void startVideoCall(user)}
+                    messageDisabled={openingChatUserId === user.id}
+                    videoDisabled={callStatus !== 'idle' || videoCallUserId === user.id}
+                    messageLabel={`Message ${user.name}`}
+                    videoLabel={`Video call ${user.name}`}
+                  />
+                }
+              />
 
               <div className="p-4">
                 <Link to={`/woman/view-profile/${user.id}`} state={profileNavState.state}>

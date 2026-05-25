@@ -45,15 +45,16 @@ async function getUnlockedSetsByOwner(viewerId, ownerIds) {
   return map;
 }
 
-function mapUserForViewer(viewerId, u, unlockByOwner) {
+function mapUserForViewer(viewerId, u, unlockByOwner, likedByMe = false) {
   const ownerKey = u._id?.toString?.() || String(u._id);
   const { unlockedPhotoIds, unlockedVideoIds } =
     unlockByOwner?.get(ownerKey) || { unlockedPhotoIds: new Set(), unlockedVideoIds: new Set() };
-  return applyPublicMediaFilter(serializeUser({ ...u, _id: u._id }), {
+  const profile = applyPublicMediaFilter(serializeUser({ ...u, _id: u._id }), {
     isViewerOwnerOfProfile: false,
     unlockedPhotoIds,
     unlockedVideoIds,
   });
+  return { ...profile, likedByMe: Boolean(likedByMe) };
 }
 
 const PUBLIC_USER_SELECT =
@@ -105,9 +106,10 @@ export async function discover(req, res) {
   }
 
   const likedIds = await Like.find({ fromUser: self._id }).distinct('toUser');
+  const likedSet = new Set(likedIds.map((id) => id.toString()));
   const users = await User.find({
     ...baseFilter,
-    _id: { $ne: self._id, $nin: likedIds },
+    _id: { $ne: self._id },
   })
     .select(PUBLIC_USER_SELECT)
     .limit(60)
@@ -117,7 +119,9 @@ export async function discover(req, res) {
     users.map((u) => u._id)
   );
   res.json({
-    users: users.map((u) => mapUserForViewer(self._id, u, unlockByOwner)),
+    users: users.map((u) =>
+      mapUserForViewer(self._id, u, unlockByOwner, likedSet.has(u._id.toString()))
+    ),
   });
 }
 
@@ -125,6 +129,8 @@ export async function discover(req, res) {
 export async function listOnline(req, res) {
   const self = req.user;
   const opposite = self.gender === 'male' ? 'female' : 'male';
+  const likedIds = await Like.find({ fromUser: self._id }).distinct('toUser');
+  const likedSet = new Set(likedIds.map((id) => id.toString()));
   const users = await User.find({
     gender: opposite,
     role: opposite,
@@ -141,7 +147,9 @@ export async function listOnline(req, res) {
     users.map((u) => u._id)
   );
   res.json({
-    users: users.map((u) => mapUserForViewer(self._id, u, unlockByOwner)),
+    users: users.map((u) =>
+      mapUserForViewer(self._id, u, unlockByOwner, likedSet.has(u._id.toString()))
+    ),
   });
 }
 
@@ -359,9 +367,13 @@ export async function createLike(req, res) {
   if (target.gender !== expectedOpposite) {
     return res.status(400).json({ error: 'Invalid like target' });
   }
-  const dup = await Like.findOne({ fromUser: req.user._id, toUser: toUserId });
-  if (dup) {
-    return res.json({ ok: true, alreadyLiked: true });
+  const existing = await Like.findOne({ fromUser: req.user._id, toUser: toUserId });
+  if (existing) {
+    await Like.deleteOne({ _id: existing._id });
+    const owner = await User.findById(toUserId).select('likesReceivedCount').lean();
+    const nextCount = Math.max(0, (owner?.likesReceivedCount ?? 0) - 1);
+    await User.findByIdAndUpdate(toUserId, { $set: { likesReceivedCount: nextCount } });
+    return res.json({ ok: true, liked: false });
   }
   await Like.create({ fromUser: req.user._id, toUser: toUserId });
   await User.findByIdAndUpdate(toUserId, { $inc: { likesReceivedCount: 1 } });
@@ -370,7 +382,7 @@ export async function createLike(req, res) {
     actorId: req.user._id,
     type: 'like',
   });
-  res.status(201).json({ ok: true, alreadyLiked: false });
+  res.status(201).json({ ok: true, liked: true });
 }
 
 const allowedProfileFields = [

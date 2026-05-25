@@ -41,20 +41,14 @@ export default function DiscoverProfileCardImage({
   return (
     <div className="relative aspect-[3/4] w-full">
       {/* Photo only — overflow clip must not include action buttons (fixes 150% DPI clipping). */}
-      <div
-        className="absolute inset-0 cursor-pointer overflow-hidden rounded-t-2xl"
-        role="link"
-        tabIndex={0}
-        aria-label={`View ${user.name}'s profile`}
-        onClick={() => navigate(profilePath, { state: linkState })}
-        onKeyDown={(e) => {
-          if (e.key === 'Enter' || e.key === ' ') {
-            e.preventDefault();
-            navigate(profilePath, { state: linkState });
-          }
-        }}
-      >
-        <HoverPhotoGallery photos={userGalleryPhotos(user)} alt={user.name} className="h-full w-full" />
+      <div className="absolute inset-0 overflow-hidden rounded-t-2xl">
+        <HoverPhotoGallery
+          photos={userGalleryPhotos(user)}
+          alt={user.name}
+          className="h-full w-full"
+          showCounter={!hasPrivateMedia}
+          onClick={() => navigate(profilePath, { state: linkState })}
+        />
       </div>
 
       {topLeft ? (

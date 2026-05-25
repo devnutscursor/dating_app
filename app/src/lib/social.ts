@@ -1,13 +1,14 @@
 import type { SearchFilters, User } from '@/types';
 import { apiGet, apiPost } from '@/lib/api';
 import { invalidateLikesCache } from '@/lib/likesCache';
-import { publicGalleryPhotoUrls } from '@/lib/profileMedia';
+import { visibleGalleryPhotoUrls } from '@/lib/profileMedia';
 
 const PHOTO_FALLBACK = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400';
 
 /** Public profile image URLs for gallery (never empty). Excludes private / locked media. */
+/** Same photo set as view-profile (public + unlocked), so card count matches profile. */
 export function userGalleryPhotos(user: User, fallback = PHOTO_FALLBACK): string[] {
-  const urls = publicGalleryPhotoUrls(user);
+  const urls = visibleGalleryPhotoUrls(user);
   return urls.length ? urls : [fallback];
 }
 
@@ -41,9 +42,12 @@ export async function fetchLikes(tab: 'received' | 'sent'): Promise<LikesRespons
   return apiGet<LikesResponse>(`/users/likes?tab=${tab}`);
 }
 
-export async function sendLike(userId: string): Promise<{ ok: boolean; alreadyLiked?: boolean }> {
-  const result = await apiPost<{ ok: boolean; alreadyLiked?: boolean }>('/users/likes', { userId });
-  if (!result.alreadyLiked) invalidateLikesCache();
+export type LikeToggleResult = { ok: boolean; liked: boolean };
+
+/** Like or unlike (toggle). Liked profiles stay on Discover. */
+export async function sendLike(userId: string): Promise<LikeToggleResult> {
+  const result = await apiPost<LikeToggleResult>('/users/likes', { userId });
+  invalidateLikesCache();
   return result;
 }
 

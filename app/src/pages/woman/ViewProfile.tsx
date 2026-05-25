@@ -83,6 +83,7 @@ export default function WomanViewProfile() {
               photos={allPhotos}
               alt={user.name}
               className="h-full w-full cursor-zoom-in"
+              showCounter
               activeIndex={activePhotoIndex}
               onActiveIndexChange={setActivePhotoIndex}
               onClick={() => setPreview({ kind: 'photo', photoUrl: allPhotos[activePhotoIndex] })}
@@ -96,12 +97,6 @@ export default function WomanViewProfile() {
               <span className="text-xs font-medium text-white">{user.isOnline ? 'Online' : 'Offline'}</span>
             </div>
 
-            {/* Photo Counter */}
-            <div className="pointer-events-none absolute right-4 top-4 z-10 rounded-full bg-black/50 px-3 py-1 backdrop-blur-sm">
-              <span className="text-xs text-white">
-                {activePhotoIndex + 1} / {allPhotos.length}
-              </span>
-            </div>
           </div>
 
           {/* Thumbnails */}

@@ -92,10 +92,12 @@ export default function ManHome() {
   const handleQuickLike = async (user: User) => {
     try {
       const res = await sendLike(user.id);
-      toast.success(res.alreadyLiked ? 'Already liked' : 'Like sent');
-      if (!res.alreadyLiked) setUsers((prev) => (prev ?? []).filter((u) => u.id !== user.id));
+      toast.success(res.liked ? 'Like sent' : 'Like removed');
+      setUsers((prev) =>
+        (prev ?? []).map((u) => (u.id === user.id ? { ...u, likedByMe: res.liked } : u))
+      );
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not send like');
+      toast.error(e instanceof Error ? e.message : 'Could not update like');
     }
   };
 
@@ -143,6 +145,7 @@ export default function ManHome() {
                 }
                 bottomActions={
                   <DiscoverCardActionButtons
+                    liked={Boolean(user.likedByMe)}
                     onLike={(e) => {
                       e.stopPropagation();
                       void handleQuickLike(user);
