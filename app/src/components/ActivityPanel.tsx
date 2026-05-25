@@ -1,4 +1,6 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo } from 'react';
+import { useCachedQuery } from '@/hooks/useCachedQuery';
+import { CACHE } from '@/lib/cacheKeys';
 import { Link, useLocation } from 'react-router-dom';
 import { layoutConversationToolbarClass } from '@/config/design';
 import { Heart, Gift, Eye, MessageCircle } from 'lucide-react';
@@ -21,33 +23,20 @@ export default function ActivityPanel() {
     () => profileReturnState(location.pathname + location.search),
     [location.pathname, location.search]
   );
-  const [items, setItems] = useState<ActivityFeedItem[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const next = await fetchActivities();
-      setItems(next);
-    } catch {
-      setItems([]);
-      setError('Could not load activity');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
+  const {
+    data: items = [],
+    showInitialLoading: loading,
+    refresh,
+  } = useCachedQuery<ActivityFeedItem[]>({
+    cacheKey: CACHE.activities,
+    fetcher: fetchActivities,
+    userId: me?.id,
+  });
   useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
-    const onFocus = () => void load();
+    const onFocus = () => void refresh(true);
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
-  }, [load]);
+  }, [refresh]);
 
   const getIcon = (type: ActivityFeedItem['type']) => {
     switch (type) {
@@ -110,11 +99,7 @@ export default function ActivityPanel() {
         {loading && (
           <p className="text-center text-sm text-gray-500 py-6">Loading…</p>
         )}
-        {!loading && error && (
-          <p className="text-center text-sm text-red-600 py-6">{error}</p>
-        )}
         {!loading &&
-          !error &&
           items.map((activity) => {
             const profilePath = `/${area}/view-profile/${activity.actor.id}`;
             const nameEl = actorCanOpenProfile(activity.actor) ? (
@@ -146,7 +131,7 @@ export default function ActivityPanel() {
             );
           })}
 
-        {!loading && !error && items.length === 0 && (
+        {!loading && items.length === 0 && (
           <div className="py-8 text-center">
             <Heart className="mx-auto mb-3 h-12 w-12 text-gray-300" />
             <p className="text-gray-500">No recent activity</p>

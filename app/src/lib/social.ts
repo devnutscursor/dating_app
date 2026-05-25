@@ -1,5 +1,6 @@
 import type { SearchFilters, User } from '@/types';
 import { apiGet, apiPost } from '@/lib/api';
+import { invalidateLikesCache } from '@/lib/likesCache';
 import { publicGalleryPhotoUrls } from '@/lib/profileMedia';
 
 const PHOTO_FALLBACK = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400';
@@ -41,7 +42,9 @@ export async function fetchLikes(tab: 'received' | 'sent'): Promise<LikesRespons
 }
 
 export async function sendLike(userId: string): Promise<{ ok: boolean; alreadyLiked?: boolean }> {
-  return apiPost<{ ok: boolean; alreadyLiked?: boolean }>('/users/likes', { userId });
+  const result = await apiPost<{ ok: boolean; alreadyLiked?: boolean }>('/users/likes', { userId });
+  if (!result.alreadyLiked) invalidateLikesCache();
+  return result;
 }
 
 export async function fetchPublicUser(userId: string): Promise<User> {

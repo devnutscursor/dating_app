@@ -1,6 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState, type ReactNode } from 'react';
 import type { User } from '@/types';
 import { apiGet, apiPost, getStoredToken, setStoredToken, TOKEN_KEY } from '@/lib/api';
+import { clearAllAppCaches } from '@/lib/appCache';
 import { connectChatSocket, disconnectChatSocket } from '@/lib/chatSocket';
 
 type AuthContextValue = {
@@ -93,6 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const logout = useCallback(() => {
+    clearAllAppCaches();
     disconnectChatSocket();
     setStoredToken(null);
     setToken(null);

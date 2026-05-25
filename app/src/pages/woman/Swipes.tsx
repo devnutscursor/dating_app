@@ -1,4 +1,7 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCachedQuery } from '@/hooks/useCachedQuery';
+import { CACHE } from '@/lib/cacheKeys';
 import { Link } from 'react-router-dom';
 import { X, Heart, Star, MapPin, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
@@ -10,32 +13,36 @@ import { fetchDiscoverUsers, sendLike, userGalleryPhotos } from '@/lib/social';
 import type { User } from '@/types';
 
 export default function WomanSwipes() {
+  const { user: me } = useAuth();
   const { filters, userIdSearch, version } = useSearchFilters();
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+  const discoverKey = useMemo(
+    () => CACHE.discover(filters, userIdSearch, version),
+    [filters, userIdSearch, version]
+  );
+  const fetchDiscover = useCallback(
+    () =>
+      fetchDiscoverUsers({
+        ...filters,
+        userId: userIdSearch || undefined,
+      }),
+    [filters, userIdSearch]
+  );
+  const {
+    data: users = [],
+    setData: setUsers,
+    showInitialLoading: loading,
+    refresh: refreshDiscover,
+  } = useCachedQuery<User[]>({
+    cacheKey: discoverKey,
+    fetcher: fetchDiscover,
+    userId: me?.id,
+  });
   const [currentIndex, setCurrentIndex] = useState(0);
   const [direction, setDirection] = useState<'left' | 'right' | null>(null);
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const list = await fetchDiscoverUsers({
-        ...filters,
-        userId: userIdSearch || undefined,
-      });
-      setUsers(list);
-      setCurrentIndex(0);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not load profiles');
-      setUsers([]);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters, userIdSearch, version]);
-
   useEffect(() => {
-    void load();
-  }, [load]);
+    setCurrentIndex(0);
+  }, [discoverKey]);
 
   const currentUser = users[currentIndex];
 
@@ -45,7 +52,7 @@ export default function WomanSwipes() {
     setDirection(dir);
     const advanceDeck = () => {
       setDirection(null);
-      setUsers((prev) => prev.filter((u) => u.id !== id));
+      setUsers((prev) => (prev ?? []).filter((u) => u.id !== id));
       setCurrentIndex(0);
     };
     if (dir === 'left') {
@@ -81,7 +88,7 @@ export default function WomanSwipes() {
         <div className="flex flex-wrap justify-center gap-2">
           <button
             type="button"
-            onClick={() => void load()}
+            onClick={() => void refreshDiscover(false)}
             className="rounded-full border border-gray-300 px-4 py-2 text-sm font-medium text-gray-800 hover:bg-gray-50"
           >
             Refresh list

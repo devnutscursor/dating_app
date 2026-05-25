@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Lock } from 'lucide-react';
 import HoverPhotoGallery from '@/components/HoverPhotoGallery';
 import { userGalleryPhotos } from '@/lib/social';
@@ -22,6 +22,7 @@ export default function DiscoverProfileCardImage({
   topLeft,
   bottomActions,
 }: DiscoverProfileCardImageProps) {
+  const navigate = useNavigate();
   const lockedPhotos = countLockedPrivatePhotos(user);
   const lockedVideos = countLockedPrivateVideos(user);
   const hasPrivateMedia = lockedPhotos > 0 || lockedVideos > 0;
@@ -40,15 +41,20 @@ export default function DiscoverProfileCardImage({
   return (
     <div className="relative aspect-[3/4] w-full">
       {/* Photo only — overflow clip must not include action buttons (fixes 150% DPI clipping). */}
-      <div className="absolute inset-0 overflow-hidden rounded-t-2xl">
-        <Link
-          to={profilePath}
-          state={linkState}
-          className="block h-full w-full cursor-pointer"
-          aria-label={`View ${user.name}'s profile`}
-        >
-          <HoverPhotoGallery photos={userGalleryPhotos(user)} alt={user.name} className="h-full w-full" />
-        </Link>
+      <div
+        className="absolute inset-0 cursor-pointer overflow-hidden rounded-t-2xl"
+        role="link"
+        tabIndex={0}
+        aria-label={`View ${user.name}'s profile`}
+        onClick={() => navigate(profilePath, { state: linkState })}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            navigate(profilePath, { state: linkState });
+          }
+        }}
+      >
+        <HoverPhotoGallery photos={userGalleryPhotos(user)} alt={user.name} className="h-full w-full" />
       </div>
 
       {topLeft ? (

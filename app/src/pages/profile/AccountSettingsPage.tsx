@@ -1,9 +1,8 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronRight, Eye, EyeOff, LogOut, Mail, Shield, User } from 'lucide-react';
+import { ArrowLeft, ChevronRight, Eye, EyeOff, LogOut, Mail, Shield, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import ProfileBackLink from '@/components/profile/ProfileBackLink';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiPost } from '@/lib/api';
 
@@ -16,6 +15,12 @@ export default function AccountSettingsPage() {
   const [showCurrent, setShowCurrent] = useState(false);
   const [showNew, setShowNew] = useState(false);
   const [savingPassword, setSavingPassword] = useState(false);
+
+  useEffect(() => {
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+  }, []);
 
   if (!user) {
     return (
@@ -62,20 +67,28 @@ export default function AccountSettingsPage() {
   };
 
   return (
-    <div className="mx-auto max-w-2xl space-y-6">
-      <ProfileBackLink area={area} />
+    <div className="w-full space-y-6 pb-10">
+      <div className="flex items-center gap-3">
+        <Link
+          to={profileBase}
+          className="inline-flex items-center gap-1 text-sm font-medium text-gray-600 hover:text-gray-900"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to profile
+        </Link>
+      </div>
 
       <div>
         <h1 className="text-2xl font-bold text-gray-900">Account Settings</h1>
         <p className="mt-1 text-sm text-gray-500">Manage your account and security</p>
       </div>
 
-      <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
-        <div className="border-b border-gray-100 px-4 py-3">
-          <h2 className="text-sm font-semibold text-gray-900">Account</h2>
+      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="border-b border-gray-100 px-6 py-4">
+          <h2 className="text-lg font-semibold text-gray-900">Account</h2>
         </div>
         <div className="divide-y divide-gray-100">
-          <div className="flex items-center gap-3 px-4 py-3">
+          <div className="flex items-center gap-3 px-6 py-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
               <User className="h-5 w-5 text-gray-600" />
             </div>
@@ -84,7 +97,7 @@ export default function AccountSettingsPage() {
               <p className="truncate font-medium text-gray-900">{user.name}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 px-4 py-3">
+          <div className="flex items-center gap-3 px-6 py-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
               <Mail className="h-5 w-5 text-gray-600" />
             </div>
@@ -93,7 +106,7 @@ export default function AccountSettingsPage() {
               <p className="truncate font-medium text-gray-900">{user.email ?? '—'}</p>
             </div>
           </div>
-          <div className="flex items-center gap-3 px-4 py-3">
+          <div className="flex items-center gap-3 px-6 py-4">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-gray-100">
               <Shield className="h-5 w-5 text-gray-600" />
             </div>
@@ -103,7 +116,7 @@ export default function AccountSettingsPage() {
             </div>
           </div>
         </div>
-        <div className="border-t border-gray-100 p-4">
+        <div className="border-t border-gray-100 p-6">
           <Link
             to={`${profileBase}/edit`}
             className="flex items-center justify-between rounded-xl border border-gray-200 px-4 py-3 transition-colors hover:bg-gray-50"
@@ -112,21 +125,36 @@ export default function AccountSettingsPage() {
             <ChevronRight className="h-5 w-5 text-gray-400" />
           </Link>
         </div>
-      </div>
+      </section>
 
-      <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
-        <div className="border-b border-gray-100 px-4 py-3">
-          <h2 className="text-sm font-semibold text-gray-900">Change password</h2>
+      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="border-b border-gray-100 px-6 py-4">
+          <h2 className="text-lg font-semibold text-gray-900">Change password</h2>
         </div>
-        <form onSubmit={handleChangePassword} className="space-y-4 p-4">
+        <form onSubmit={handleChangePassword} autoComplete="off" className="space-y-4 p-6">
+          <p className="text-xs text-gray-500">
+            We never store or show your password on this page. Type the password you use to sign in to MemberDate.
+          </p>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Current password</label>
+            <label htmlFor="settings-current-password" className="mb-1 block text-sm font-medium text-gray-700">
+              Current password
+            </label>
             <div className="relative">
               <input
+                id="settings-current-password"
+                name="settings-current-password"
                 type={showCurrent ? 'text' : 'password'}
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                autoComplete="current-password"
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
+                data-lpignore="true"
+                data-1p-ignore="true"
+                readOnly
+                onFocus={(e) => e.currentTarget.removeAttribute('readOnly')}
+                placeholder="Enter your current login password"
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-10 text-sm outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400"
               />
               <button
@@ -140,14 +168,22 @@ export default function AccountSettingsPage() {
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">New password</label>
+            <label htmlFor="settings-new-password" className="mb-1 block text-sm font-medium text-gray-700">
+              New password
+            </label>
             <div className="relative">
               <input
+                id="settings-new-password"
+                name="settings-new-password"
                 type={showNew ? 'text' : 'password'}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
                 autoComplete="new-password"
+                autoCorrect="off"
+                autoCapitalize="off"
+                spellCheck={false}
                 minLength={8}
+                placeholder="At least 8 characters"
                 className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-10 text-sm outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400"
               />
               <button
@@ -161,12 +197,20 @@ export default function AccountSettingsPage() {
             </div>
           </div>
           <div>
-            <label className="mb-1 block text-sm font-medium text-gray-700">Confirm new password</label>
+            <label htmlFor="settings-confirm-password" className="mb-1 block text-sm font-medium text-gray-700">
+              Confirm new password
+            </label>
             <input
+              id="settings-confirm-password"
+              name="settings-confirm-password"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
               autoComplete="new-password"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck={false}
+              placeholder="Repeat new password"
               className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400"
             />
           </div>
@@ -174,11 +218,11 @@ export default function AccountSettingsPage() {
             {savingPassword ? 'Updating…' : 'Update password'}
           </Button>
         </form>
-      </div>
+      </section>
 
-      <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
-        <div className="border-b border-gray-100 px-4 py-3">
-          <h2 className="text-sm font-semibold text-gray-900">Legal</h2>
+      <section className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm">
+        <div className="border-b border-gray-100 px-6 py-4">
+          <h2 className="text-lg font-semibold text-gray-900">Legal</h2>
         </div>
         <div className="divide-y divide-gray-100">
           {[
@@ -189,14 +233,14 @@ export default function AccountSettingsPage() {
             <Link
               key={item.to}
               to={item.to}
-              className="flex items-center justify-between px-4 py-3 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50"
+              className="flex items-center justify-between px-6 py-4 text-sm font-medium text-gray-900 transition-colors hover:bg-gray-50"
             >
               {item.label}
               <ChevronRight className="h-5 w-5 text-gray-400" />
             </Link>
           ))}
         </div>
-      </div>
+      </section>
 
       <Button
         type="button"

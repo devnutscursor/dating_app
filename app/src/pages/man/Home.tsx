@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { MapPin, Heart } from 'lucide-react';
 import { toast } from 'sonner';
@@ -12,6 +12,9 @@ import { formatProfileLocation } from '@/lib/formatProfileLocation';
 import { fetchDiscoverUsers, sendLike } from '@/lib/social';
 import AppliedSearchFiltersBar from '@/components/AppliedSearchFiltersBar';
 import { useSearchFilters } from '@/contexts/SearchFiltersContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useCachedQuery } from '@/hooks/useCachedQuery';
+import { CACHE } from '@/lib/cacheKeys';
 import { createOrGetChat } from '@/lib/chats';
 import { profileReturnState } from '@/lib/profileNavigation';
 import type { User } from '@/types';
@@ -20,9 +23,30 @@ export default function ManHome() {
   const navigate = useNavigate();
   const location = useLocation();
   const profileNavState = profileReturnState(location.pathname + location.search);
+  const { user: me } = useAuth();
   const { filters, userIdSearch, version } = useSearchFilters();
-  const [users, setUsers] = useState<User[]>([]);
-  const [loading, setLoading] = useState(true);
+  const discoverKey = useMemo(
+    () => CACHE.discover(filters, userIdSearch, version),
+    [filters, userIdSearch, version]
+  );
+  const fetchDiscover = useCallback(
+    () =>
+      fetchDiscoverUsers({
+        ...filters,
+        userId: userIdSearch || undefined,
+      }),
+    [filters, userIdSearch]
+  );
+  const {
+    data: users = [],
+    setData: setUsers,
+    showInitialLoading: loading,
+    refresh: refreshDiscover,
+  } = useCachedQuery<User[]>({
+    cacheKey: discoverKey,
+    fetcher: fetchDiscover,
+    userId: me?.id,
+  });
   const callPricing = useCallPricing();
   const { initiateCall, callStatus } = useCall();
   const [videoConfirmUserId, setVideoConfirmUserId] = useState<string | null>(null);
@@ -30,24 +54,12 @@ export default function ManHome() {
   const [openingChatUserId, setOpeningChatUserId] = useState<string | null>(null);
 
   const loadDiscover = useCallback(async () => {
-    setLoading(true);
     try {
-      const list = await fetchDiscoverUsers({
-        ...filters,
-        userId: userIdSearch || undefined,
-      });
-      setUsers(list);
+      await refreshDiscover(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not load discover');
-      setUsers([]);
-    } finally {
-      setLoading(false);
     }
-  }, [filters, userIdSearch, version]);
-
-  useEffect(() => {
-    void loadDiscover();
-  }, [loadDiscover]);
+  }, [refreshDiscover]);
 
   const videoPeer = videoConfirmUserId ? users.find((u) => u.id === videoConfirmUserId) : undefined;
 
@@ -81,7 +93,7 @@ export default function ManHome() {
     try {
       const res = await sendLike(user.id);
       toast.success(res.alreadyLiked ? 'Already liked' : 'Like sent');
-      if (!res.alreadyLiked) setUsers((prev) => prev.filter((u) => u.id !== user.id));
+      if (!res.alreadyLiked) setUsers((prev) => (prev ?? []).filter((u) => u.id !== user.id));
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not send like');
     }

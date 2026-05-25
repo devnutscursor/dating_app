@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useCachedQuery } from '@/hooks/useCachedQuery';
+import { CACHE } from '@/lib/cacheKeys';
 import { useSearchParams } from 'react-router-dom';
 import { Coins, CreditCard, History, Gift, Check, Zap, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
@@ -11,45 +13,40 @@ export default function ManWallet() {
   const { user: currentUser, refreshUser } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTab, setActiveTab] = useState<'buy' | 'history'>('buy');
-  const [packs, setPacks] = useState<CoinPack[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loadingPacks, setLoadingPacks] = useState(true);
-  const [loadingHistory, setLoadingHistory] = useState(false);
   const [purchasingPackId, setPurchasingPackId] = useState<string | null>(null);
 
-  const loadPacks = useCallback(async () => {
-    setLoadingPacks(true);
-    try {
-      const list = await fetchCoinPacks();
-      setPacks(list);
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not load coin packs');
-      setPacks([]);
-    } finally {
-      setLoadingPacks(false);
-    }
-  }, []);
+  const {
+    data: packs = [],
+    showInitialLoading: loadingPacks,
+  } = useCachedQuery<CoinPack[]>({
+    cacheKey: CACHE.coinPacks,
+    fetcher: fetchCoinPacks,
+    userId: currentUser?.id,
+    enabled: Boolean(currentUser),
+  });
+
+  const {
+    data: transactions = [],
+    showInitialLoading: loadingHistory,
+    refresh: refreshHistory,
+  } = useCachedQuery<Transaction[]>({
+    cacheKey: CACHE.transactions,
+    fetcher: fetchMyTransactions,
+    userId: currentUser?.id,
+    enabled: Boolean(currentUser) && activeTab === 'history',
+  });
 
   const loadHistory = useCallback(async () => {
-    setLoadingHistory(true);
     try {
-      const list = await fetchMyTransactions();
-      setTransactions(list);
+      await refreshHistory(false);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not load transactions');
-      setTransactions([]);
-    } finally {
-      setLoadingHistory(false);
     }
-  }, []);
+  }, [refreshHistory]);
 
   useEffect(() => {
-    void loadPacks();
-  }, [loadPacks]);
-
-  useEffect(() => {
-    if (activeTab === 'history') void loadHistory();
-  }, [activeTab, loadHistory]);
+    if (activeTab === 'history') void refreshHistory(true);
+  }, [activeTab, refreshHistory]);
 
   useEffect(() => {
     const payment = searchParams.get('payment');
