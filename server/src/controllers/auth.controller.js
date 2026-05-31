@@ -13,13 +13,17 @@ const SALT_ROUNDS = 12;
 const OTP_ROUNDS = 10;
 const OTP_TTL_MS = 15 * 60 * 1000;
 
-function computeAge(birthDateStr) {
-  if (!birthDateStr) return 25;
-  const d = new Date(birthDateStr);
-  if (Number.isNaN(d.getTime())) return 25;
-  const diff = Date.now() - d.getTime();
-  const age = new Date(diff).getUTCFullYear() - 1970;
-  return Math.min(120, Math.max(18, age || 25));
+function ageFromBirthDate(birthDateStr) {
+  if (!birthDateStr) return null;
+  const born = new Date(`${String(birthDateStr).slice(0, 10)}T00:00:00`);
+  if (Number.isNaN(born.getTime())) return null;
+  const today = new Date();
+  let age = today.getFullYear() - born.getFullYear();
+  const monthDiff = today.getMonth() - born.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < born.getDate())) {
+    age -= 1;
+  }
+  return age;
 }
 
 function generateSixDigitOtp() {
@@ -49,18 +53,29 @@ export async function register(req, res) {
   if (password.length < 8) {
     return res.status(400).json({ error: 'Password must be at least 8 characters' });
   }
-  if (birthDate) {
-    const bd = new Date(birthDate);
-    if (!Number.isNaN(bd.getTime()) && bd.getTime() > Date.now()) {
-      return res.status(400).json({ error: 'Date of birth cannot be in the future' });
-    }
+  if (!birthDate) {
+    return res.status(400).json({ error: 'Date of birth is required' });
+  }
+  const bd = new Date(birthDate);
+  if (Number.isNaN(bd.getTime())) {
+    return res.status(400).json({ error: 'Invalid date of birth' });
+  }
+  if (bd.getTime() > Date.now()) {
+    return res.status(400).json({ error: 'Date of birth cannot be in the future' });
+  }
+  const age = ageFromBirthDate(birthDate);
+  if (age === null) {
+    return res.status(400).json({ error: 'Invalid date of birth' });
+  }
+  if (age < 18) {
+    return res.status(400).json({ error: 'You must be at least 18 years old to register' });
   }
   const exists = await User.findOne({ email: email.toLowerCase() });
   if (exists) {
     return res.status(409).json({ error: 'Email already registered' });
   }
   const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
-  const age = computeAge(birthDate);
+  const storedAge = Math.min(120, age);
   const settings = await getPlatformSettings();
   const requireVerification = Boolean(settings?.security?.requireVerification);
 
@@ -78,7 +93,7 @@ export async function register(req, res) {
       role: gender,
       name: name.trim(),
       gender,
-      age,
+      age: storedAge,
       profileSetupComplete: false,
       interests: [],
       photos: [],

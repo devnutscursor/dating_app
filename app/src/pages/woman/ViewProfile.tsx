@@ -11,6 +11,14 @@ import { Button } from '@/components/ui/button';
 import UnlockContentModal from '@/components/modals/UnlockContentModal';
 import MediaPreviewModal from '@/components/modals/MediaPreviewModal';
 import { formatProfileLocation } from '@/lib/formatProfileLocation';
+import ProfileMediaPrivacyLayout from '@/components/profile/ProfileMediaPrivacyLayout';
+import {
+  isPhotoVisibleToViewer,
+  isVideoVisibleToViewer,
+  lockedPhotoPlaceholder,
+  mediaPrivacyCounts,
+} from '@/lib/profileMedia';
+import type { Photo, Video as VideoMedia } from '@/types';
 import { createOrGetChat } from '@/lib/chats';
 import { useCall } from '@/contexts/CallContext';
 const FALLBACK_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400';
@@ -69,6 +77,8 @@ export default function WomanViewProfile() {
 
   const galleryUrls = [user.profilePicture, ...user.photos.map((p) => p.url)].filter((u): u is string => Boolean(u));
   const allPhotos = galleryUrls.length ? galleryUrls : [FALLBACK_AVATAR];
+  const photoCounts = mediaPrivacyCounts(user.photos);
+  const videoCounts = mediaPrivacyCounts(user.videos);
 
   return (
     <div className="space-y-6">
@@ -203,7 +213,7 @@ export default function WomanViewProfile() {
                 }`}
               >
                 <ImageIcon className="w-4 h-4" />
-                Photos ({user.photos.length})
+                Photos ({photoCounts.total})
               </button>
               <button
                 type="button"
@@ -213,89 +223,110 @@ export default function WomanViewProfile() {
                 }`}
               >
                 <Video className="w-4 h-4" />
-                Videos ({user.videos.length})
+                Videos ({videoCounts.total})
               </button>
             </div>
 
             <div className="p-4">
+              {activeTab === 'photos' && photoCounts.total > 0 ? (
+                <p className="mb-3 text-xs text-gray-500">
+                  {photoCounts.publicCount} public · {photoCounts.privateCount} private
+                </p>
+              ) : null}
+              {activeTab === 'videos' && videoCounts.total > 0 ? (
+                <p className="mb-3 text-xs text-gray-500">
+                  {videoCounts.publicCount} public · {videoCounts.privateCount} private
+                </p>
+              ) : null}
+
               {activeTab === 'photos' ? (
-                <div className="grid grid-cols-3 gap-2">
-                  {user.photos.map((photo) => (
-                    <div key={photo.id || photo.url} className="relative aspect-square overflow-hidden rounded-lg">
-                      {photo.isPublic ? (
-                        <button
-                          type="button"
-                          onClick={() => setPreview({ kind: 'photo', photoUrl: photo.url })}
-                          className="h-full w-full border-0 p-0"
-                          aria-label="Open photo preview"
-                        >
-                          <img src={photo.url} alt="" className="h-full w-full object-cover" />
-                        </button>
-                      ) : (
-                        <img src={photo.url} alt="" className="h-full w-full object-cover" />
-                      )}
-                      {!photo.isPublic && (
-                        <button
-                          type="button"
-                          onClick={() => setUnlockModal({ open: true, type: 'photo', price: photo.unlockPrice || 100 })}
-                          className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white"
-                        >
-                          <Lock className="w-6 h-6 mb-1" />
-                          <span className="text-xs flex items-center gap-1">
-                            <Coins className="w-3 h-3" />
-                            {photo.unlockPrice}
-                          </span>
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                <ProfileMediaPrivacyLayout
+                  items={user.photos}
+                  mediaKind="photo"
+                  renderItem={(photo: Photo) => {
+                    const canView = isPhotoVisibleToViewer(photo);
+                    return (
+                      <div key={photo.id || photo.url} className="relative aspect-square overflow-hidden rounded-lg">
+                        {canView ? (
+                          <button
+                            type="button"
+                            onClick={() => setPreview({ kind: 'photo', photoUrl: photo.url })}
+                            className="h-full w-full border-0 p-0"
+                            aria-label="Open photo preview"
+                          >
+                            <img src={photo.url} alt="" className="h-full w-full object-cover" />
+                          </button>
+                        ) : (
+                          <>
+                            <img src={lockedPhotoPlaceholder()} alt="" className="h-full w-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setUnlockModal({ open: true, type: 'photo', price: photo.unlockPrice || 100 })
+                              }
+                              className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white"
+                            >
+                              <Lock className="mb-1 h-6 w-6" />
+                              <span className="flex items-center gap-1 text-xs">
+                                <Coins className="h-3 w-3" />
+                                {photo.unlockPrice ?? 100}
+                              </span>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    );
+                  }}
+                />
               ) : (
-                <div className="grid grid-cols-3 gap-2">
-                  {user.videos.map((video) => (
-                    <div key={video.id || video.url} className="relative aspect-square overflow-hidden rounded-lg bg-gray-100">
-                      {video.isPublic ? (
-                        <button
-                          type="button"
-                          onClick={() =>
-                            setPreview({ kind: 'video', videoUrl: video.url, posterUrl: video.thumbnail })
-                          }
-                          className="relative h-full w-full border-0 p-0 text-left"
-                          aria-label="Open video preview"
-                        >
-                          <img src={video.thumbnail} alt="" className="h-full w-full object-cover" />
-                          <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90">
-                              <Video className="h-5 w-5 text-gray-700" />
+                <ProfileMediaPrivacyLayout
+                  items={user.videos}
+                  mediaKind="video"
+                  renderItem={(video: VideoMedia) => {
+                    const canViewVideo = isVideoVisibleToViewer(video);
+                    return (
+                      <div
+                        key={video.id || video.url}
+                        className="relative aspect-square overflow-hidden rounded-lg bg-gray-100"
+                      >
+                        {canViewVideo ? (
+                          <button
+                            type="button"
+                            onClick={() =>
+                              setPreview({ kind: 'video', videoUrl: video.url, posterUrl: video.thumbnail })
+                            }
+                            className="relative h-full w-full border-0 p-0 text-left"
+                            aria-label="Open video preview"
+                          >
+                            <img src={video.thumbnail} alt="" className="h-full w-full object-cover" />
+                            <div className="absolute inset-0 flex items-center justify-center bg-black/30">
+                              <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90">
+                                <Video className="h-5 w-5 text-gray-700" />
+                              </div>
                             </div>
-                          </div>
-                        </button>
-                      ) : (
-                        <>
-                          <img src={video.thumbnail} alt="" className="h-full w-full object-cover" />
-                          <div className="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/30">
-                            <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90">
-                              <Video className="h-5 w-5 text-gray-700" />
-                            </div>
-                          </div>
-                        </>
-                      )}
-                      {!video.isPublic && (
-                        <button
-                          type="button"
-                          onClick={() => setUnlockModal({ open: true, type: 'video', price: video.unlockPrice || 500 })}
-                          className="absolute inset-0 bg-black/60 flex flex-col items-center justify-center text-white"
-                        >
-                          <Lock className="w-6 h-6 mb-1" />
-                          <span className="text-xs flex items-center gap-1">
-                            <Coins className="w-3 h-3" />
-                            {video.unlockPrice}
-                          </span>
-                        </button>
-                      )}
-                    </div>
-                  ))}
-                </div>
+                          </button>
+                        ) : (
+                          <>
+                            <img src={lockedPhotoPlaceholder()} alt="" className="h-full w-full object-cover" />
+                            <button
+                              type="button"
+                              onClick={() =>
+                                setUnlockModal({ open: true, type: 'video', price: video.unlockPrice || 500 })
+                              }
+                              className="absolute inset-0 flex flex-col items-center justify-center bg-black/60 text-white"
+                            >
+                              <Lock className="mb-1 h-6 w-6" />
+                              <span className="flex items-center gap-1 text-xs">
+                                <Coins className="h-3 w-3" />
+                                {video.unlockPrice ?? 500}
+                              </span>
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    );
+                  }}
+                />
               )}
             </div>
           </div>

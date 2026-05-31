@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { User } from '../models/User.model.js';
 import { Like } from '../models/Like.model.js';
+import { Favorite } from '../models/Favorite.model.js';
 import { MediaUnlock } from '../models/MediaUnlock.model.js';
 import { Transaction } from '../models/Transaction.model.js';
 import { serializeUser } from '../utils/serializeUser.js';
@@ -45,7 +46,7 @@ async function getUnlockedSetsByOwner(viewerId, ownerIds) {
   return map;
 }
 
-function mapUserForViewer(viewerId, u, unlockByOwner, likedByMe = false) {
+function mapUserForViewer(viewerId, u, unlockByOwner, likedByMe = false, favoritedByMe = false) {
   const ownerKey = u._id?.toString?.() || String(u._id);
   const { unlockedPhotoIds, unlockedVideoIds } =
     unlockByOwner?.get(ownerKey) || { unlockedPhotoIds: new Set(), unlockedVideoIds: new Set() };
@@ -54,7 +55,16 @@ function mapUserForViewer(viewerId, u, unlockByOwner, likedByMe = false) {
     unlockedPhotoIds,
     unlockedVideoIds,
   });
-  return { ...profile, likedByMe: Boolean(likedByMe) };
+  return {
+    ...profile,
+    likedByMe: Boolean(likedByMe),
+    favoritedByMe: Boolean(favoritedByMe),
+  };
+}
+
+async function getFavoriteIdSet(fromUserId) {
+  const ids = await Favorite.find({ fromUser: fromUserId }).distinct('toUser');
+  return new Set(ids.map((id) => id.toString()));
 }
 
 const PUBLIC_USER_SELECT =
@@ -83,8 +93,21 @@ export async function discover(req, res) {
     const target = await User.findOne({ ...baseFilter, _id: userId }).select(PUBLIC_USER_SELECT).lean();
     if (!target) return res.json({ users: [] });
     const unlockByOwner = await getUnlockedSetsByOwner(self._id, [target._id]);
+    const [likedSet, favoriteSet] = await Promise.all([
+      Like.find({ fromUser: self._id, toUser: target._id }).distinct('toUser').then((ids) => new Set(ids.map(String))),
+      Favorite.find({ fromUser: self._id, toUser: target._id }).distinct('toUser').then((ids) => new Set(ids.map(String))),
+    ]);
+    const key = target._id.toString();
     return res.json({
-      users: [mapUserForViewer(self._id, target, unlockByOwner)],
+      users: [
+        mapUserForViewer(
+          self._id,
+          target,
+          unlockByOwner,
+          likedSet.has(key),
+          favoriteSet.has(key)
+        ),
+      ],
     });
   }
 
@@ -107,6 +130,7 @@ export async function discover(req, res) {
 
   const likedIds = await Like.find({ fromUser: self._id }).distinct('toUser');
   const likedSet = new Set(likedIds.map((id) => id.toString()));
+  const favoriteSet = await getFavoriteIdSet(self._id);
   const users = await User.find({
     ...baseFilter,
     _id: { $ne: self._id },
@@ -119,9 +143,10 @@ export async function discover(req, res) {
     users.map((u) => u._id)
   );
   res.json({
-    users: users.map((u) =>
-      mapUserForViewer(self._id, u, unlockByOwner, likedSet.has(u._id.toString()))
-    ),
+    users: users.map((u) => {
+      const key = u._id.toString();
+      return mapUserForViewer(self._id, u, unlockByOwner, likedSet.has(key), favoriteSet.has(key));
+    }),
   });
 }
 
@@ -131,6 +156,7 @@ export async function listOnline(req, res) {
   const opposite = self.gender === 'male' ? 'female' : 'male';
   const likedIds = await Like.find({ fromUser: self._id }).distinct('toUser');
   const likedSet = new Set(likedIds.map((id) => id.toString()));
+  const favoriteSet = await getFavoriteIdSet(self._id);
   const users = await User.find({
     gender: opposite,
     role: opposite,
@@ -147,9 +173,10 @@ export async function listOnline(req, res) {
     users.map((u) => u._id)
   );
   res.json({
-    users: users.map((u) =>
-      mapUserForViewer(self._id, u, unlockByOwner, likedSet.has(u._id.toString()))
-    ),
+    users: users.map((u) => {
+      const key = u._id.toString();
+      return mapUserForViewer(self._id, u, unlockByOwner, likedSet.has(key), favoriteSet.has(key));
+    }),
   });
 }
 
@@ -176,12 +203,20 @@ export async function getUserById(req, res) {
     return res.json({ user: data });
   }
   const { unlockedPhotoIds, unlockedVideoIds } = await getUnlockedMediaIdSets(req.user._id, user._id);
+  const [liked, favorited] = await Promise.all([
+    Like.exists({ fromUser: req.user._id, toUser: user._id }),
+    Favorite.exists({ fromUser: req.user._id, toUser: user._id }),
+  ]);
   res.json({
-    user: applyPublicMediaFilter(data, {
-      isViewerOwnerOfProfile: false,
-      unlockedPhotoIds,
-      unlockedVideoIds,
-    }),
+    user: {
+      ...applyPublicMediaFilter(data, {
+        isViewerOwnerOfProfile: false,
+        unlockedPhotoIds,
+        unlockedVideoIds,
+      }),
+      likedByMe: Boolean(liked),
+      favoritedByMe: Boolean(favorited),
+    },
   });
 }
 
@@ -383,6 +418,52 @@ export async function createLike(req, res) {
     type: 'like',
   });
   res.status(201).json({ ok: true, liked: true });
+}
+
+const favoritePopulateOpts = { path: 'toUser', select: PUBLIC_USER_SELECT };
+
+export async function listFavorites(req, res) {
+  const favorites = await Favorite.find({ fromUser: req.user._id })
+    .sort({ createdAt: -1 })
+    .limit(200)
+    .populate(favoritePopulateOpts)
+    .lean();
+  const ownerIds = favorites.map((f) => f.toUser?._id).filter(Boolean);
+  const unlockByOwner = await getUnlockedSetsByOwner(req.user._id, ownerIds);
+  const users = favorites
+    .map((f) =>
+      f.toUser
+        ? mapUserForViewer(req.user._id, { ...f.toUser, _id: f.toUser._id }, unlockByOwner, false, true)
+        : null
+    )
+    .filter(Boolean);
+  res.json({ users, count: users.length });
+}
+
+export async function toggleFavorite(req, res) {
+  const rawId = req.body?.userId ?? req.body?.toUserId;
+  if (!rawId || !mongoose.Types.ObjectId.isValid(String(rawId))) {
+    return res.status(400).json({ error: 'Invalid user id' });
+  }
+  const toUserId = new mongoose.Types.ObjectId(String(rawId));
+  if (toUserId.equals(req.user._id)) {
+    return res.status(400).json({ error: 'Cannot favorite yourself' });
+  }
+  const target = await User.findById(toUserId);
+  if (!target || ['admin', 'moderator'].includes(target.role)) {
+    return res.status(404).json({ error: 'User not found' });
+  }
+  const expectedOpposite = req.user.gender === 'male' ? 'female' : 'male';
+  if (target.gender !== expectedOpposite) {
+    return res.status(400).json({ error: 'Invalid favorite target' });
+  }
+  const existing = await Favorite.findOne({ fromUser: req.user._id, toUser: toUserId });
+  if (existing) {
+    await Favorite.deleteOne({ _id: existing._id });
+    return res.json({ ok: true, favorited: false });
+  }
+  await Favorite.create({ fromUser: req.user._id, toUser: toUserId });
+  res.status(201).json({ ok: true, favorited: true });
 }
 
 const allowedProfileFields = [
