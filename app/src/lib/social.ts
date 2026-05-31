@@ -1,5 +1,6 @@
 import type { SearchFilters, User } from '@/types';
 import { apiGet, apiPost } from '@/lib/api';
+import { invalidateFavoritesCache } from '@/lib/favoritesCache';
 import { invalidateLikesCache } from '@/lib/likesCache';
 import { visibleGalleryPhotoUrls } from '@/lib/profileMedia';
 
@@ -48,6 +49,24 @@ export type LikeToggleResult = { ok: boolean; liked: boolean };
 export async function sendLike(userId: string): Promise<LikeToggleResult> {
   const result = await apiPost<LikeToggleResult>('/users/likes', { userId });
   invalidateLikesCache();
+  return result;
+}
+
+export type FavoritesResponse = {
+  users: User[];
+  count: number;
+};
+
+export async function fetchFavorites(): Promise<FavoritesResponse> {
+  return apiGet<FavoritesResponse>('/users/favorites');
+}
+
+export type FavoriteToggleResult = { ok: boolean; favorited: boolean };
+
+/** Add or remove from Favorites (toggle). */
+export async function toggleFavorite(userId: string): Promise<FavoriteToggleResult> {
+  const result = await apiPost<FavoriteToggleResult>('/users/favorites', { userId });
+  invalidateFavoritesCache();
   return result;
 }
 

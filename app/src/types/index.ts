@@ -35,6 +35,8 @@ export interface User {
   profilePicture?: string;
   /** True when the current member has liked this profile (discover / online cards). */
   likedByMe?: boolean;
+  /** True when the current member has saved this profile to Favorites. */
+  favoritedByMe?: boolean;
 }
 
 export interface Photo {

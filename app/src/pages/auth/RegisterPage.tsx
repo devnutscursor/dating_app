@@ -1,4 +1,5 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useMemo } from 'react';
+import { isAtLeast18, maxBirthDateFor18Plus } from '@/lib/ageGate';
 import { Link, useNavigate } from 'react-router-dom';
 import { Eye, EyeOff, Mail, Lock, User, Calendar } from 'lucide-react';
 import { toast } from 'sonner';
@@ -20,6 +21,8 @@ export default function RegisterPage() {
     gender: '' as '' | 'male' | 'female',
     birthDate: '',
   });
+  const [ageConfirmed, setAgeConfirmed] = useState(false);
+  const maxBirthDate = useMemo(() => maxBirthDateFor18Plus(), []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,6 +40,14 @@ export default function RegisterPage() {
     }
     if (!formData.gender || !formData.birthDate) {
       toast.error('Please select gender and date of birth');
+      return;
+    }
+    if (!isAtLeast18(formData.birthDate)) {
+      toast.error('You must be at least 18 years old to create an account');
+      return;
+    }
+    if (!ageConfirmed) {
+      toast.error('Please confirm that you are 18 or older');
       return;
     }
     if (registerOnceRef.current) return;
@@ -185,11 +196,26 @@ export default function RegisterPage() {
                     <input
                       type="date"
                       value={formData.birthDate}
+                      max={maxBirthDate}
                       onChange={(e) => setFormData({ ...formData, birthDate: e.target.value })}
                       className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent outline-none transition-all"
                     />
                   </div>
+                  <p className="text-xs text-gray-500 mt-1">You must be 18 or older to join MemberDate.</p>
                 </div>
+
+                <label className="flex items-start gap-3 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={ageConfirmed}
+                    onChange={(e) => setAgeConfirmed(e.target.checked)}
+                    className="mt-1 h-4 w-4 rounded border-gray-300 text-green-600 focus:ring-green-500"
+                  />
+                  <span className="text-sm text-gray-700 leading-snug">
+                    I confirm I am at least 18 years old, that I understand this site contains adult content,
+                    and that I will only communicate with other adults on this platform.
+                  </span>
+                </label>
               </>
             )}
 

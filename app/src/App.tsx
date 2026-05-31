@@ -6,6 +6,7 @@ import { ProtectedRoute } from '@/components/ProtectedRoute';
 import DefaultChatRedirect from '@/components/DefaultChatRedirect';
 import IncomingCallOverlay from '@/components/call/IncomingCallOverlay';
 import GlobalCallModal from '@/components/call/GlobalCallModal';
+import AgeVerificationGate from '@/components/AgeVerificationGate';
 
 // Landing Pages
 import LandingPage from '@/pages/landing/LandingPage';
@@ -19,6 +20,7 @@ import ManLayout from '@/layouts/ManLayout';
 import ManHome from '@/pages/man/Home';
 import ManChatDetail from '@/pages/man/ChatDetail';
 import ManLikes from '@/pages/man/Likes';
+import ManFavorites from '@/pages/man/Favorites';
 import ManOnline from '@/pages/man/Online';
 import ManFAQ from '@/pages/man/FAQ';
 import ManWallet from '@/pages/man/Wallet';
@@ -34,6 +36,7 @@ import WomanLayout from '@/layouts/WomanLayout';
 import WomanHome from '@/pages/woman/Home';
 import WomanChatDetail from '@/pages/woman/ChatDetail';
 import WomanLikes from '@/pages/woman/Likes';
+import WomanFavorites from '@/pages/woman/Favorites';
 import WomanOnline from '@/pages/woman/Online';
 import WomanFAQ from '@/pages/woman/FAQ';
 import WomanWallet from '@/pages/woman/Wallet';
@@ -70,6 +73,7 @@ import RulesPage from '@/pages/legal/RulesPage';
 function App() {
   return (
     <Router>
+      <AgeVerificationGate>
       <AuthProvider>
         <CallProvider>
         <Routes>
@@ -94,6 +98,7 @@ function App() {
             <Route path="chats" element={<DefaultChatRedirect area="man" />} />
             <Route path="chats/:chatId" element={<ManChatDetail />} />
             <Route path="likes" element={<ManLikes />} />
+            <Route path="favorites" element={<ManFavorites />} />
             <Route path="online" element={<ManOnline />} />
             <Route path="faq" element={<ManFAQ />} />
             <Route path="wallet" element={<ManWallet />} />
@@ -119,6 +124,7 @@ function App() {
             <Route path="chats" element={<DefaultChatRedirect area="woman" />} />
             <Route path="chats/:chatId" element={<WomanChatDetail />} />
             <Route path="likes" element={<WomanLikes />} />
+            <Route path="favorites" element={<WomanFavorites />} />
             <Route path="online" element={<WomanOnline />} />
             <Route path="faq" element={<WomanFAQ />} />
             <Route path="wallet" element={<WomanWallet />} />
@@ -182,6 +188,7 @@ function App() {
         <GlobalCallModal />
         </CallProvider>
       </AuthProvider>
+      </AgeVerificationGate>
     </Router>
   );
 }

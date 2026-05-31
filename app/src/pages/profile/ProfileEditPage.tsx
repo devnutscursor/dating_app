@@ -1,13 +1,16 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Trash2, Image as ImageIcon, Video as VideoIcon } from 'lucide-react';
+import { ArrowLeft, Trash2, Image as ImageIcon, Video as VideoIcon, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { interestTags } from '@/config/design';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiPatch, apiUploadFile } from '@/lib/api';
 import AddMediaModal from '@/components/modals/AddMediaModal';
-import { ProfileMediaEmptyState } from '@/components/profile/ProfileMediaEmptyState';
+import ProfileMediaPrivacyLayout, {
+  MediaPrivacyTileBadge,
+} from '@/components/profile/ProfileMediaPrivacyLayout';
+import { mediaPrivacyCounts } from '@/lib/profileMedia';
 import type { Photo, User, Video } from '@/types';
 
 function photosForApi(photos: Photo[]) {
@@ -86,6 +89,8 @@ export default function ProfileEditPage() {
 
   const profileBase = user?.role === 'female' ? '/woman/profile' : '/man/profile';
   const isWoman = user?.role === 'female';
+  const draftPhotoCounts = mediaPrivacyCounts(draftPhotos);
+  const draftVideoCounts = mediaPrivacyCounts(draftVideos);
 
   useEffect(() => {
     if (!user) return;
@@ -359,14 +364,30 @@ export default function ProfileEditPage() {
           </div>
         </div>
 
-        <h3 className="mb-2 text-sm font-medium text-gray-700">Photos</h3>
-        <div className="mb-6 grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {draftPhotos.length === 0 ? (
-            <ProfileMediaEmptyState media="photo" tone="neutral" compact />
-          ) : (
-            draftPhotos.map((p) => (
-              <div key={p.id || p.url} className="group relative aspect-square overflow-hidden rounded-xl border border-gray-100">
+        <h3 className="mb-1 text-sm font-medium text-gray-700">Photos</h3>
+        {draftPhotoCounts.total > 0 ? (
+          <p className="mb-3 text-xs text-gray-500">
+            {draftPhotoCounts.publicCount} public · {draftPhotoCounts.privateCount} private
+          </p>
+        ) : null}
+        <div className="mb-6">
+          <ProfileMediaPrivacyLayout
+            items={draftPhotos}
+            mediaKind="photo"
+            ownerMode
+            showPrivateWhenEmpty={isWoman}
+            renderItem={(p) => (
+              <div
+                key={p.id || p.url}
+                className="group relative aspect-square overflow-hidden rounded-xl border border-gray-100"
+              >
                 <img src={p.url} alt="" className="h-full w-full object-cover" />
+                <MediaPrivacyTileBadge isPublic={p.isPublic} />
+                {!p.isPublic && (
+                  <div className="absolute right-1 top-8 flex h-5 w-5 items-center justify-center rounded-full bg-yellow-500">
+                    <Lock className="h-3 w-3 text-white" />
+                  </div>
+                )}
                 <button
                   type="button"
                   onClick={() => removePhoto(p.id || p.url)}
@@ -376,33 +397,44 @@ export default function ProfileEditPage() {
                   <Trash2 className="h-3.5 w-3.5" />
                 </button>
               </div>
-            ))
-          )}
+            )}
+          />
         </div>
 
-        <h3 className="mb-2 text-sm font-medium text-gray-700">Videos</h3>
-        <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-          {draftVideos.length === 0 ? (
-            <ProfileMediaEmptyState media="video" tone="neutral" compact />
-          ) : (
-            draftVideos.map((v) => (
-              <div
-                key={v.id || v.url}
-                className="group relative aspect-square overflow-hidden rounded-xl border border-gray-100 bg-gray-900"
+        <h3 className="mb-1 text-sm font-medium text-gray-700">Videos</h3>
+        {draftVideoCounts.total > 0 ? (
+          <p className="mb-3 text-xs text-gray-500">
+            {draftVideoCounts.publicCount} public · {draftVideoCounts.privateCount} private
+          </p>
+        ) : null}
+        <ProfileMediaPrivacyLayout
+          items={draftVideos}
+          mediaKind="video"
+          ownerMode
+          showPrivateWhenEmpty={isWoman}
+          renderItem={(v) => (
+            <div
+              key={v.id || v.url}
+              className="group relative aspect-square overflow-hidden rounded-xl border border-gray-100 bg-gray-900"
+            >
+              <img src={v.thumbnail} alt="" className="h-full w-full object-cover opacity-90" />
+              <MediaPrivacyTileBadge isPublic={v.isPublic} />
+              {!v.isPublic && (
+                <div className="absolute right-1 top-8 flex h-5 w-5 items-center justify-center rounded-full bg-yellow-500">
+                  <Lock className="h-3 w-3 text-white" />
+                </div>
+              )}
+              <button
+                type="button"
+                onClick={() => removeVideo(v.id || v.url)}
+                className="absolute right-1 top-1 rounded-full bg-black/60 p-1.5 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
+                aria-label="Remove video"
               >
-                <img src={v.thumbnail} alt="" className="h-full w-full object-cover opacity-90" />
-                <button
-                  type="button"
-                  onClick={() => removeVideo(v.id || v.url)}
-                  className="absolute right-1 top-1 rounded-full bg-black/60 p-1.5 text-white opacity-0 transition-opacity hover:bg-red-600 group-hover:opacity-100"
-                  aria-label="Remove video"
-                >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ))
+                <Trash2 className="h-3.5 w-3.5" />
+              </button>
+            </div>
           )}
-        </div>
+        />
       </section>
 
       <div className="flex flex-wrap justify-end gap-3">

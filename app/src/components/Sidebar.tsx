@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { 
-  House, User, Mail, Heart, ToggleLeft, Shield, Wallet, 
+  House, User, Mail, Heart, Star, ToggleLeft, Shield, Wallet, 
   LogOut, X, ChevronDown, ChevronUp 
 } from 'lucide-react';
 import { navigationItems, layoutTopBarRowClass, layoutChatsListProfileBandClass } from '@/config/design';
@@ -71,6 +71,7 @@ export default function Sidebar({ userType, onClose }: SidebarProps) {
       case 'User': return <User className="w-5 h-5" />;
       case 'Mail': return <Mail className="w-5 h-5" />;
       case 'Heart': return <Heart className="w-5 h-5" />;
+      case 'Star': return <Star className="w-5 h-5" />;
       case 'ToggleLeft': return <ToggleLeft className="w-5 h-5" />;
       case 'Shield': return <Shield className="w-5 h-5" />;
       case 'Wallet': return <Wallet className="w-5 h-5" />;

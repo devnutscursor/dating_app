@@ -12,6 +12,8 @@ router.get('/discover', asyncHandler(users.discover));
 router.get('/online', asyncHandler(users.listOnline));
 router.get('/likes', asyncHandler(users.listLikes));
 router.post('/likes', asyncHandler(users.createLike));
+router.get('/favorites', asyncHandler(users.listFavorites));
+router.post('/favorites', asyncHandler(users.toggleFavorite));
 router.patch('/me', asyncHandler(users.updateMe));
 router.get('/me/verification', asyncHandler(verification.getMyVerification));
 router.post('/me/verification/challenge', asyncHandler(verification.createVerificationChallenge));

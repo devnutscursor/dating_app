@@ -73,6 +73,25 @@ export function lockedPhotoPlaceholder(): string {
   return LOCKED_PLACEHOLDER;
 }
 
+export function partitionMediaByPrivacy<T extends { isPublic?: boolean }>(items: T[]) {
+  const publicItems: T[] = [];
+  const privateItems: T[] = [];
+  for (const item of items) {
+    if (item.isPublic === false) privateItems.push(item);
+    else publicItems.push(item);
+  }
+  return { publicItems, privateItems };
+}
+
+export function mediaPrivacyCounts<T extends { isPublic?: boolean }>(items: T[]) {
+  const { publicItems, privateItems } = partitionMediaByPrivacy(items);
+  return {
+    total: items.length,
+    publicCount: publicItems.length,
+    privateCount: privateItems.length,
+  };
+}
+
 /** Private photos the viewer has not unlocked yet (discover lock badge). */
 export function countLockedPrivatePhotos(user: User): number {
   return (user.photos ?? []).filter(

@@ -9,7 +9,8 @@ import HoverPhotoGallery from '@/components/HoverPhotoGallery';
 import { formatProfileLocation } from '@/lib/formatProfileLocation';
 import AppliedSearchFiltersBar from '@/components/AppliedSearchFiltersBar';
 import { useSearchFilters } from '@/contexts/SearchFiltersContext';
-import { fetchDiscoverUsers, sendLike, userGalleryPhotos } from '@/lib/social';
+import { fetchDiscoverUsers, sendLike, toggleFavorite, userGalleryPhotos } from '@/lib/social';
+import { cn } from '@/lib/utils';
 import type { User } from '@/types';
 
 export default function WomanSwipes() {
@@ -45,6 +46,25 @@ export default function WomanSwipes() {
   }, [discoverKey]);
 
   const currentUser = users[currentIndex];
+
+  const handleFavorite = () => {
+    if (!currentUser) return;
+    const id = currentUser.id;
+    const wasFavorited = Boolean(currentUser.favoritedByMe);
+    void toggleFavorite(id)
+      .then((res) => {
+        toast.success(res.favorited ? 'Added to favorites' : 'Removed from favorites');
+        setUsers((prev) =>
+          (prev ?? []).map((u) => (u.id === id ? { ...u, favoritedByMe: res.favorited } : u))
+        );
+        if (res.favorited && !wasFavorited) {
+          setCurrentIndex((i) => (i < users.length - 1 ? i + 1 : i));
+        }
+      })
+      .catch((e) => {
+        toast.error(e instanceof Error ? e.message : 'Could not update favorites');
+      });
+  };
 
   const handleSwipe = (dir: 'left' | 'right') => {
     if (!currentUser) return;
@@ -182,10 +202,22 @@ export default function WomanSwipes() {
 
         <button
           type="button"
-          className="flex h-16 w-16 items-center justify-center rounded-full border border-gray-200 bg-white shadow-lg transition-colors hover:bg-gray-50"
-          aria-label="Super like (coming soon)"
+          onClick={handleFavorite}
+          className={cn(
+            'flex h-16 w-16 items-center justify-center rounded-full border shadow-lg transition-colors',
+            currentUser.favoritedByMe
+              ? 'border-amber-300 bg-amber-50 hover:bg-amber-100'
+              : 'border-gray-200 bg-white hover:bg-gray-50'
+          )}
+          aria-label={currentUser.favoritedByMe ? 'Remove from favorites' : 'Add to favorites'}
+          aria-pressed={Boolean(currentUser.favoritedByMe)}
         >
-          <Star className="h-8 w-8 text-yellow-500" />
+          <Star
+            className={cn(
+              'h-8 w-8',
+              currentUser.favoritedByMe ? 'fill-amber-400 text-amber-500' : 'text-amber-500'
+            )}
+          />
         </button>
       </div>
 

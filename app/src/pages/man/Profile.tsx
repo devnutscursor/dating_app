@@ -8,7 +8,10 @@ import { apiPatch, apiUploadFile } from '@/lib/api';
 import { formatProfileLocation } from '@/lib/formatProfileLocation';
 import AddMediaModal from '@/components/modals/AddMediaModal';
 import MediaPreviewModal from '@/components/modals/MediaPreviewModal';
-import { ProfileMediaEmptyState } from '@/components/profile/ProfileMediaEmptyState';
+import ProfileMediaPrivacyLayout, {
+  MediaPrivacyTileBadge,
+} from '@/components/profile/ProfileMediaPrivacyLayout';
+import { mediaPrivacyCounts } from '@/lib/profileMedia';
 
 type PreviewState =
   | { kind: 'photo'; photoUrl: string }
@@ -18,6 +21,8 @@ export default function ManProfile() {
   const { user: currentUser, refreshUser } = useAuth();
   const avatarInputRef = useRef<HTMLInputElement>(null);
   const [activeTab, setActiveTab] = useState<'photos' | 'videos'>('photos');
+  const photoCounts = currentUser ? mediaPrivacyCounts(currentUser.photos) : { total: 0, publicCount: 0, privateCount: 0 };
+  const videoCounts = currentUser ? mediaPrivacyCounts(currentUser.videos) : { total: 0, publicCount: 0, privateCount: 0 };
   const [preview, setPreview] = useState<PreviewState | null>(null);
   const [avatarBusy, setAvatarBusy] = useState(false);
   const [addMediaModal, setAddMediaModal] = useState<{ open: boolean; type: 'photo' | 'video' }>({
@@ -151,6 +156,7 @@ export default function ManProfile() {
                 >
                   <Image className="w-4 h-4" />
                   Photos
+                  {photoCounts.total > 0 ? ` (${photoCounts.total})` : ''}
                   {activeTab === 'photos' && (
                     <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-500" />
                   )}
@@ -164,6 +170,7 @@ export default function ManProfile() {
                 >
                   <Video className="w-4 h-4" />
                   Videos
+                  {videoCounts.total > 0 ? ` (${videoCounts.total})` : ''}
                   {activeTab === 'videos' && (
                     <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-green-500" />
                   )}
@@ -178,31 +185,45 @@ export default function ManProfile() {
               </Button>
             </div>
 
-            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3">
-              {activeTab === 'photos' ? (
-                currentUser.photos.length === 0 ? (
-                  <ProfileMediaEmptyState media="photo" tone="green" />
-                ) : (
-                  currentUser.photos.map((photo) => (
-                    <button
-                      key={photo.id || photo.url}
-                      type="button"
-                      onClick={() => setPreview({ kind: 'photo', photoUrl: photo.url })}
-                      className="relative aspect-square w-full cursor-pointer overflow-hidden rounded-xl border-0 p-0 text-left ring-green-500/0 transition-shadow hover:ring-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
-                    >
-                      <img src={photo.url} alt="" className="h-full w-full object-cover" />
-                      {!photo.isPublic && (
-                        <div className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-yellow-500">
-                          <Lock className="h-3 w-3 text-white" />
-                        </div>
-                      )}
-                    </button>
-                  ))
-                )
-              ) : currentUser.videos.length === 0 ? (
-                <ProfileMediaEmptyState media="video" tone="green" />
-              ) : (
-                currentUser.videos.map((video) => (
+            {activeTab === 'photos' && photoCounts.total > 0 ? (
+              <p className="mb-3 text-xs text-gray-500">
+                {photoCounts.publicCount} public · {photoCounts.privateCount} private
+              </p>
+            ) : null}
+            {activeTab === 'videos' && videoCounts.total > 0 ? (
+              <p className="mb-3 text-xs text-gray-500">
+                {videoCounts.publicCount} public · {videoCounts.privateCount} private
+              </p>
+            ) : null}
+
+            {activeTab === 'photos' ? (
+              <ProfileMediaPrivacyLayout
+                items={currentUser.photos}
+                mediaKind="photo"
+                ownerMode
+                renderItem={(photo) => (
+                  <button
+                    key={photo.id || photo.url}
+                    type="button"
+                    onClick={() => setPreview({ kind: 'photo', photoUrl: photo.url })}
+                    className="relative aspect-square w-full cursor-pointer overflow-hidden rounded-xl border-0 p-0 text-left ring-green-500/0 transition-shadow hover:ring-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
+                  >
+                    <img src={photo.url} alt="" className="h-full w-full object-cover" />
+                    <MediaPrivacyTileBadge isPublic={photo.isPublic} />
+                    {!photo.isPublic && (
+                      <div className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-yellow-500">
+                        <Lock className="h-3 w-3 text-white" />
+                      </div>
+                    )}
+                  </button>
+                )}
+              />
+            ) : (
+              <ProfileMediaPrivacyLayout
+                items={currentUser.videos}
+                mediaKind="video"
+                ownerMode
+                renderItem={(video) => (
                   <button
                     key={video.id || video.url}
                     type="button"
@@ -217,15 +238,16 @@ export default function ManProfile() {
                         <Video className="h-5 w-5 text-gray-700" />
                       </div>
                     </div>
+                    <MediaPrivacyTileBadge isPublic={video.isPublic} />
                     {!video.isPublic && (
                       <div className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-yellow-500">
                         <Lock className="h-3 w-3 text-white" />
                       </div>
                     )}
                   </button>
-                ))
-              )}
-            </div>
+                )}
+              />
+            )}
           </div>
 
           {/* About */}
