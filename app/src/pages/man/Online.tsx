@@ -11,6 +11,7 @@ import { useCall } from '@/contexts/CallContext';
 import { useCallPricing } from '@/lib/callPricing';
 import DiscoverProfileCardImage from '@/components/profile/DiscoverProfileCardImage';
 import DiscoverCardActionButtons from '@/components/profile/DiscoverCardActionButtons';
+import DiscoverOnlineBadge from '@/components/profile/DiscoverOnlineBadge';
 import { formatProfileLocation } from '@/lib/formatProfileLocation';
 import { fetchOnlineUsers } from '@/lib/social';
 import { subscribePresenceChanged } from '@/lib/chatSocket';
@@ -113,14 +114,7 @@ export default function ManOnline() {
                 user={user}
                 profilePath={`/man/view-profile/${user.id}`}
                 profileState={profileNavState}
-                topLeft={
-                  user.isOnline ? (
-                    <div className="flex items-center gap-1.5 rounded-full bg-green-500 px-2 py-1">
-                      <div className="h-2 w-2 animate-pulse rounded-full bg-white" />
-                      <span className="text-xs font-medium text-white">Online</span>
-                    </div>
-                  ) : null
-                }
+                topLeft={<DiscoverOnlineBadge isOnline={Boolean(user.isOnline)} />}
                 bottomActions={
                   <DiscoverCardActionButtons
                     onMessage={(e) => {

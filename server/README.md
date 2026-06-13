@@ -45,19 +45,32 @@ From `app/`, set `VITE_API_URL=/api` and use the Vite proxy (see `app/vite.confi
 
 Registration sets `emailVerified: false` and emails a 6-digit code (valid 15 minutes).
 
-### Development (no SMTP account)
+### Production (Render / Vercel) — Resend API (recommended)
 
-With **no** `SMTP_HOST` / `SMTP_USER` / `SMTP_PASS`, the API uses **[Ethereal Email](https://ethereal.email/)** (built into Nodemailer): it sends a real test message and prints a **preview URL** in the server terminal — open that link in a browser to read the verification email. Set `DISABLE_ETHEREAL_FALLBACK=true` in `.env` if you prefer only logging the code to the console.
+Render **free** tier blocks outbound SMTP ports (`587`, `465`, `25`). Use **Resend** over HTTPS instead:
 
-### Free / cheap SMTP for manual testing
+1. Create an API key at [resend.com/api-keys](https://resend.com/api-keys).
+2. In `.env` / Render env vars:
 
-You can instead point `.env` at a real provider, for example:
+```env
+RESEND_API_KEY=re_your_real_key_here
+RESEND_FROM="MemberDate <onboarding@resend.dev>"
+```
 
-- **[Mailtrap](https://mailtrap.io/)** — under **Email Testing → Integrations → SMTP**, copy **host**, **port**, **user**, and **password**. Prefer **`2525`** or **`587`** with `SMTP_SECURE=false`. **Avoid port `25`** on home networks; many ISPs block it, which can cause long hangs or failed sends. The server sets `requireTLS` automatically for `*.mailtrap.io` hosts.
-- **[Resend](https://resend.com/)** / **[Brevo](https://www.brevo.com/)** / **[SendGrid](https://sendgrid.com/)** — free tiers with SMTP relay (use their docs for host, port, and API key as password).
-- **Gmail** — possible with an [App Password](https://support.google.com/accounts/answer/185833) on a Google account (stricter limits; not ideal for production).
+Replace `re_xxxxxxxxx` with your real key. For quick tests, `onboarding@resend.dev` only delivers to the email on your Resend account. For real users, verify a domain at [resend.com/domains](https://resend.com/domains) and set `RESEND_FROM` to e.g. `MemberDate <noreply@yourdomain.com>`.
 
-If `SMTP_HOST`, `SMTP_USER`, and `SMTP_PASS` are set but sending fails, the error is **logged** and registration still succeeds; in **non-production** the code is also printed when SMTP send fails. Leave SMTP empty to use Ethereal in dev.
+Resend is tried **first**; if it fails and `SMTP_*` is set, SMTP is used as fallback.
+
+### Development (no Resend / SMTP)
+
+With **no** `RESEND_API_KEY` or `SMTP_*`, the API uses **[Ethereal Email](https://ethereal.email/)** and prints a **preview URL** in the server terminal. Set `DISABLE_ETHEREAL_FALLBACK=true` to only log the code to the console.
+
+### Optional SMTP (local / Mailtrap / Gmail)
+
+- **[Mailtrap](https://mailtrap.io/)** — sandbox SMTP for local testing.
+- **Gmail** — App Password; works locally; often **timeouts on Render** even when paid.
+
+If sending fails, the error is **logged** and registration still succeeds.
 
 ### “Empty response” in the browser Network tab
 

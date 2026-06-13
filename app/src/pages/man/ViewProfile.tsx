@@ -8,6 +8,7 @@ import ProfileBackLink from '@/components/profile/ProfileBackLink';
 import ProfileLikeButton from '@/components/profile/ProfileLikeButton';
 import { MapPin, MessageCircle, Video, Lock, Image as ImageIcon, Coins } from 'lucide-react';
 import HoverPhotoGallery from '@/components/HoverPhotoGallery';
+import DiscoverOnlineBadge from '@/components/profile/DiscoverOnlineBadge';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import UnlockContentModal from '@/components/modals/UnlockContentModal';
@@ -147,28 +148,25 @@ export default function ManViewProfile() {
               onClick={() => setPreview({ kind: 'photo', photoUrl: allPhotos[activePhotoIndex] })}
             />
 
-            {/* Online / offline status */}
-            <div className="pointer-events-none absolute left-4 top-4 z-10 flex items-center gap-1.5 rounded-full bg-black/50 px-3 py-1 backdrop-blur-sm">
-              <div
-                className={`h-2 w-2 rounded-full ${user.isOnline ? 'animate-pulse bg-green-500' : 'bg-gray-400'}`}
-              />
-              <span className="text-xs font-medium text-white">{user.isOnline ? 'Online' : 'Offline'}</span>
+            {/* Online / offline status — below photo progress bars */}
+            <div className="pointer-events-none absolute left-4 top-6 z-10 sm:top-[1.625rem]">
+              <DiscoverOnlineBadge isOnline={Boolean(user.isOnline)} />
             </div>
 
           </div>
 
-          {/* Thumbnails */}
-          <div className="flex gap-2 overflow-auto pb-2">
+          {/* Thumbnails — border on button (not ring) so highlight is not clipped */}
+          <div className="flex gap-2 overflow-x-auto overflow-y-visible py-1 pb-2">
             {allPhotos.map((photo, i) => (
               <button
                 type="button"
                 key={i}
                 onClick={() => setActivePhotoIndex(i)}
-                className={`flex-shrink-0 w-16 h-16 rounded-lg overflow-hidden ${
-                  i === activePhotoIndex ? 'ring-2 ring-green-500' : ''
+                className={`box-border h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${
+                  i === activePhotoIndex ? 'border-green-500' : 'border-transparent'
                 }`}
               >
-                <img src={photo} alt="" className="w-full h-full object-cover" />
+                <img src={photo} alt="" className="h-full w-full object-cover" />
               </button>
             ))}
           </div>

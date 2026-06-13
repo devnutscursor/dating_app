@@ -17,6 +17,8 @@ interface HoverPhotoGalleryProps {
   onClick?: () => void;
   /** Show "1 / 3" badge (profile-style). */
   showCounter?: boolean;
+  /** Override counter badge placement (default: top-right under progress bar area on profile). */
+  counterClassName?: string;
 }
 
 export default function HoverPhotoGallery({
@@ -28,6 +30,7 @@ export default function HoverPhotoGallery({
   onActiveIndexChange,
   onClick,
   showCounter = false,
+  counterClassName = 'right-3 top-9 sm:top-10',
 }: HoverPhotoGalleryProps) {
   const gallery = useMemo(
     () => Array.from(new Set(photos.filter(Boolean))).slice(0, maxPhotos),
@@ -148,7 +151,9 @@ export default function HoverPhotoGallery({
       )}
 
       {showCounter && gallery.length > 1 && (
-        <div className="pointer-events-none absolute right-3 top-3 z-10 rounded-full bg-black/50 px-2.5 py-1 backdrop-blur-sm">
+        <div
+          className={`pointer-events-none absolute z-10 rounded-full bg-black/50 px-2.5 py-1 backdrop-blur-sm ${counterClassName}`}
+        >
           <span className="text-xs font-medium text-white">
             {activeIndex + 1} / {gallery.length}
           </span>

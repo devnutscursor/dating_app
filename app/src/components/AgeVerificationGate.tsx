@@ -1,9 +1,12 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { acceptAgeGate, hasAcceptedAgeGate } from '@/lib/ageGate';
 import BrandLogo from '@/components/BrandLogo';
 
 const EXIT_URL = 'https://www.google.com';
+
+/** Legal pages must stay readable before the age gate is accepted (e.g. links on the modal). */
+export const AGE_GATE_LEGAL_PATHS = ['/terms', '/privacy', '/refund', '/dmca', '/rules'] as const;
 
 function AgeVerificationModal({
   onAccept,
@@ -61,21 +64,11 @@ function AgeVerificationModal({
 
         <p className="mt-6 text-center text-[11px] leading-relaxed text-gray-500">
           See our{' '}
-          <Link
-            to="/terms"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-green-700 underline-offset-2 hover:underline"
-          >
+          <Link to="/terms" className="text-green-700 underline-offset-2 hover:underline">
             Terms of Service
           </Link>{' '}
           and{' '}
-          <Link
-            to="/privacy"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="text-green-700 underline-offset-2 hover:underline"
-          >
+          <Link to="/privacy" className="text-green-700 underline-offset-2 hover:underline">
             Privacy Policy
           </Link>
           .
@@ -86,18 +79,22 @@ function AgeVerificationModal({
 }
 
 export default function AgeVerificationGate({ children }: { children: ReactNode }) {
+  const location = useLocation();
+  const skipGate = AGE_GATE_LEGAL_PATHS.includes(
+    location.pathname as (typeof AGE_GATE_LEGAL_PATHS)[number]
+  );
   const [verified, setVerified] = useState(() => hasAcceptedAgeGate());
 
   useEffect(() => {
-    if (!verified) {
-      document.body.style.overflow = 'hidden';
-      return () => {
-        document.body.style.overflow = '';
-      };
+    if (skipGate || verified) {
+      document.body.style.overflow = '';
+      return undefined;
     }
-    document.body.style.overflow = '';
-    return undefined;
-  }, [verified]);
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [verified, skipGate]);
 
   const handleAccept = () => {
     acceptAgeGate();
@@ -107,6 +104,10 @@ export default function AgeVerificationGate({ children }: { children: ReactNode 
   const handleLeave = () => {
     window.location.href = EXIT_URL;
   };
+
+  if (skipGate) {
+    return <>{children}</>;
+  }
 
   return (
     <>
