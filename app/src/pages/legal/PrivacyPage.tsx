@@ -24,7 +24,13 @@ export default function PrivacyPage() {
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white rounded-2xl shadow-sm p-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-6">Privacy Policy</h1>
-          <p className="text-gray-500 mb-8">Last updated: March 31, 2026</p>
+          <p className="text-gray-500 mb-8">Last updated: May 19, 2026</p>
+
+          <p className="text-gray-600 leading-relaxed mb-8 rounded-xl border border-amber-100 bg-amber-50/80 p-4 text-sm">
+            This Privacy Policy describes how MemberDate handles information on our adults-only
+            dating platform. It is provided as a general template and should be reviewed by legal
+            counsel for your region.
+          </p>
 
           <div className="space-y-8">
             <section>
@@ -33,11 +39,13 @@ export default function PrivacyPage() {
                 We collect information you provide directly to us, including:
               </p>
               <ul className="list-disc list-inside text-gray-600 space-y-2 ml-4">
-                <li>Account information (name, email, date of birth)</li>
-                <li>Profile information (photos, bio, interests)</li>
-                <li>Communication data (messages, video calls)</li>
-                <li>Payment information</li>
-                <li>Device and usage information</li>
+                <li>Account information (name, email, date of birth, gender)</li>
+                <li>Profile information (photos, videos, bio, interests, location)</li>
+                <li>Communication data (messages, gifts, video or voice calls)</li>
+                <li>Payment and virtual currency (coin) transaction records</li>
+                <li>Verification data (e.g. email verification codes, optional identity checks)</li>
+                <li>Device, browser, and usage information (IP address, logs, cookies)</li>
+                <li>Age-gate confirmation stored locally in your browser (see Section 6)</li>
               </ul>
             </section>
 
@@ -95,23 +103,40 @@ export default function PrivacyPage() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">6. Cookies</h2>
-              <p className="text-gray-600 leading-relaxed">
-                We use cookies and similar technologies to enhance your experience, analyze usage, 
-                and deliver personalized content. You can control cookies through your browser settings.
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">6. Cookies &amp; Local Storage</h2>
+              <p className="text-gray-600 leading-relaxed mb-4">
+                We use cookies, local storage, and similar technologies to keep you signed in,
+                remember preferences, analyze usage, and record that you confirmed you are 18+ on
+                the age-verification screen. You can clear this data through your browser settings;
+                doing so may require you to sign in again and re-confirm your age.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">7. Children&apos;s Privacy</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">7. Adult Content &amp; Sensitive Data</h2>
+              <p className="text-gray-600 leading-relaxed mb-4">
+                Because MemberDate allows adult-oriented photos, videos, and private communication,
+                you may upload or transmit sensitive personal content. You choose what to share.
+                Public profile fields are visible to other members; private media may require coins
+                to unlock as described in the app.
+              </p>
               <p className="text-gray-600 leading-relaxed">
-                MemberDate is not intended for users under 18 years of age. We do not knowingly 
-                collect personal information from children under 18.
+                Do not upload content involving minors or non-consenting persons. We may remove
+                content and report illegal material to authorities where required.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">8. Changes to This Policy</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">8. Children&apos;s Privacy</h2>
+              <p className="text-gray-600 leading-relaxed">
+                MemberDate is strictly for adults 18 and older. We do not knowingly collect personal
+                information from anyone under 18. If we learn that a minor has registered, we will
+                delete the account and associated data where reasonably possible.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">9. Changes to This Policy</h2>
               <p className="text-gray-600 leading-relaxed">
                 We may update this Privacy Policy from time to time. We will notify you of any 
                 changes by posting the new policy on this page.
@@ -119,10 +144,12 @@ export default function PrivacyPage() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">9. Contact Us</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">10. Contact Us</h2>
               <p className="text-gray-600 leading-relaxed">
-                If you have any questions about this Privacy Policy, please contact us at 
-                privacy@memberdate.com.
+                Privacy questions:{' '}
+                <a href="mailto:memberdate.info@gmail.com" className="text-green-600 hover:underline">
+                  memberdate.info@gmail.com
+                </a>
               </p>
             </section>
           </div>

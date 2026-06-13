@@ -1,16 +1,35 @@
 import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 function envTrim(name) {
   const v = process.env[name];
   return typeof v === 'string' ? v.trim() : v ?? '';
 }
 
+export function isResendConfigured() {
+  const key = envTrim('RESEND_API_KEY');
+  return Boolean(key && key !== 're_xxxxxxxxx');
+}
+
 export function isMailConfigured() {
   return Boolean(envTrim('SMTP_HOST') && envTrim('SMTP_USER') && envTrim('SMTP_PASS'));
 }
 
+export function isEmailConfigured() {
+  return isResendConfigured() || isMailConfigured();
+}
+
 /** Reused Ethereal test account for one server process (free dev inbox). */
 let etherealAccountPromise = null;
+let resendClient = null;
+
+function getResendClient() {
+  if (!isResendConfigured()) return null;
+  if (!resendClient) {
+    resendClient = new Resend(envTrim('RESEND_API_KEY'));
+  }
+  return resendClient;
+}
 
 function getEtherealAccount() {
   if (!etherealAccountPromise) {
@@ -41,12 +60,47 @@ function createSmtpTransporter() {
 }
 
 function defaultFrom() {
+  if (isResendConfigured()) {
+    return envTrim('RESEND_FROM') || 'MemberDate <onboarding@resend.dev>';
+  }
   return envTrim('SMTP_FROM') || envTrim('SMTP_USER') || 'MemberDate <noreply@localhost>';
 }
 
 /**
- * Send email via configured SMTP. Used for verification, admin alerts, etc.
- * @param {{ to: string, subject: string, text: string, html?: string, logLabel?: string }} opts
+ * Send via Resend HTTP API (works on Render free tier — no SMTP ports).
+ */
+async function sendResendMail({ to, subject, text, html, logLabel = 'mail' }) {
+  const resend = getResendClient();
+  if (!resend) {
+    return { sent: false, reason: 'resend_not_configured' };
+  }
+
+  try {
+    const { data, error } = await resend.emails.send({
+      from: defaultFrom(),
+      to,
+      subject,
+      text,
+      html: html || `<p>${text.replace(/\n/g, '<br>')}</p>`,
+    });
+
+    if (error) {
+      const message = error.message || JSON.stringify(error);
+      console.error(`[${logLabel}] Resend send failed to ${to}:`, message);
+      return { sent: false, reason: 'resend_send_failed', error: message };
+    }
+
+    console.log(`[${logLabel}] Sent via Resend to ${to} (id: ${data?.id || 'ok'})`);
+    return { sent: true, transport: 'resend', messageId: data?.id };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error(`[${logLabel}] Resend send failed to ${to}:`, message);
+    return { sent: false, reason: 'resend_send_failed', error: message };
+  }
+}
+
+/**
+ * Send email via configured SMTP.
  */
 export async function sendSmtpMail({ to, subject, text, html, logLabel = 'mail' }) {
   if (!isMailConfigured()) {
@@ -71,6 +125,23 @@ export async function sendSmtpMail({ to, subject, text, html, logLabel = 'mail' 
   }
 }
 
+/** Resend first (production), then SMTP fallback. */
+async function sendOutboundMail(opts) {
+  if (isResendConfigured()) {
+    const resendResult = await sendResendMail(opts);
+    if (resendResult.sent) return resendResult;
+    if (isMailConfigured()) {
+      console.warn(`[${opts.logLabel || 'mail'}] Resend failed; trying SMTP fallback…`);
+      return sendSmtpMail(opts);
+    }
+    return resendResult;
+  }
+  if (isMailConfigured()) {
+    return sendSmtpMail(opts);
+  }
+  return { sent: false, reason: 'email_not_configured' };
+}
+
 /**
  * Sends a 6-digit verification email when admin requires email verification.
  */
@@ -80,18 +151,20 @@ export async function sendVerificationEmail({ to, code, name }) {
   const text = `${greeting}\n\nYour verification code is: ${code}\n\nIt expires in 15 minutes.\n`;
   const html = `<p>${greeting}</p><p>Your verification code is:</p><p style="font-size:24px;font-weight:bold;letter-spacing:4px">${code}</p><p>This code expires in 15 minutes.</p>`;
 
-  if (isMailConfigured()) {
-    return sendSmtpMail({ to, subject, text, html, logLabel: 'mail:verify' });
+  if (isEmailConfigured()) {
+    return sendOutboundMail({ to, subject, text, html, logLabel: 'mail:verify' });
   }
 
   if (process.env.NODE_ENV === 'production') {
-    console.error('[mail] SMTP not configured; cannot send verification email in production.');
-    return { sent: false, reason: 'smtp_not_configured' };
+    console.error(
+      '[mail] No email transport configured. Set RESEND_API_KEY (recommended) or SMTP_* in production.'
+    );
+    return { sent: false, reason: 'email_not_configured' };
   }
 
   if (envTrim('DISABLE_ETHEREAL_FALLBACK') === 'true') {
-    console.warn(`[mail] SMTP not configured. Verification code for ${to}: ${code}`);
-    return { sent: false, reason: 'smtp_not_configured' };
+    console.warn(`[mail] Email not configured. Verification code for ${to}: ${code}`);
+    return { sent: false, reason: 'email_not_configured' };
   }
 
   try {
@@ -119,12 +192,12 @@ export async function sendVerificationEmail({ to, code, name }) {
     console.error('[mail] Ethereal send failed:', message);
   }
 
-  console.warn(`[mail] SMTP not configured. Verification code for ${to}: ${code}`);
-  return { sent: false, reason: 'smtp_not_configured' };
+  console.warn(`[mail] Email not configured. Verification code for ${to}: ${code}`);
+  return { sent: false, reason: 'email_not_configured' };
 }
 
 /**
- * Admin alert email — uses SMTP when configured (no Ethereal fallback).
+ * Admin alert email — Resend or SMTP (no Ethereal fallback).
  */
 export async function sendAdminAlertEmail({ to, subject, text, html }) {
   if (!to || !subject) {
@@ -134,12 +207,20 @@ export async function sendAdminAlertEmail({ to, subject, text, html }) {
   const safeText = text || subject;
   const safeHtml = html || `<p>${safeText.replace(/\n/g, '<br>')}</p>`;
 
-  if (isMailConfigured()) {
-    return sendSmtpMail({ to, subject, text: safeText, html: safeHtml, logLabel: 'mail:admin' });
+  if (isEmailConfigured()) {
+    return sendOutboundMail({
+      to,
+      subject,
+      text: safeText,
+      html: safeHtml,
+      logLabel: 'mail:admin',
+    });
   }
 
   console.error(
-    `[mail:admin] SMTP not configured (set SMTP_HOST, SMTP_USER, SMTP_PASS in .env). Alert not emailed to ${to}: ${subject}`
+    '[mail:admin] Email not configured (set RESEND_API_KEY or SMTP_HOST/USER/PASS). Alert not emailed to',
+    to + ':',
+    subject
   );
-  return { sent: false, reason: 'smtp_not_configured' };
+  return { sent: false, reason: 'email_not_configured' };
 }

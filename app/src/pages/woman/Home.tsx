@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { useCall } from '@/contexts/CallContext';
 import DiscoverProfileCardImage from '@/components/profile/DiscoverProfileCardImage';
 import DiscoverCardActionButtons from '@/components/profile/DiscoverCardActionButtons';
+import DiscoverOnlineBadge from '@/components/profile/DiscoverOnlineBadge';
 import { formatProfileLocation } from '@/lib/formatProfileLocation';
 import { fetchDiscoverUsers, sendLike } from '@/lib/social';
 import AppliedSearchFiltersBar from '@/components/AppliedSearchFiltersBar';
@@ -121,21 +122,14 @@ export default function WomanHome() {
           </Button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {users.map((user) => (
             <div key={user.id} className="rounded-2xl bg-white shadow-sm transition-shadow hover:shadow-md">
               <DiscoverProfileCardImage
                 user={user}
                 profilePath={`/woman/view-profile/${user.id}`}
                 profileState={profileNavState}
-                topLeft={
-                  <div className="flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 backdrop-blur-sm">
-                    <div
-                      className={`h-2 w-2 rounded-full ${user.isOnline ? 'animate-pulse bg-green-500' : 'bg-gray-400'}`}
-                    />
-                    <span className="text-xs font-medium text-white">{user.isOnline ? 'Online' : 'Offline'}</span>
-                  </div>
-                }
+                topLeft={<DiscoverOnlineBadge isOnline={Boolean(user.isOnline)} />}
                 bottomActions={
                   <DiscoverCardActionButtons
                     liked={Boolean(user.likedByMe)}

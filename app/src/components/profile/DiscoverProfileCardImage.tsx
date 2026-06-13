@@ -3,6 +3,7 @@ import { Lock } from 'lucide-react';
 import HoverPhotoGallery from '@/components/HoverPhotoGallery';
 import { userGalleryPhotos } from '@/lib/social';
 import { countLockedPrivatePhotos, countLockedPrivateVideos } from '@/lib/profileMedia';
+import { cn } from '@/lib/utils';
 import type { ProfileLocationState } from '@/lib/profileNavigation';
 import type { User } from '@/types';
 import type { ReactNode } from 'react';
@@ -37,22 +38,30 @@ export default function DiscoverProfileCardImage({
     ...profileState?.state,
     ...(hasPrivateMedia ? { mediaTab } : {}),
   };
+  const galleryPhotos = userGalleryPhotos(user);
+  const hasMultipleGalleryPhotos = galleryPhotos.length > 1;
 
   return (
     <div className="relative aspect-[3/4] w-full">
       {/* Photo only — overflow clip must not include action buttons (fixes 150% DPI clipping). */}
       <div className="absolute inset-0 overflow-hidden rounded-t-2xl">
         <HoverPhotoGallery
-          photos={userGalleryPhotos(user)}
+          photos={galleryPhotos}
           alt={user.name}
           className="h-full w-full"
-          showCounter={!hasPrivateMedia}
           onClick={() => navigate(profilePath, { state: linkState })}
         />
       </div>
 
       {topLeft ? (
-        <div className="pointer-events-none absolute left-2.5 top-2.5 z-20 sm:left-3 sm:top-3">{topLeft}</div>
+        <div
+          className={cn(
+            'pointer-events-none absolute left-2.5 z-20 sm:left-3',
+            hasMultipleGalleryPhotos ? 'top-6 sm:top-[1.625rem]' : 'top-2.5 sm:top-3'
+          )}
+        >
+          {topLeft}
+        </div>
       ) : null}
 
       {hasPrivateMedia ? (

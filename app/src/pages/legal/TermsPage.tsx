@@ -24,28 +24,57 @@ export default function TermsPage() {
       <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="bg-white rounded-2xl shadow-sm p-8">
           <h1 className="text-3xl font-bold text-gray-900 mb-6">Terms of Service</h1>
-          <p className="text-gray-500 mb-8">Last updated: March 31, 2026</p>
+          <p className="text-gray-500 mb-8">Last updated: May 19, 2026</p>
+
+          <p className="text-gray-600 leading-relaxed mb-8 rounded-xl border border-amber-100 bg-amber-50/80 p-4 text-sm">
+            MemberDate is an adults-only platform. These Terms are a general template for operating
+            the service. They are not legal advice — have a qualified attorney review them for your
+            jurisdiction before relying on them in production.
+          </p>
 
           <div className="space-y-8">
             <section>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">1. Acceptance of Terms</h2>
               <p className="text-gray-600 leading-relaxed">
-                By accessing or using MemberDate, you agree to be bound by these Terms of Service. 
-                If you do not agree to these terms, please do not use our service.
+                By accessing or using MemberDate (&quot;we&quot;, &quot;us&quot;, or &quot;the
+                Platform&quot;), you agree to be bound by these Terms of Service and our{' '}
+                <Link to="/privacy" className="text-green-600 hover:underline">
+                  Privacy Policy
+                </Link>
+                . If you do not agree, do not use the Platform.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">2. Eligibility</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">2. Eligibility &amp; Age</h2>
+              <p className="text-gray-600 leading-relaxed mb-4">
+                You must be at least <strong>18 years of age</strong> (or the age of legal majority
+                in your jurisdiction, whichever is higher) to register, browse, or communicate on
+                MemberDate. By using the Platform you represent and warrant that you meet this
+                requirement.
+              </p>
               <p className="text-gray-600 leading-relaxed">
-                You must be at least 18 years old to use MemberDate. By using our service, you 
-                represent and warrant that you are at least 18 years old and have the legal capacity 
-                to enter into these terms.
+                You agree to communicate only with other adults on the Platform and not to assist
+                minors in accessing the service. We may suspend or terminate accounts we reasonably
+                believe belong to or are used by persons under 18.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">3. Account Registration</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">3. Adult Content</h2>
+              <p className="text-gray-600 leading-relaxed mb-4">
+                MemberDate may display adult-oriented material, including photos and videos of a
+                sexual or suggestive nature, and allows private messaging and video communication
+                between members. You access such content voluntarily and at your own discretion.
+              </p>
+              <p className="text-gray-600 leading-relaxed">
+                If you are offended by adult material, or if such material is illegal where you are
+                located, you must leave the Platform immediately and not use our services.
+              </p>
+            </section>
+
+            <section>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">4. Account Registration</h2>
               <p className="text-gray-600 leading-relaxed">
                 To use certain features of MemberDate, you must register for an account. You agree 
                 to provide accurate and complete information during registration and to keep your 
@@ -55,7 +84,7 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">4. User Conduct</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">5. User Conduct</h2>
               <p className="text-gray-600 leading-relaxed mb-4">
                 You agree not to use MemberDate for any unlawful purpose or in any way that could 
                 damage, disable, overburden, or impair our service. Prohibited activities include:
@@ -71,7 +100,7 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">5. Content</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">6. Content</h2>
               <p className="text-gray-600 leading-relaxed">
                 You retain ownership of any content you post on MemberDate. However, by posting 
                 content, you grant us a non-exclusive, royalty-free license to use, display, and 
@@ -81,7 +110,7 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">6. Payments</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">7. Payments &amp; Virtual Currency</h2>
               <p className="text-gray-600 leading-relaxed">
                 Certain features of MemberDate require payment. Coin packs are purchased with
                 cryptocurrency only through our secure checkout provider. All purchases are final
@@ -91,7 +120,7 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">7. Termination</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">8. Termination</h2>
               <p className="text-gray-600 leading-relaxed">
                 We reserve the right to suspend or terminate your account at any time for any 
                 reason, including violation of these terms. Upon termination, your right to use 
@@ -100,18 +129,27 @@ export default function TermsPage() {
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">8. Disclaimer</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">9. Disclaimer &amp; Limitation of Liability</h2>
+              <p className="text-gray-600 leading-relaxed mb-4">
+                MemberDate is provided &quot;as is&quot; and &quot;as available&quot; without
+                warranties of any kind. We do not guarantee uninterrupted, secure, or error-free
+                operation, nor do we guarantee the conduct, identity, or age of any user.
+              </p>
               <p className="text-gray-600 leading-relaxed">
-                MemberDate is provided &quot;as is&quot; without warranties of any kind. We do not 
-                guarantee that our service will be uninterrupted, secure, or error-free.
+                To the fullest extent permitted by law, MemberDate and its operators shall not be
+                liable for any indirect, incidental, or consequential damages arising from your use
+                of the Platform or interactions with other members, including where a user
+                misrepresents their age. You use the Platform at your own risk.
               </p>
             </section>
 
             <section>
-              <h2 className="text-xl font-semibold text-gray-900 mb-4">9. Contact</h2>
+              <h2 className="text-xl font-semibold text-gray-900 mb-4">10. Contact</h2>
               <p className="text-gray-600 leading-relaxed">
-                If you have any questions about these Terms of Service, please contact us at 
-                support@memberdate.com.
+                Questions about these Terms:{' '}
+                <a href="mailto:memberdate.info@gmail.com" className="text-green-600 hover:underline">
+                  memberdate.info@gmail.com
+                </a>
               </p>
             </section>
           </div>
