@@ -12,6 +12,7 @@ import ProfileMediaPrivacyLayout, {
   MediaPrivacyTileBadge,
 } from '@/components/profile/ProfileMediaPrivacyLayout';
 import { mediaPrivacyCounts } from '@/lib/profileMedia';
+import ProfileAvatar from '@/components/profile/ProfileAvatar';
 
 type PreviewState =
   | { kind: 'photo'; photoUrl: string }
@@ -85,13 +86,14 @@ export default function WomanProfile() {
         <div className="px-6 pb-6">
           <div className="relative -mt-16 mb-4">
             <div className="w-36 h-36 sm:w-40 sm:h-40 rounded-3xl border-4 border-white overflow-hidden bg-white shadow-sm">
-              <img
-                src={
-                  currentWomanUser.profilePicture ||
-                  'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400'
-                }
+              <ProfileAvatar
+                src={currentWomanUser.profilePicture}
+                name={currentWomanUser.name}
+                gender={currentWomanUser.gender}
+                role={currentWomanUser.role}
+                className="h-full w-full rounded-3xl"
+                textClassName="text-3xl"
                 alt={currentWomanUser.name}
-                className="h-full w-full object-cover"
               />
             </div>
             <input
@@ -249,16 +251,7 @@ export default function WomanProfile() {
                     className="relative aspect-square w-full cursor-pointer overflow-hidden rounded-xl border-0 p-0 text-left ring-green-500/0 transition-shadow hover:ring-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
                   >
                     <img src={photo.url} alt="" className="h-full w-full object-cover" />
-                    {(photo.status === 'pending' || photo.status === 'rejected') && (
-                      <div
-                        className={`absolute bottom-2 right-2 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white ${
-                          photo.status === 'pending' ? 'bg-amber-600' : 'bg-red-600'
-                        }`}
-                      >
-                        {photo.status === 'pending' ? 'Review' : 'Rejected'}
-                      </div>
-                    )}
-                    <MediaPrivacyTileBadge isPublic={photo.isPublic} />
+                    <MediaPrivacyTileBadge isPublic={photo.isPublic} status={photo.status} />
                     {!photo.isPublic && (
                       <div className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-yellow-500">
                         <Lock className="h-3 w-3 text-white" />
@@ -283,21 +276,12 @@ export default function WomanProfile() {
                     className="relative aspect-square w-full cursor-pointer overflow-hidden rounded-xl border-0 bg-gray-100 p-0 text-left ring-green-500/0 transition-shadow hover:ring-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-green-500"
                   >
                     <img src={video.thumbnail} alt="" className="h-full w-full object-cover" />
-                    {(video.status === 'pending' || video.status === 'rejected') && (
-                      <div
-                        className={`absolute bottom-2 right-2 rounded px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white ${
-                          video.status === 'pending' ? 'bg-amber-600' : 'bg-red-600'
-                        }`}
-                      >
-                        {video.status === 'pending' ? 'Review' : 'Rejected'}
-                      </div>
-                    )}
                     <div className="absolute inset-0 flex items-center justify-center bg-black/30">
                       <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/90">
                         <Video className="h-5 w-5 text-gray-700" />
                       </div>
                     </div>
-                    <MediaPrivacyTileBadge isPublic={video.isPublic} />
+                    <MediaPrivacyTileBadge isPublic={video.isPublic} status={video.status} />
                     {!video.isPublic && (
                       <div className="absolute right-2 top-2 flex h-6 w-6 items-center justify-center rounded-full bg-yellow-500">
                         <Lock className="h-3 w-3 text-white" />

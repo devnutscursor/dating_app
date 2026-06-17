@@ -1,5 +1,7 @@
 import type { Photo, User, Video } from '@/types';
 
+export type GalleryUser = Pick<User, 'profilePicture' | 'photos'>;
+
 const LOCKED_PLACEHOLDER =
   'data:image/svg+xml,' +
   encodeURIComponent(
@@ -44,7 +46,7 @@ export function isPublicApprovedPhoto(photo: Photo): boolean {
 }
 
 /** Public approved photo URLs without duplicating profile picture when it is already in the album. */
-export function publicGalleryPhotoUrls(user: User, profilePicture?: string): string[] {
+export function publicGalleryPhotoUrls(user: GalleryUser, profilePicture?: string): string[] {
   const pic = (profilePicture ?? user.profilePicture)?.trim() || '';
   const fromPhotos = (user.photos ?? [])
     .filter(isPublicApprovedPhoto)
@@ -57,7 +59,7 @@ export function publicGalleryPhotoUrls(user: User, profilePicture?: string): str
 }
 
 /** Hero carousel: all photos the viewer may see (public + unlocked private). */
-export function visibleGalleryPhotoUrls(user: User, profilePicture?: string): string[] {
+export function visibleGalleryPhotoUrls(user: GalleryUser, profilePicture?: string): string[] {
   const pic = (profilePicture ?? user.profilePicture)?.trim() || '';
   const fromPhotos = (user.photos ?? [])
     .filter(isPhotoVisibleToViewer)
@@ -73,22 +75,28 @@ export function lockedPhotoPlaceholder(): string {
   return LOCKED_PLACEHOLDER;
 }
 
-export function partitionMediaByPrivacy<T extends { isPublic?: boolean }>(items: T[]) {
+export function partitionMediaByPrivacy<T extends { isPublic?: boolean; status?: string }>(items: T[]) {
   const publicItems: T[] = [];
   const privateItems: T[] = [];
+  const moderationItems: T[] = [];
   for (const item of items) {
+    if (item.status === 'pending' || item.status === 'rejected') {
+      moderationItems.push(item);
+      continue;
+    }
     if (item.isPublic === false) privateItems.push(item);
     else publicItems.push(item);
   }
-  return { publicItems, privateItems };
+  return { publicItems, privateItems, moderationItems };
 }
 
-export function mediaPrivacyCounts<T extends { isPublic?: boolean }>(items: T[]) {
-  const { publicItems, privateItems } = partitionMediaByPrivacy(items);
+export function mediaPrivacyCounts<T extends { isPublic?: boolean; status?: string }>(items: T[]) {
+  const { publicItems, privateItems, moderationItems } = partitionMediaByPrivacy(items);
   return {
     total: items.length,
     publicCount: publicItems.length,
     privateCount: privateItems.length,
+    moderationCount: moderationItems.length,
   };
 }
 

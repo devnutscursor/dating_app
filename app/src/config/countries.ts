@@ -1252,3 +1252,29 @@ export const countries: CountryOption[] = [
     "flag": "🇿🇼"
   }
 ];
+
+const countryByValue = new Map(countries.map((c) => [c.value, c]));
+const countryByLabel = new Map(countries.map((c) => [c.label.toLowerCase(), c]));
+
+const COUNTRY_ALIASES: Record<string, string> = {
+  uk: 'gb',
+  usa: 'us',
+  uae: 'ae',
+};
+
+/** Map stored country (ISO code, label, or alias) to a canonical ISO alpha-2 value. */
+export function normalizeCountryValue(raw?: string | null): string {
+  const trimmed = (raw ?? '').trim();
+  if (!trimmed) return '';
+
+  const lower = trimmed.toLowerCase();
+  if (countryByValue.has(lower)) return lower;
+
+  const byLabel = countryByLabel.get(lower);
+  if (byLabel) return byLabel.value;
+
+  const alias = COUNTRY_ALIASES[lower];
+  if (alias) return alias;
+
+  return '';
+}

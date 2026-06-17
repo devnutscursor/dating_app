@@ -1,16 +1,16 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import type { ChangeEvent } from 'react';
 import { useParams, Link, useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Phone, Video, MoreVertical, Send, Image, Lock, Flag, Coins, Search, Clapperboard, Pin } from 'lucide-react';
+import { ArrowLeft, Phone, Video, MoreVertical, Send, Image, Lock, Flag, Coins, Clapperboard, Pin } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import type { Chat } from '@/types';
 import { apiGet, apiUploadFile } from '@/lib/api';
-import { chatPreviewLine, filterChatThreads } from '@/lib/chatPreview';
+import { filterChatThreads } from '@/lib/chatPreview';
 import { sumCoinsReceivedFromPeer } from '@/lib/chatCoins';
 import { postChatMessage, setChatPinned } from '@/lib/chats';
 import { profileReturnState } from '@/lib/profileNavigation';
-import { layoutChatsListColumnHeaderClass, layoutConversationToolbarClass } from '@/config/design';
+import { layoutConversationToolbarClass } from '@/config/design';
 import { subscribeChatUpdate, subscribePresenceChanged } from '@/lib/chatSocket';
 import { clearCachedChat, setCachedChat, setChatDraft } from '@/lib/chatCache';
 import { patchChatWithPresence, patchThreadsWithPresence } from '@/lib/presence';
@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useChatDetailLoader } from '@/hooks/useChatDetailLoader';
 import { useCall } from '@/contexts/CallContext';
 import { ChatMessageBubble } from '@/components/chat/ChatMessageBubble';
+import ChatThreadList from '@/components/chat/ChatThreadList';
 import { EmojiPickerButton } from '@/components/chat/EmojiPickerButton';
 import BlockUserModal from '@/components/modals/BlockUserModal';
 import ReportUserModal from '@/components/modals/ReportUserModal';
@@ -219,73 +220,15 @@ export default function WomanChatDetail() {
 
   return (
     <div className="flex h-full min-h-0 min-w-0 flex-1 flex-row bg-white">
-      <div className="hidden h-full min-h-0 min-w-0 w-64 shrink-0 flex-col border-r border-gray-200 bg-white lg:flex xl:w-72">
-        <div className={layoutChatsListColumnHeaderClass}>
-          <h1 className="text-lg font-bold leading-tight text-gray-900">Chats</h1>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-            <input
-              type="search"
-              value={chatListSearch}
-              onChange={(e) => setChatListSearch(e.target.value)}
-              placeholder="Search chats..."
-              className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 pl-10 pr-3 text-sm leading-tight outline-none focus:ring-2 focus:ring-green-500"
-            />
-          </div>
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto">
-          {filteredThreads.length === 0 && chatListSearch.trim() ? (
-            <p className="px-4 py-8 text-center text-sm text-gray-500">No chats match your search</p>
-          ) : null}
-          {filteredThreads.map((thread) => {
-            const isActive = thread.id === chatId;
-            return (
-              <Link
-                key={thread.id}
-                to={`/woman/chats/${thread.id}`}
-                className={`flex items-center gap-2.5 border-b border-gray-100 px-3 py-3 transition-colors ${
-                  isActive ? 'bg-green-50' : 'hover:bg-gray-50'
-                }`}
-              >
-                <div className="relative flex-shrink-0">
-                  <img
-                    src={thread.participant.profilePicture}
-                    alt={thread.participant.name}
-                    className="h-11 w-11 shrink-0 rounded-full object-cover"
-                  />
-                  {thread.participant.isOnline && (
-                    <div className="absolute bottom-0 right-0 w-3.5 h-3.5 bg-green-500 rounded-full border-2 border-white" />
-                  )}
-                </div>
-
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex min-w-0 items-center gap-1.5">
-                      {thread.isPinned && (
-                        <Pin className="h-3.5 w-3.5 shrink-0 fill-green-600 text-green-600" aria-hidden />
-                      )}
-                      <h3 className="truncate font-semibold text-gray-900">{thread.participant.name}</h3>
-                      {thread.chatKind === 'moderator_support' && (
-                        <span className="shrink-0 rounded bg-amber-200 px-1 text-[10px] font-semibold uppercase text-amber-900">
-                          Mod
-                        </span>
-                      )}
-                    </div>
-                    <span className="text-xs text-gray-400">{thread.lastMessage?.timestamp}</span>
-                  </div>
-                  <p className="mt-1 truncate text-sm text-gray-500">{chatPreviewLine(thread.lastMessage)}</p>
-                </div>
-
-                {thread.unreadCount > 0 && (
-                  <div className="flex h-6 w-6 items-center justify-center rounded-full bg-green-500 text-xs font-medium text-white">
-                    {thread.unreadCount}
-                  </div>
-                )}
-              </Link>
-            );
-          })}
-        </div>
+      <div className="hidden h-full min-h-0 min-w-0 w-64 shrink-0 lg:flex xl:w-72">
+        <ChatThreadList
+          area="woman"
+          threads={filteredThreads}
+          activeChatId={chatId}
+          searchQuery={chatListSearch}
+          onSearchQueryChange={setChatListSearch}
+          className="h-full border-r border-gray-200"
+        />
       </div>
 
       <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -294,12 +237,9 @@ export default function WomanChatDetail() {
           <div className="flex items-center gap-3">
             <button
               type="button"
-              onClick={() => {
-                if (window.history.length > 1) navigate(-1);
-                else navigate('/woman/chats', { replace: true });
-              }}
+              onClick={() => navigate('/woman/chats')}
               className="lg:hidden p-2 -ml-2 hover:bg-gray-100 rounded-full"
-              aria-label="Go back"
+              aria-label="Back to chats"
             >
               <ArrowLeft className="w-5 h-5" />
             </button>

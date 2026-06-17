@@ -8,7 +8,7 @@ import { useFavoritesPage } from '@/hooks/useFavoritesPage';
 import { toggleFavorite } from '@/lib/social';
 import { toast } from 'sonner';
 
-const FALLBACK_IMG = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400';
+import ProfileAvatar from '@/components/profile/ProfileAvatar';
 
 type FavoritesPageContentProps = {
   area: 'man' | 'woman';
@@ -67,11 +67,14 @@ export default function FavoritesPageContent({ area }: FavoritesPageContentProps
           {users.map((user) => (
             <div key={user.id} className="overflow-hidden rounded-2xl bg-white shadow-sm">
               <div className="relative aspect-square">
-                <img
-                  src={user.profilePicture || FALLBACK_IMG}
+                <ProfileAvatar
+                  src={user.profilePicture}
+                  name={user.name}
+                  gender={user.gender}
+                  role={user.role}
+                  className="h-full w-full"
+                  textClassName="text-3xl"
                   alt={user.name}
-                  className="h-full w-full object-cover"
-                  loading="lazy"
                 />
                 <div className="pointer-events-none absolute right-3 top-3 flex h-10 w-10 items-center justify-center rounded-full bg-amber-400">
                   <Star className="h-5 w-5 fill-white text-white" />

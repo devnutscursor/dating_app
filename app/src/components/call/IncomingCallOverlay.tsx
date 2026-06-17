@@ -1,8 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { Phone, PhoneOff, Video } from 'lucide-react';
 import { useCall } from '@/contexts/CallContext';
-
-const FALLBACK_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400';
+import ProfileAvatar from '@/components/profile/ProfileAvatar';
 
 export default function IncomingCallOverlay() {
   const { callStatus, incomingCallInfo, acceptCall, rejectCall } = useCall();
@@ -41,7 +40,6 @@ export default function IncomingCallOverlay() {
 
   if (!visible || !incomingCallInfo) return null;
 
-  const avatar = incomingCallInfo.callerPicture?.trim() || FALLBACK_AVATAR;
   const name = incomingCallInfo.callerName?.trim() || 'Someone';
   const isVideo = incomingCallInfo.callType === 'video';
 
@@ -56,10 +54,12 @@ export default function IncomingCallOverlay() {
 
         <div className="p-4 flex items-center gap-4">
           <div className="relative shrink-0">
-            <img
-              src={avatar}
+            <ProfileAvatar
+              src={incomingCallInfo.callerPicture}
+              name={name}
+              className="w-14 h-14 rounded-full border-2 border-white/20"
+              textClassName="text-lg"
               alt={name}
-              className="w-14 h-14 rounded-full object-cover border-2 border-white/20"
             />
             <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-green-500 flex items-center justify-center border-2 border-gray-900">
               {isVideo ? (

@@ -12,6 +12,7 @@ import ProfileMediaPrivacyLayout, {
   MediaPrivacyTileBadge,
 } from '@/components/profile/ProfileMediaPrivacyLayout';
 import { mediaPrivacyCounts } from '@/lib/profileMedia';
+import ProfileAvatar from '@/components/profile/ProfileAvatar';
 
 type PreviewState =
   | { kind: 'photo'; photoUrl: string }
@@ -76,13 +77,14 @@ export default function ManProfile() {
         <div className="px-6 pb-6">
           <div className="relative -mt-16 mb-4">
             <div className="w-36 h-36 sm:w-40 sm:h-40 rounded-3xl border-4 border-white overflow-hidden bg-white shadow-sm">
-              <img
-                src={
-                  currentUser.profilePicture ||
-                  'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400'
-                }
+              <ProfileAvatar
+                src={currentUser.profilePicture}
+                name={currentUser.name}
+                gender={currentUser.gender}
+                role={currentUser.role}
+                className="h-full w-full rounded-3xl"
+                textClassName="text-3xl"
                 alt={currentUser.name}
-                className="h-full w-full object-cover"
               />
             </div>
             <input

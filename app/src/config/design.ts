@@ -233,9 +233,9 @@ export const discoverCardVideoButtonClass =
 
 export const discoverCardActionIconClass = 'pointer-events-none size-4 shrink-0';
 
-import { countries, type CountryOption } from './countries';
+import { countries, type CountryOption, normalizeCountryValue } from './countries';
 
-export { countries, type CountryOption };
+export { countries, type CountryOption, normalizeCountryValue };
 
 // Report types
 export const reportTypes = [

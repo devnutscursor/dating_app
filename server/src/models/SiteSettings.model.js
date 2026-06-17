@@ -18,7 +18,7 @@ const siteSettingsSchema = new mongoose.Schema(
       quality: { type: String, enum: ['sd', 'hd', 'fhd'], default: 'hd' },
     },
     security: {
-      requireVerification: { type: Boolean, default: false },
+      requireVerification: { type: Boolean, default: true },
       autoBlockReports: { type: Number, default: 0 },
       contentModeration: { type: Boolean, default: true },
     },

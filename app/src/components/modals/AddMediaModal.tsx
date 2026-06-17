@@ -1,4 +1,4 @@
-import { useState, useId } from 'react';
+import { useState, useId, useEffect } from 'react';
 import { X, Image, Video, Lock, Globe, Coins } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -16,10 +16,23 @@ export default function AddMediaModal({ open, onClose, mediaType, isWoman = fals
   const inputId = useId();
   const { user, refreshUser } = useAuth();
   const [isPublic, setIsPublic] = useState(true);
-  const [price, setPrice] = useState(100);
+  const [priceInput, setPriceInput] = useState('100');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [dragActive, setDragActive] = useState(false);
   const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    setIsPublic(true);
+    setPriceInput('100');
+    setSelectedFile(null);
+    setDragActive(false);
+  }, [open]);
+
+  const parsedUnlockPrice = () => {
+    const n = Math.floor(Number(priceInput));
+    return Number.isFinite(n) ? n : 0;
+  };
 
   if (!open) return null;
 
@@ -43,8 +56,16 @@ export default function AddMediaModal({ open, onClose, mediaType, isWoman = fals
 
   const handleUpload = async () => {
     if (!selectedFile || !user) return;
+    if (isWoman && !isPublic) {
+      const unlockPrice = parsedUnlockPrice();
+      if (unlockPrice < 10) {
+        toast.error('Unlock price must be at least 10 coins');
+        return;
+      }
+    }
     setBusy(true);
     try {
+      const unlockPrice = Math.max(10, parsedUnlockPrice());
       const path = mediaType === 'photo' ? '/uploads/image' : '/uploads/video';
       const data = await apiUploadFile<{ url: string; thumbnail?: string }>(path, selectedFile);
       if (mediaType === 'photo') {
@@ -53,7 +74,7 @@ export default function AddMediaModal({ open, onClose, mediaType, isWoman = fals
           isPublic: isWoman ? isPublic : true,
           isUnlocked: false,
           status: isWoman ? ('pending' as const) : ('approved' as const),
-          ...(isWoman && !isPublic ? { unlockPrice: Math.max(10, Math.floor(price)) } : {}),
+          ...(isWoman && !isPublic ? { unlockPrice } : {}),
         };
         const photos = [...(user.photos ?? []), next];
         await apiPatch('/users/me', { photos });
@@ -65,7 +86,7 @@ export default function AddMediaModal({ open, onClose, mediaType, isWoman = fals
           isPublic: isWoman ? isPublic : true,
           isUnlocked: false,
           status: isWoman ? ('pending' as const) : ('approved' as const),
-          ...(isWoman && !isPublic ? { unlockPrice: Math.max(10, Math.floor(price)) } : {}),
+          ...(isWoman && !isPublic ? { unlockPrice } : {}),
         };
         const videos = [...(user.videos ?? []), next];
         await apiPatch('/users/me', { videos });
@@ -166,18 +187,26 @@ export default function AddMediaModal({ open, onClose, mediaType, isWoman = fals
             <div>
               <label className="mb-2 block text-sm font-medium text-gray-700">Unlock Price</label>
               <div className="flex items-center gap-2">
-                <div className="flex items-center gap-2 rounded-lg border border-yellow-200 bg-yellow-50 px-3 py-2">
-                  <Coins className="h-5 w-5 text-yellow-500" />
+                <div className="relative min-w-0 flex-1">
+                  <Coins className="pointer-events-none absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-yellow-500" />
                   <input
-                    type="number"
-                    value={price}
-                    onChange={(e) => setPrice(Number(e.target.value))}
-                    min={10}
-                    className="w-20 border-none bg-transparent text-sm font-medium outline-none"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    value={priceInput}
+                    onChange={(e) => setPriceInput(e.target.value.replace(/\D/g, ''))}
+                    onBlur={() => {
+                      const n = parsedUnlockPrice();
+                      if (n > 0 && n < 10) setPriceInput('10');
+                    }}
+                    placeholder="100"
+                    aria-label="Unlock price in coins"
+                    className="w-full rounded-lg border border-yellow-200 bg-yellow-50 py-2.5 pl-10 pr-3 text-sm font-medium outline-none focus:ring-2 focus:ring-yellow-300"
                   />
                 </div>
-                <span className="text-sm text-gray-500">coins</span>
+                <span className="shrink-0 text-sm text-gray-500">coins</span>
               </div>
+              <p className="mt-1 text-xs text-gray-500">Minimum 10 coins</p>
             </div>
           )}
         </div>

@@ -3,7 +3,7 @@ import { Toaster } from '@/components/ui/sonner';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { CallProvider } from '@/contexts/CallContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
-import DefaultChatRedirect from '@/components/DefaultChatRedirect';
+import ChatInboxPage from '@/pages/shared/ChatInboxPage';
 import IncomingCallOverlay from '@/components/call/IncomingCallOverlay';
 import GlobalCallModal from '@/components/call/GlobalCallModal';
 import AgeVerificationGate from '@/components/AgeVerificationGate';
@@ -95,7 +95,7 @@ function App() {
           >
             <Route index element={<Navigate to="/man/home" replace />} />
             <Route path="home" element={<ManHome />} />
-            <Route path="chats" element={<DefaultChatRedirect area="man" />} />
+            <Route path="chats" element={<ChatInboxPage area="man" />} />
             <Route path="chats/:chatId" element={<ManChatDetail />} />
             <Route path="likes" element={<ManLikes />} />
             <Route path="favorites" element={<ManFavorites />} />
@@ -121,7 +121,7 @@ function App() {
           >
             <Route index element={<Navigate to="/woman/home" replace />} />
             <Route path="home" element={<WomanHome />} />
-            <Route path="chats" element={<DefaultChatRedirect area="woman" />} />
+            <Route path="chats" element={<ChatInboxPage area="woman" />} />
             <Route path="chats/:chatId" element={<WomanChatDetail />} />
             <Route path="likes" element={<WomanLikes />} />
             <Route path="favorites" element={<WomanFavorites />} />

@@ -98,7 +98,7 @@ export async function register(req, res) {
       interests: [],
       photos: [],
       videos: [],
-      coins: 100,
+      coins: 0,
       emailVerified: !requireVerification,
       ...(requireVerification
         ? {

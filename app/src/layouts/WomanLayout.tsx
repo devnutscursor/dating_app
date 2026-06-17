@@ -12,7 +12,7 @@ export default function WomanLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(true);
   const location = useLocation();
-  const isChatDetailRoute = /\/woman\/chats\/[^/]+/.test(location.pathname);
+  const isChatRoute = /\/woman\/chats/.test(location.pathname);
 
   return (
     <SearchFiltersProvider>
@@ -48,13 +48,13 @@ export default function WomanLayout() {
           <main
             className={cn(
               'flex min-h-0 flex-1 flex-col overflow-hidden',
-              isChatDetailRoute ? 'p-0' : 'p-4 lg:p-6'
+              isChatRoute ? 'p-0' : 'p-4 lg:p-6'
             )}
           >
             <div
               className={cn(
                 'flex min-h-0 flex-1 flex-col',
-                isChatDetailRoute ? 'overflow-hidden' : 'overflow-y-auto'
+                isChatRoute ? 'overflow-hidden' : 'overflow-x-hidden overflow-y-auto'
               )}
             >
               <Outlet />
@@ -69,7 +69,7 @@ export default function WomanLayout() {
         </div>
       </div>
 
-      {!isChatDetailRoute && <SupportChat />}
+      {!isChatRoute && <SupportChat />}
     </div>
     </SearchFiltersProvider>
   );

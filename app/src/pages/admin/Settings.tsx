@@ -42,7 +42,7 @@ const DEFAULTS: PlatformSettings = {
     messageCost: 0,
   },
   videoCall: { minDuration: 1, maxDuration: 120, quality: 'hd' },
-  security: { requireVerification: false, autoBlockReports: 0, contentModeration: true },
+  security: { requireVerification: true, autoBlockReports: 0, contentModeration: true },
   notifications: { emailAdmins: false, newUserAlerts: false, reportAlerts: false },
 };
 

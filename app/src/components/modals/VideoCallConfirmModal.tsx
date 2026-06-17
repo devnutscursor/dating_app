@@ -1,8 +1,7 @@
 import { createPortal } from 'react-dom';
 import { Button } from '@/components/ui/button';
+import ProfileAvatar from '@/components/profile/ProfileAvatar';
 import type { CallType } from '@/lib/chatSocket';
-
-const FALLBACK_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400';
 
 interface VideoCallConfirmModalProps {
   open: boolean;
@@ -29,7 +28,6 @@ export default function VideoCallConfirmModal({
 }: VideoCallConfirmModalProps) {
   if (!open) return null;
 
-  const avatar = peerPicture?.trim() || FALLBACK_AVATAR;
   const name = peerName?.trim() || 'Member';
   const isVideo = callType === 'video';
   const thisRate = isVideo ? videoRate : audioRate;
@@ -39,7 +37,13 @@ export default function VideoCallConfirmModal({
       <div className="absolute inset-0 bg-black/60" onClick={busy ? undefined : onClose} aria-hidden />
       <div className="relative w-full max-w-md rounded-3xl bg-white p-6 shadow-2xl">
         <div className="mx-auto mb-5 h-20 w-20 overflow-hidden rounded-full border-4 border-green-100">
-          <img src={avatar} alt={name} className="h-full w-full object-cover" />
+          <ProfileAvatar
+            src={peerPicture}
+            name={name}
+            className="h-full w-full"
+            textClassName="text-2xl"
+            alt={name}
+          />
         </div>
         <div className="text-center">
           <h2 className="text-2xl font-bold text-gray-900">{name}</h2>

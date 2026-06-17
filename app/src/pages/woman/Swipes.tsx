@@ -5,11 +5,11 @@ import { CACHE } from '@/lib/cacheKeys';
 import { Link } from 'react-router-dom';
 import { X, Heart, Star, MapPin, ArrowLeft } from 'lucide-react';
 import { toast } from 'sonner';
-import HoverPhotoGallery from '@/components/HoverPhotoGallery';
+import ProfilePhotoGallery from '@/components/profile/ProfilePhotoGallery';
 import { formatProfileLocation } from '@/lib/formatProfileLocation';
 import AppliedSearchFiltersBar from '@/components/AppliedSearchFiltersBar';
 import { useSearchFilters } from '@/contexts/SearchFiltersContext';
-import { fetchDiscoverUsers, sendLike, toggleFavorite, userGalleryPhotos } from '@/lib/social';
+import { fetchDiscoverUsers, sendLike, toggleFavorite } from '@/lib/social';
 import { cn } from '@/lib/utils';
 import type { User } from '@/types';
 
@@ -146,7 +146,7 @@ export default function WomanSwipes() {
           }`}
         >
           <div className="relative aspect-[3/4]">
-            <HoverPhotoGallery photos={userGalleryPhotos(currentUser)} alt={currentUser.name} className="h-full w-full" />
+            <ProfilePhotoGallery user={currentUser} className="h-full w-full" />
 
             <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent" />
 
