@@ -10,6 +10,9 @@ import { fetchNotificationUnreadCount } from '@/lib/notifications';
 import { subscribeNotificationNew } from '@/lib/chatSocket';
 import { useSearchFilters } from '@/contexts/SearchFiltersContext';
 import { profileReturnState } from '@/lib/profileNavigation';
+import { resolveSearchQuery } from '@/lib/resolveSearchQuery';
+import ProfileAvatar from '@/components/profile/ProfileAvatar';
+import { toast } from 'sonner';
 
 interface HeaderProps {
   userType: 'man' | 'woman';
@@ -27,8 +30,6 @@ export default function Header({ userType, onMenuClick, onActivityClick }: Heade
   const [idQuery, setIdQuery] = useState(userIdSearch);
   const [unreadCount, setUnreadCount] = useState(0);
   const coins = user?.coins ?? 0;
-  const avatar = user?.profilePicture || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200';
-  const name = user?.name ?? 'Member';
 
   useEffect(() => {
     if (!user || user.role === 'moderator' || user.role === 'admin') return;
@@ -58,9 +59,25 @@ export default function Header({ userType, onMenuClick, onActivityClick }: Heade
   const submitIdSearch = () => {
     const trimmed = idQuery.trim();
     if (!trimmed) return;
-    applyFilters(filters, trimmed);
+
+    const resolved = resolveSearchQuery(trimmed);
+    if (!resolved) {
+      toast.error('Enter a valid user ID or country name');
+      return;
+    }
+
+    if (resolved.type === 'country') {
+      applyFilters({ ...filters, country: resolved.value }, '');
+      if (!location.pathname.endsWith('/home')) {
+        navigate(`/${userType}/home`);
+      }
+      toast.success('Country filter applied');
+      return;
+    }
+
+    applyFilters(filters, resolved.value);
     navigate(
-      `/${userType}/view-profile/${trimmed}`,
+      `/${userType}/view-profile/${resolved.value}`,
       profileReturnState(location.pathname + location.search)
     );
   };
@@ -91,7 +108,7 @@ export default function Header({ userType, onMenuClick, onActivityClick }: Heade
               value={idQuery}
               onChange={(e) => setIdQuery(e.target.value)}
               onKeyDown={onIdKeyDown}
-              placeholder="Search by ID"
+              placeholder="Search by ID or country"
               className="flex-1 border-none bg-transparent text-sm outline-none"
             />
           </div>
@@ -155,7 +172,13 @@ export default function Header({ userType, onMenuClick, onActivityClick }: Heade
 
           {/* Profile - Mobile */}
           <Link to={`/${userType}/profile`} className="lg:hidden">
-            <img src={avatar} alt={name} className="w-8 h-8 rounded-full object-cover" />
+            <ProfileAvatar
+              src={user?.profilePicture}
+              name={user?.name}
+              gender={user?.gender}
+              role={user?.role}
+              className="h-8 w-8 rounded-full"
+            />
           </Link>
         </div>
       </header>

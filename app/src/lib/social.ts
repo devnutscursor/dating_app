@@ -2,15 +2,10 @@ import type { SearchFilters, User } from '@/types';
 import { apiGet, apiPost } from '@/lib/api';
 import { invalidateFavoritesCache } from '@/lib/favoritesCache';
 import { invalidateLikesCache } from '@/lib/likesCache';
-import { visibleGalleryPhotoUrls } from '@/lib/profileMedia';
-
-const PHOTO_FALLBACK = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400';
-
-/** Public profile image URLs for gallery (never empty). Excludes private / locked media. */
-/** Same photo set as view-profile (public + unlocked), so card count matches profile. */
-export function userGalleryPhotos(user: User, fallback = PHOTO_FALLBACK): string[] {
-  const urls = visibleGalleryPhotoUrls(user);
-  return urls.length ? urls : [fallback];
+import { visibleGalleryPhotoUrls, type GalleryUser } from '@/lib/profileMedia';
+/** Public profile image URLs for gallery. Excludes private / locked media. Empty when none uploaded. */
+export function userGalleryPhotos(user: GalleryUser): string[] {
+  return visibleGalleryPhotoUrls(user);
 }
 
 export async function fetchDiscoverUsers(

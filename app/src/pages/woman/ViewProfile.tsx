@@ -3,7 +3,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { usePublicProfile } from '@/hooks/usePublicProfile';
 import { useParams, useNavigate } from 'react-router-dom';
 import { MapPin, MessageCircle, Video, Lock, Image as ImageIcon, Coins } from 'lucide-react';
-import HoverPhotoGallery from '@/components/HoverPhotoGallery';
+import ProfilePhotoGallery from '@/components/profile/ProfilePhotoGallery';
 import DiscoverOnlineBadge from '@/components/profile/DiscoverOnlineBadge';
 import ProfileBackLink from '@/components/profile/ProfileBackLink';
 import ProfileLikeButton from '@/components/profile/ProfileLikeButton';
@@ -18,11 +18,11 @@ import {
   isVideoVisibleToViewer,
   lockedPhotoPlaceholder,
   mediaPrivacyCounts,
+  visibleGalleryPhotoUrls,
 } from '@/lib/profileMedia';
 import type { Photo, Video as VideoMedia } from '@/types';
 import { createOrGetChat } from '@/lib/chats';
 import { useCall } from '@/contexts/CallContext';
-const FALLBACK_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400';
 
 type PreviewState =
   | { kind: 'photo'; photoUrl: string }
@@ -76,28 +76,32 @@ export default function WomanViewProfile() {
     );
   }
 
-  const galleryUrls = [user.profilePicture, ...user.photos.map((p) => p.url)].filter((u): u is string => Boolean(u));
-  const allPhotos = galleryUrls.length ? galleryUrls : [FALLBACK_AVATAR];
+  const galleryUrls = visibleGalleryPhotoUrls(user);
+  const allPhotos = galleryUrls;
   const photoCounts = mediaPrivacyCounts(user.photos);
   const videoCounts = mediaPrivacyCounts(user.videos);
 
   return (
-    <div className="space-y-6">
+    <div className="min-w-0 max-w-full space-y-4 overflow-x-hidden pb-2 sm:space-y-6">
       {/* Back Button */}
       <ProfileBackLink area="woman" />
 
-      <div className="grid lg:grid-cols-2 gap-6">
+      <div className="grid min-w-0 gap-4 sm:gap-6 lg:grid-cols-2">
         {/* Photo Gallery */}
-        <div className="space-y-4">
-          <div className="relative aspect-[3/4] overflow-hidden rounded-2xl bg-gray-100">
-            <HoverPhotoGallery
+        <div className="min-w-0 space-y-3 sm:space-y-4">
+          <div className="relative isolate w-full max-w-full aspect-[3/4] min-h-0 overflow-hidden rounded-2xl bg-gray-100">
+            <ProfilePhotoGallery
+              user={user}
               photos={allPhotos}
-              alt={user.name}
-              className="h-full w-full cursor-zoom-in"
+              className="absolute inset-0 h-full w-full sm:cursor-zoom-in"
               showCounter
               activeIndex={activePhotoIndex}
               onActiveIndexChange={setActivePhotoIndex}
-              onClick={() => setPreview({ kind: 'photo', photoUrl: allPhotos[activePhotoIndex] })}
+              onClick={
+                allPhotos.length
+                  ? () => setPreview({ kind: 'photo', photoUrl: allPhotos[activePhotoIndex] })
+                  : undefined
+              }
             />
 
             <div className="pointer-events-none absolute left-4 top-6 z-10 sm:top-[1.625rem]">
@@ -106,24 +110,26 @@ export default function WomanViewProfile() {
 
           </div>
 
-          <div className="flex gap-2 overflow-x-auto overflow-y-visible py-1 pb-2">
+          {allPhotos.length > 0 ? (
+          <div className="flex gap-2 overflow-x-auto overscroll-x-contain scroll-smooth py-1 pb-2 [-webkit-overflow-scrolling:touch]">
             {allPhotos.map((photo, i) => (
               <button
                 type="button"
-                key={i}
+                key={photo}
                 onClick={() => setActivePhotoIndex(i)}
-                className={`box-border h-16 w-16 shrink-0 overflow-hidden rounded-lg border-2 transition-colors ${
+                className={`box-border h-16 w-16 shrink-0 snap-start overflow-hidden rounded-lg border-2 transition-colors ${
                   i === activePhotoIndex ? 'border-green-500' : 'border-transparent'
                 }`}
               >
-                <img src={photo} alt="" className="h-full w-full object-cover" />
+                <img src={photo} alt="" className="h-full w-full object-cover" loading="lazy" />
               </button>
             ))}
           </div>
+          ) : null}
         </div>
 
         {/* Info */}
-        <div className="space-y-6">
+        <div className="min-w-0 space-y-4 sm:space-y-6">
           {/* Header */}
           <div>
             <h1 className="text-3xl font-bold text-gray-900">{user.name}, {user.age}</h1>

@@ -56,12 +56,12 @@ export default function MediaPreviewModal({ open, onClose, kind, imageUrl, video
           </button>
         </div>
 
-        <div className="overflow-auto p-3 sm:p-5">
+        <div className="max-w-full overflow-auto p-3 sm:p-5">
           {kind === 'photo' && imageUrl ? (
             <img
               src={imageUrl}
               alt=""
-              className="mx-auto max-h-[78vh] w-full max-w-full object-contain"
+              className="mx-auto max-h-[78vh] w-auto max-w-full object-contain"
             />
           ) : kind === 'video' && videoUrl ? (
             <video

@@ -170,7 +170,7 @@ export default function LandingPage() {
         <div className="absolute inset-0 bg-black/55" />
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_right,rgba(255,210,30,0.12),transparent_34%),linear-gradient(90deg,rgba(11,11,11,0.92)_0%,rgba(11,11,11,0.72)_42%,rgba(11,11,11,0.3)_100%)]" />
         <div className="max-w-7xl mx-auto">
-          <div className="relative min-h-[680px]">
+          <div className="relative flex flex-col gap-8 lg:min-h-[680px] lg:flex-row lg:items-center lg:justify-between">
             <div className="relative z-10 max-w-3xl">
               <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-amber-200/20 bg-white/5 px-4 py-2 text-sm text-amber-100/80 backdrop-blur-sm">
                 <Check className="h-4 w-4 text-amber-200" />
@@ -222,11 +222,9 @@ export default function LandingPage() {
               </div>
             </div>
 
-            <div className="absolute top-[68%] left-1/2 z-10 w-full max-w-xl -translate-x-1/2 -translate-y-1/2 px-2 lg:left-auto lg:right-4 lg:w-[44%] lg:max-w-xl lg:translate-x-0 lg:-translate-y-1/2 xl:right-8">
+            <div className="relative z-10 w-full max-w-xl shrink-0 lg:w-[44%] lg:max-w-xl">
               <div className="relative overflow-hidden rounded-2xl border border-white/12 bg-gradient-to-br from-white/[0.09] to-white/[0.02] p-3 shadow-[0_12px_48px_rgba(0,0,0,0.35)] backdrop-blur-xl antialiased sm:p-4">
-                <div className="pointer-events-none absolute inset-y-2 left-0 z-10 w-10 bg-gradient-to-r from-[#0b0b0b]/90 to-transparent sm:w-14" />
-                <div className="pointer-events-none absolute inset-y-2 right-0 z-10 w-10 bg-gradient-to-l from-[#0b0b0b]/90 to-transparent sm:w-14" />
-                <div className="mb-3 flex items-center justify-between gap-3 sm:mb-4">
+                <div className="relative z-20 mb-3 flex items-center justify-between gap-3 sm:mb-4">
                   <h3 className="font-serif text-lg text-white sm:text-xl">Recently Verified Members</h3>
                   <div className="hidden items-center gap-1.5 rounded-full border border-[#ffd21e]/30 bg-[#ffd21e]/10 px-3 py-1.5 text-xs text-[#ffe680] md:flex">
                     <Users className="h-3 w-3" />
@@ -234,6 +232,8 @@ export default function LandingPage() {
                   </div>
                 </div>
                 <div className="relative overflow-hidden rounded-xl">
+                  <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-[#141414]/95 to-transparent sm:w-14" />
+                  <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-[#141414]/95 to-transparent sm:w-14" />
                   <div className="flex w-max gap-3 py-0.5 motion-reduce:animate-none animate-member-feed-marquee will-change-transform">
                     {marqueeTrack.map((src, index) => (
                       <div

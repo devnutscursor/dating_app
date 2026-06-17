@@ -10,6 +10,7 @@ import {
   ArrowUpDown,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import ProfileAvatar from '@/components/profile/ProfileAvatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -39,6 +40,7 @@ interface AdminListUser {
   email?: string;
   name: string;
   role?: string;
+  gender?: string;
   coins: number;
   isOnline: boolean;
   isBlocked?: boolean;
@@ -95,7 +97,8 @@ export default function AdminUsers() {
 
   const [editUser, setEditUser] = useState<AdminListUser | null>(null);
   const [editName, setEditName] = useState('');
-  const [editCoins, setEditCoins] = useState('');
+  const [coinAdjustMode, setCoinAdjustMode] = useState<'add' | 'subtract'>('add');
+  const [coinAdjustAmount, setCoinAdjustAmount] = useState('');
   const [editVerified, setEditVerified] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
 
@@ -217,21 +220,49 @@ export default function AdminUsers() {
   const openEdit = (user: AdminListUser) => {
     setEditUser(user);
     setEditName(user.name);
-    setEditCoins(String(user.coins));
+    setCoinAdjustMode('add');
+    setCoinAdjustAmount('');
     setEditVerified(Boolean(user.isVerified));
+  };
+
+  const applyCoinPreset = (amount: number) => {
+    setCoinAdjustAmount(String(amount));
   };
 
   const submitEdit = async () => {
     if (!editUser) return;
+
+    const adjustRaw = coinAdjustAmount.trim();
+    const adjustNum = adjustRaw === '' ? 0 : Math.trunc(Number(adjustRaw));
+    if (adjustRaw !== '' && (!Number.isFinite(adjustNum) || adjustNum <= 0)) {
+      toast.error('Enter a valid coin amount greater than 0');
+      return;
+    }
+
+    const payload: {
+      name: string;
+      isVerified: boolean;
+      coinsDelta?: number;
+    } = {
+      name: editName,
+      isVerified: editVerified,
+    };
+
+    if (adjustNum > 0) {
+      payload.coinsDelta = coinAdjustMode === 'add' ? adjustNum : -adjustNum;
+    }
+
     setEditSaving(true);
     try {
-      const data = await apiPatch<{ user: AdminListUser }>(`/admin/users/${editUser.id}`, {
-        name: editName,
-        coins: Number(editCoins),
-        isVerified: editVerified,
-      });
+      const data = await apiPatch<{ user: AdminListUser }>(`/admin/users/${editUser.id}`, payload);
       refreshRow(data.user);
-      toast.success('User updated');
+      if (payload.coinsDelta) {
+        const verb = payload.coinsDelta > 0 ? 'Added' : 'Subtracted';
+        const abs = Math.abs(payload.coinsDelta);
+        toast.success(`${verb} ${abs} coins — new balance: ${data.user.coins}`);
+      } else {
+        toast.success('User updated');
+      }
       setEditUser(null);
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Update failed');
@@ -428,13 +459,13 @@ export default function AdminUsers() {
                   <tr key={user.id} className="hover:bg-gray-50">
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
-                        <img
-                          src={
-                            user.profilePicture ||
-                            'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200'
-                          }
+                        <ProfileAvatar
+                          src={user.profilePicture}
+                          name={user.name}
+                          gender={user.gender}
+                          role={user.role}
+                          className="h-10 w-10 rounded-full"
                           alt={user.name}
-                          className="h-10 w-10 rounded-full object-cover"
                         />
                         <div>
                           <p className="font-medium text-gray-900">{user.name}</p>
@@ -615,8 +646,76 @@ export default function AdminUsers() {
                   <Input id="edit-name" value={editName} onChange={(e) => setEditName(e.target.value)} />
                 </div>
                 <div className="grid gap-2">
-                  <Label htmlFor="edit-coins">Coins</Label>
-                  <Input id="edit-coins" inputMode="numeric" value={editCoins} onChange={(e) => setEditCoins(e.target.value)} />
+                  <Label>Coins</Label>
+                  <p className="text-sm text-gray-600">
+                    Current balance:{' '}
+                    <span className="font-semibold text-gray-900">{editUser.coins}</span>
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    Add or subtract relative to the live balance — safe while the user is online.
+                  </p>
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setCoinAdjustMode('add')}
+                      className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                        coinAdjustMode === 'add'
+                          ? 'border-green-500 bg-green-50 text-green-700'
+                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      Add
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setCoinAdjustMode('subtract')}
+                      className={`flex-1 rounded-lg border px-3 py-2 text-sm font-medium transition-colors ${
+                        coinAdjustMode === 'subtract'
+                          ? 'border-red-500 bg-red-50 text-red-700'
+                          : 'border-gray-200 bg-white text-gray-700 hover:bg-gray-50'
+                      }`}
+                    >
+                      Subtract
+                    </button>
+                  </div>
+                  <Input
+                    id="edit-coins-adjust"
+                    inputMode="numeric"
+                    placeholder={
+                      coinAdjustMode === 'add' ? 'Amount to add (e.g. 50)' : 'Amount to subtract (e.g. 100)'
+                    }
+                    value={coinAdjustAmount}
+                    onChange={(e) => setCoinAdjustAmount(e.target.value)}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    {[50, 100, 250, 500].map((preset) => (
+                      <button
+                        key={preset}
+                        type="button"
+                        onClick={() => applyCoinPreset(preset)}
+                        className="rounded-md border border-gray-200 bg-gray-50 px-2.5 py-1 text-xs font-medium text-gray-700 hover:bg-gray-100"
+                      >
+                        {coinAdjustMode === 'add' ? '+' : '−'}
+                        {preset}
+                      </button>
+                    ))}
+                  </div>
+                  {coinAdjustAmount.trim() !== '' && Number(coinAdjustAmount) > 0 && (
+                    <p className="text-xs text-gray-500">
+                      New balance after save:{' '}
+                      <span className="font-medium text-gray-800">
+                        {Math.max(
+                          0,
+                          editUser.coins +
+                            (coinAdjustMode === 'add' ? 1 : -1) * Math.trunc(Number(coinAdjustAmount) || 0),
+                        )}
+                      </span>
+                      {coinAdjustMode === 'subtract' &&
+                        editUser.coins < Math.trunc(Number(coinAdjustAmount) || 0) && (
+                          <span className="ml-1 text-red-600">(not enough coins)</span>
+                        )}
+                    </p>
+                  )}
                 </div>
                 <label className="flex items-center gap-2 text-sm">
                   <input

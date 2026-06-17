@@ -1,6 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { Lock } from 'lucide-react';
-import HoverPhotoGallery from '@/components/HoverPhotoGallery';
+import ProfilePhotoGallery from '@/components/profile/ProfilePhotoGallery';
 import { userGalleryPhotos } from '@/lib/social';
 import { countLockedPrivatePhotos, countLockedPrivateVideos } from '@/lib/profileMedia';
 import { cn } from '@/lib/utils';
@@ -45,9 +45,9 @@ export default function DiscoverProfileCardImage({
     <div className="relative aspect-[3/4] w-full">
       {/* Photo only — overflow clip must not include action buttons (fixes 150% DPI clipping). */}
       <div className="absolute inset-0 overflow-hidden rounded-t-2xl">
-        <HoverPhotoGallery
+        <ProfilePhotoGallery
+          user={user}
           photos={galleryPhotos}
-          alt={user.name}
           className="h-full w-full"
           onClick={() => navigate(profilePath, { state: linkState })}
         />

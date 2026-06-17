@@ -7,6 +7,7 @@ import { datingGoals, countries } from '@/config/design';
 import { DEFAULT_SEARCH_FILTERS, useSearchFilters } from '@/contexts/SearchFiltersContext';
 import type { SearchFilters } from '@/types';
 import { profileReturnState } from '@/lib/profileNavigation';
+import { resolveSearchQuery } from '@/lib/resolveSearchQuery';
 
 interface SearchFilterModalProps {
   open: boolean;
@@ -47,16 +48,34 @@ export default function SearchFilterModal({ open, onClose, userType }: SearchFil
   });
 
   const handleApply = () => {
-    const next = buildFilters();
-    applyFilters(next, searchId.trim());
-    onClose();
-    if (searchId.trim()) {
+    let next = buildFilters();
+    const idTrimmed = searchId.trim();
+
+    if (idTrimmed) {
+      const resolved = resolveSearchQuery(idTrimmed);
+      if (!resolved) {
+        toast.error('Enter a valid user ID or country name');
+        return;
+      }
+      if (resolved.type === 'country') {
+        next = { ...next, country: resolved.value };
+        applyFilters(next, '');
+        onClose();
+        navigate(`/${userType}/home`);
+        toast.success('Filters applied');
+        return;
+      }
+      applyFilters(next, resolved.value);
+      onClose();
       navigate(
-        `/${userType}/view-profile/${searchId.trim()}`,
+        `/${userType}/view-profile/${resolved.value}`,
         profileReturnState(location.pathname + location.search)
       );
       return;
     }
+
+    applyFilters(next, '');
+    onClose();
     navigate(`/${userType}/home`);
     toast.success('Filters applied');
   };
@@ -88,7 +107,7 @@ export default function SearchFilterModal({ open, onClose, userType }: SearchFil
                 type="text"
                 value={searchId}
                 onChange={(e) => setSearchId(e.target.value)}
-                placeholder="Enter user ID"
+                placeholder="User ID or country name"
                 className="flex-1 border-none bg-transparent text-sm outline-none"
               />
             </div>

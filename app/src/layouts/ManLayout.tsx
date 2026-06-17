@@ -12,7 +12,7 @@ export default function ManLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(true);
   const location = useLocation();
-  const isChatDetailRoute = /\/man\/chats\/[^/]+/.test(location.pathname);
+  const isChatRoute = /\/man\/chats/.test(location.pathname);
 
   return (
     <SearchFiltersProvider>
@@ -49,13 +49,13 @@ export default function ManLayout() {
           <main
             className={cn(
               'flex min-h-0 flex-1 flex-col overflow-hidden',
-              isChatDetailRoute ? 'p-0' : 'p-4 lg:p-6'
+              isChatRoute ? 'p-0' : 'p-4 lg:p-6'
             )}
           >
             <div
               className={cn(
                 'flex min-h-0 flex-1 flex-col',
-                isChatDetailRoute ? 'overflow-hidden' : 'overflow-y-auto'
+                isChatRoute ? 'overflow-hidden' : 'overflow-x-hidden overflow-y-auto'
               )}
             >
               <Outlet />
@@ -72,7 +72,7 @@ export default function ManLayout() {
       </div>
 
       {/* Hide floating support widget on chat — it overlaps the send button on mobile */}
-      {!isChatDetailRoute && <SupportChat />}
+      {!isChatRoute && <SupportChat />}
     </div>
     </SearchFiltersProvider>
   );

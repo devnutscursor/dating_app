@@ -1,9 +1,9 @@
 import type { ReactNode } from 'react';
-import { Globe, Lock } from 'lucide-react';
+import { Globe, Lock, Clock } from 'lucide-react';
 import { partitionMediaByPrivacy } from '@/lib/profileMedia';
 import { ProfileMediaEmptyState } from '@/components/profile/ProfileMediaEmptyState';
 
-type PrivacyVariant = 'public' | 'private';
+type PrivacyVariant = 'public' | 'private' | 'moderation';
 
 function PrivacySection({
   title,
@@ -20,13 +20,19 @@ function PrivacySection({
   emptyLabel: string;
   children: ReactNode;
 }) {
-  const Icon = variant === 'public' ? Globe : Lock;
+  const Icon = variant === 'public' ? Globe : variant === 'private' ? Lock : Clock;
   const shell =
     variant === 'public'
       ? 'border-emerald-100 bg-emerald-50/50'
-      : 'border-amber-100 bg-amber-50/50';
+      : variant === 'private'
+        ? 'border-amber-100 bg-amber-50/50'
+        : 'border-slate-200 bg-slate-50/80';
   const iconShell =
-    variant === 'public' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-800';
+    variant === 'public'
+      ? 'bg-emerald-100 text-emerald-700'
+      : variant === 'private'
+        ? 'bg-amber-100 text-amber-800'
+        : 'bg-slate-200 text-slate-700';
 
   return (
     <section className={`rounded-xl border p-4 ${shell}`}>
@@ -50,7 +56,7 @@ function PrivacySection({
   );
 }
 
-export type ProfileMediaPrivacyLayoutProps<T extends { isPublic?: boolean }> = {
+export type ProfileMediaPrivacyLayoutProps<T extends { isPublic?: boolean; status?: string }> = {
   items: T[];
   mediaKind: 'photo' | 'video';
   ownerMode?: boolean;
@@ -59,14 +65,14 @@ export type ProfileMediaPrivacyLayoutProps<T extends { isPublic?: boolean }> = {
   renderItem: (item: T) => ReactNode;
 };
 
-export default function ProfileMediaPrivacyLayout<T extends { isPublic?: boolean }>({
+export default function ProfileMediaPrivacyLayout<T extends { isPublic?: boolean; status?: string }>({
   items,
   mediaKind,
   ownerMode = false,
   showPrivateWhenEmpty = false,
   renderItem,
 }: ProfileMediaPrivacyLayoutProps<T>) {
-  const { publicItems, privateItems } = partitionMediaByPrivacy(items);
+  const { publicItems, privateItems, moderationItems } = partitionMediaByPrivacy(items);
   const label = mediaKind === 'photo' ? 'photo' : 'video';
   const labelPlural = mediaKind === 'photo' ? 'photos' : 'videos';
 
@@ -113,22 +119,62 @@ export default function ProfileMediaPrivacyLayout<T extends { isPublic?: boolean
           {privateItems.map(renderItem)}
         </PrivacySection>
       ) : null}
+
+      {ownerMode && moderationItems.length > 0 ? (
+        <PrivacySection
+          title={`Under review (${moderationItems.length})`}
+          description={`Not visible to others until approved. Rejected ${labelPlural} stay here — upload a new one.`}
+          variant="moderation"
+          empty={false}
+          emptyLabel=""
+        >
+          {moderationItems.map(renderItem)}
+        </PrivacySection>
+      ) : null}
+    </div>
+  );
+}
+
+/** Privacy + moderation badges in a bottom strip (wraps on narrow tiles). */
+export function MediaTileBadges({
+  isPublic,
+  status,
+}: {
+  isPublic?: boolean;
+  status?: string;
+}) {
+  const privacyLabel = isPublic === false ? 'Private' : 'Public';
+  const privacyClass =
+    isPublic === false ? 'bg-amber-500 text-white' : 'bg-emerald-600/90 text-white';
+
+  return (
+    <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-wrap items-center gap-1 bg-gradient-to-t from-black/70 via-black/45 to-transparent px-1.5 pb-1.5 pt-5">
+      <span
+        className={`rounded-full px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide shadow-sm sm:px-2 sm:text-[10px] ${privacyClass}`}
+      >
+        {privacyLabel}
+      </span>
+      {status === 'pending' ? (
+        <span className="rounded-full bg-amber-600 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white shadow-sm sm:px-2 sm:text-[10px]">
+          Review
+        </span>
+      ) : null}
+      {status === 'rejected' ? (
+        <span className="rounded-full bg-red-600 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wide text-white shadow-sm sm:px-2 sm:text-[10px]">
+          Rejected
+        </span>
+      ) : null}
     </div>
   );
 }
 
 /** Small badge for tiles inside a privacy section (optional extra cue). */
-export function MediaPrivacyTileBadge({ isPublic }: { isPublic?: boolean }) {
-  if (isPublic === false) {
-    return (
-      <span className="absolute bottom-2 left-2 rounded-full bg-amber-500 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm">
-        Private
-      </span>
-    );
-  }
-  return (
-    <span className="absolute bottom-2 left-2 rounded-full bg-emerald-600/90 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-white shadow-sm">
-      Public
-    </span>
-  );
+export function MediaPrivacyTileBadge({
+  isPublic,
+  status,
+}: {
+  isPublic?: boolean;
+  status?: string;
+}) {
+  return <MediaTileBadges isPublic={isPublic} status={status} />;
 }

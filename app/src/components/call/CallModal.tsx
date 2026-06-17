@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Mic, MicOff, Camera, CameraOff, PhoneOff, Clock, Phone } from 'lucide-react';
 import type { CallStatus, CallType } from '@/hooks/useWebRTCCall';
+import ProfileAvatar from '@/components/profile/ProfileAvatar';
 
 interface CallModalProps {
   callStatus: CallStatus;
@@ -18,8 +19,6 @@ interface CallModalProps {
   onToggleMic: () => void;
   onToggleCamera: () => void;
 }
-
-const FALLBACK_AVATAR = 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=400';
 
 function formatDuration(seconds: number) {
   const m = Math.floor(seconds / 60).toString().padStart(2, '0');
@@ -67,7 +66,6 @@ export default function CallModal({
     if (audioRef.current && remoteStream) audioRef.current.srcObject = remoteStream;
   }, [remoteStream]);
 
-  const avatar = peerPicture?.trim() || FALLBACK_AVATAR;
   const name = peerName?.trim() || 'Member';
 
   if (callStatus === 'idle') return null;
@@ -78,7 +76,13 @@ export default function CallModal({
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
         <div className="text-center p-8">
           <div className="w-24 h-24 rounded-full overflow-hidden mx-auto mb-6 border-4 border-white/20 animate-pulse">
-            <img src={avatar} alt={name} className="w-full h-full object-cover" />
+            <ProfileAvatar
+              src={peerPicture}
+              name={name}
+              className="w-full h-full"
+              textClassName="text-2xl"
+              alt={name}
+            />
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">{name}</h2>
           <p className="text-white/70 mb-8">
@@ -102,7 +106,13 @@ export default function CallModal({
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
         <div className="text-center p-8">
           <div className="w-24 h-24 rounded-full overflow-hidden mx-auto mb-6 border-4 border-white/20">
-            <img src={avatar} alt={name} className="w-full h-full object-cover" />
+            <ProfileAvatar
+              src={peerPicture}
+              name={name}
+              className="w-full h-full"
+              textClassName="text-2xl"
+              alt={name}
+            />
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">{name}</h2>
           <p className="text-white/70 mb-8">
@@ -135,7 +145,13 @@ export default function CallModal({
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
         <div className="text-center p-8">
           <div className="w-24 h-24 rounded-full overflow-hidden mx-auto mb-6 border-4 border-white/20 animate-pulse">
-            <img src={avatar} alt={name} className="w-full h-full object-cover" />
+            <ProfileAvatar
+              src={peerPicture}
+              name={name}
+              className="w-full h-full"
+              textClassName="text-2xl"
+              alt={name}
+            />
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">{name}</h2>
           <p className="text-white/70 mb-8">Connecting…</p>
@@ -157,7 +173,13 @@ export default function CallModal({
       <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
         <div className="text-center p-8">
           <div className="w-24 h-24 rounded-full overflow-hidden mx-auto mb-6 border-4 border-white/20 opacity-60">
-            <img src={avatar} alt={name} className="w-full h-full object-cover" />
+            <ProfileAvatar
+              src={peerPicture}
+              name={name}
+              className="w-full h-full"
+              textClassName="text-2xl"
+              alt={name}
+            />
           </div>
           <h2 className="text-2xl font-bold text-white mb-2">{name}</h2>
           <p className="text-white/70">Call ended · {formatDuration(duration)}</p>
@@ -192,7 +214,13 @@ export default function CallModal({
         /* Audio call main view */
         <div className="absolute inset-0 flex items-center justify-center bg-gray-900">
           <div className="flex flex-col items-center gap-4">
-            <img src={avatar} alt={name} className="w-28 h-28 rounded-full object-cover border-4 border-white/20" />
+            <ProfileAvatar
+              src={peerPicture}
+              name={name}
+              className="w-28 h-28 rounded-full border-4 border-white/20"
+              textClassName="text-3xl"
+              alt={name}
+            />
             <span className="text-white text-xl font-semibold">{name}</span>
           </div>
         </div>
@@ -229,7 +257,12 @@ export default function CallModal({
       {/* ── Header: peer name + timer ──────────────────────────────── */}
       <div className="absolute top-4 left-4 right-36 flex items-center gap-2 pointer-events-none">
         <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-2">
-          <img src={avatar} alt={name} className="h-7 w-7 rounded-full object-cover" />
+          <ProfileAvatar
+            src={peerPicture}
+            name={name}
+            className="h-7 w-7 rounded-full"
+            alt={name}
+          />
           <span className="text-white text-sm font-medium">{name}</span>
         </div>
         <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-1.5">

@@ -301,7 +301,7 @@ export async function createUser(req, res) {
   }
 
   const passwordHash = await bcrypt.hash(String(password), SALT_ROUNDS);
-  const coinValue = Number.isFinite(Number(coins)) ? Math.max(0, Math.floor(Number(coins))) : 100;
+  const coinValue = Number.isFinite(Number(coins)) ? Math.max(0, Math.floor(Number(coins))) : 0;
   const ageN = Number.isFinite(Number(age)) ? Math.min(120, Math.max(18, Math.floor(Number(age)))) : 25;
 
   let role;
@@ -351,30 +351,69 @@ export async function patchUser(req, res) {
     return res.status(400).json({ error: 'You cannot modify your own account from this list' });
   }
 
-  const { name, coins, isVerified, isBlocked } = req.body;
+  const { name, coins, coinsDelta, isVerified, isBlocked } = req.body;
+
+  if (coins !== undefined && coinsDelta !== undefined) {
+    return res.status(400).json({ error: 'Use either coins or coinsDelta, not both' });
+  }
+
+  const setFields = {};
+  let incCoins;
 
   if (name !== undefined) {
-    user.name = String(name).trim();
-    if (!user.name) {
+    const trimmed = String(name).trim();
+    if (!trimmed) {
       return res.status(400).json({ error: 'Name cannot be empty' });
     }
+    setFields.name = trimmed;
   }
-  if (coins !== undefined) {
+  if (isVerified !== undefined) {
+    setFields.isVerified = Boolean(isVerified);
+  }
+  if (isBlocked !== undefined) {
+    setFields.isBlocked = Boolean(isBlocked);
+  }
+
+  if (coinsDelta !== undefined) {
+    const delta = Math.trunc(Number(coinsDelta));
+    if (!Number.isFinite(Number(coinsDelta)) || delta === 0) {
+      return res.status(400).json({ error: 'Invalid coins adjustment' });
+    }
+    incCoins = delta;
+  } else if (coins !== undefined) {
     const n = Number(coins);
     if (!Number.isFinite(n) || n < 0) {
       return res.status(400).json({ error: 'Invalid coins value' });
     }
-    user.coins = Math.floor(n);
-  }
-  if (isVerified !== undefined) {
-    user.isVerified = Boolean(isVerified);
-  }
-  if (isBlocked !== undefined) {
-    user.isBlocked = Boolean(isBlocked);
+    setFields.coins = Math.floor(n);
   }
 
-  await user.save();
-  res.json({ user: serializeUser(user) });
+  const mongoUpdate = {};
+  if (Object.keys(setFields).length > 0) {
+    mongoUpdate.$set = setFields;
+  }
+  if (incCoins !== undefined) {
+    mongoUpdate.$inc = { coins: incCoins };
+  }
+
+  if (Object.keys(mongoUpdate).length === 0) {
+    return res.json({ user: serializeUser(user) });
+  }
+
+  const filter = { _id: id };
+  if (incCoins !== undefined && incCoins < 0) {
+    filter.coins = { $gte: Math.abs(incCoins) };
+  }
+
+  const updated = await User.findOneAndUpdate(filter, mongoUpdate, { new: true });
+  if (!updated) {
+    if (incCoins !== undefined && incCoins < 0) {
+      return res.status(400).json({ error: 'Insufficient coins for deduction' });
+    }
+    return res.status(404).json({ error: 'User not found' });
+  }
+
+  res.json({ user: serializeUser(updated) });
 }
 
 export async function deleteUser(req, res) {

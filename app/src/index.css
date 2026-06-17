@@ -70,7 +70,11 @@
     @apply border-border;
   }
   body {
-    @apply bg-background text-foreground font-sans;
+    @apply bg-background text-foreground font-sans overflow-x-hidden;
+  }
+  img,
+  video {
+    max-width: 100%;
   }
   h1,
   h2,

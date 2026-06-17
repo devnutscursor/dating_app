@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { navigationItems, layoutTopBarRowClass, layoutChatsListProfileBandClass } from '@/config/design';
 import BrandLogo from '@/components/BrandLogo';
+import ProfileAvatar from '@/components/profile/ProfileAvatar';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiGet } from '@/lib/api';
 import { subscribeChatUpdate } from '@/lib/chatSocket';
@@ -104,10 +105,13 @@ export default function Sidebar({ userType, onClose }: SidebarProps) {
           className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-0 transition-colors hover:bg-gray-50"
         >
           <div className="relative shrink-0">
-            <img
-              src={sessionUser?.profilePicture || 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=200'}
-              alt={sessionUser?.name || 'Profile'}
-              className="h-14 w-14 rounded-full object-cover"
+            <ProfileAvatar
+              src={sessionUser?.profilePicture}
+              name={sessionUser?.name}
+              gender={sessionUser?.gender}
+              role={sessionUser?.role}
+              className="h-14 w-14 rounded-full"
+              textClassName="text-lg"
             />
             {sessionUser?.isOnline && (
               <div className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full border-2 border-white bg-green-500" />

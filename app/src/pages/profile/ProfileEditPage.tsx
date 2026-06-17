@@ -3,13 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Trash2, Image as ImageIcon, Video as VideoIcon, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
-import { interestTags } from '@/config/design';
+import { interestTags, countries, normalizeCountryValue } from '@/config/design';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiPatch, apiUploadFile } from '@/lib/api';
 import AddMediaModal from '@/components/modals/AddMediaModal';
 import ProfileMediaPrivacyLayout, {
   MediaPrivacyTileBadge,
 } from '@/components/profile/ProfileMediaPrivacyLayout';
+import ProfileAvatar from '@/components/profile/ProfileAvatar';
 import { mediaPrivacyCounts } from '@/lib/profileMedia';
 import type { Photo, User, Video } from '@/types';
 
@@ -99,7 +100,8 @@ export default function ProfileEditPage() {
       setAboutMe(user.aboutMe ?? '');
       setLookingFor(user.lookingFor ?? '');
       setCity(user.city ?? '');
-      setCountry(user.country ?? '');
+      const normalizedCountry = normalizeCountryValue(user.country);
+      setCountry(normalizedCountry);
       setInterests([...(user.interests ?? [])]);
       setDraftPhotos([...(user.photos ?? [])]);
       setDraftVideos([...(user.videos ?? [])]);
@@ -242,10 +244,13 @@ export default function ProfileEditPage() {
       <section className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="mb-3 text-lg font-semibold text-gray-900">Profile picture</h2>
         <div className="flex flex-wrap items-center gap-4">
-          <img
-            src={user.profilePicture || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=200'}
-            alt=""
-            className="h-24 w-24 rounded-2xl border border-gray-200 object-cover"
+          <ProfileAvatar
+            src={user.profilePicture}
+            name={user.name}
+            gender={user.gender}
+            role={user.role}
+            className="h-24 w-24 rounded-2xl border border-gray-200"
+            textClassName="text-xl"
           />
           <div>
             <input
@@ -308,13 +313,23 @@ export default function ProfileEditPage() {
             </div>
             <div>
               <label className="mb-1 block text-sm font-medium text-gray-700">Country</label>
-              <input
-                type="text"
+              <select
                 value={country}
                 onChange={(e) => setCountry(e.target.value)}
-                placeholder="e.g. UK or GB"
-                className="w-full rounded-xl border border-gray-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-500"
-              />
+                className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-green-500"
+              >
+                <option value="">Select your country</option>
+                {countries.map((c) => (
+                  <option key={c.value} value={c.value}>
+                    {c.flag} {c.label}
+                  </option>
+                ))}
+              </select>
+              {user?.country && !normalizeCountryValue(user.country) && (
+                <p className="mt-1 text-xs text-amber-700">
+                  Previous value &quot;{user.country}&quot; was not recognized — please pick from the list.
+                </p>
+              )}
             </div>
           </div>
           <div>
