@@ -27,6 +27,7 @@ import { unlockMemberMedia } from '@/lib/social';
 import { createOrGetChat } from '@/lib/chats';
 import { useCall } from '@/contexts/CallContext';
 import VideoCallConfirmModal from '@/components/modals/VideoCallConfirmModal';
+import CallRatesWarning from '@/components/call/CallRatesWarning';
 import { useCallPricing } from '@/lib/callPricing';
 import type { ProfileLocationState } from '@/lib/profileNavigation';
 
@@ -217,6 +218,8 @@ export default function ManViewProfile() {
             </Button>
             {userId ? <ProfileLikeButton userId={userId} /> : null}
           </div>
+
+          <CallRatesWarning />
 
           {/* About */}
           <div className="bg-white rounded-2xl p-6 shadow-sm">

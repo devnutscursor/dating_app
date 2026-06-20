@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '@/lib/supportContact';
 
 export default function DMCAPage() {
   return (
@@ -59,7 +60,12 @@ export default function DMCAPage() {
               </p>
               <div className="bg-gray-50 rounded-xl p-4 mt-4">
                 <p className="text-gray-700 font-medium">MemberDate DMCA Agent</p>
-                <p className="text-gray-600">Email: dmca@memberdate.com</p>
+                <p className="text-gray-600">
+                  Email:{' '}
+                  <a href={SUPPORT_MAILTO} className="text-green-600 hover:underline">
+                    {SUPPORT_EMAIL}
+                  </a>
+                </p>
                 <p className="text-gray-600">Address: 123 Dating Street, San Francisco, CA 94102</p>
               </div>
             </section>

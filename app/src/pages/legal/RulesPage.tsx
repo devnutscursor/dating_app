@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '@/lib/supportContact';
 
 export default function RulesPage() {
   return (
@@ -112,8 +113,11 @@ export default function RulesPage() {
             <section>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">10. Contact</h2>
               <p className="text-gray-600 leading-relaxed">
-                If you have questions about these rules or need to report a violation, please 
-                contact us at support@memberdate.com.
+                If you have questions about these rules or need to report a violation, please contact us at{' '}
+                <a href={SUPPORT_MAILTO} className="text-green-600 hover:underline">
+                  {SUPPORT_EMAIL}
+                </a>
+                .
               </p>
             </section>
           </div>

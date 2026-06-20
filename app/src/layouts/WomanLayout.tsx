@@ -7,12 +7,18 @@ import ActivityPanel from '@/components/ActivityPanel';
 import SupportChat from '@/components/SupportChat';
 import { SearchFiltersProvider } from '@/contexts/SearchFiltersContext';
 import MemberDataPrefetch from '@/components/MemberDataPrefetch';
+import { useAuth } from '@/contexts/AuthContext';
+import { needsVideoVerification } from '@/lib/memberVerification';
+import VideoVerificationRequiredBanner from '@/components/profile/VideoVerificationRequiredBanner';
 
 export default function WomanLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [activityOpen, setActivityOpen] = useState(true);
   const location = useLocation();
+  const { user } = useAuth();
   const isChatRoute = /\/woman\/chats/.test(location.pathname);
+  const onVerifyPage = location.pathname.startsWith('/woman/profile/verify');
+  const showVerificationBanner = needsVideoVerification(user) && !onVerifyPage && !isChatRoute;
 
   return (
     <SearchFiltersProvider>
@@ -57,6 +63,11 @@ export default function WomanLayout() {
                 isChatRoute ? 'overflow-hidden' : 'overflow-x-hidden overflow-y-auto'
               )}
             >
+              {showVerificationBanner ? (
+                <div className="shrink-0 px-4 pt-4 lg:px-6">
+                  <VideoVerificationRequiredBanner />
+                </div>
+              ) : null}
               <Outlet />
             </div>
           </main>

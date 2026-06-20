@@ -11,6 +11,7 @@ import { serializeUser } from '../utils/serializeUser.js';
 import { countPendingFemaleMedia } from '../utils/countPendingFemaleMedia.js';
 import { SiteSettings } from '../models/SiteSettings.model.js';
 import { getPlatformSettings, invalidateSettingsCache } from '../services/siteSettings.js';
+import { notifyCoinBalanceChange } from '../services/coinBalanceNotifications.js';
 
 const SALT_ROUNDS = 12;
 const SORT_FIELDS = new Set(['name', 'coins', 'createdAt', 'role', 'isOnline', 'isBlocked']);
@@ -405,12 +406,24 @@ export async function patchUser(req, res) {
     filter.coins = { $gte: Math.abs(incCoins) };
   }
 
+  const previousCoins = user.coins;
   const updated = await User.findOneAndUpdate(filter, mongoUpdate, { new: true });
   if (!updated) {
     if (incCoins !== undefined && incCoins < 0) {
       return res.status(400).json({ error: 'Insufficient coins for deduction' });
     }
     return res.status(404).json({ error: 'User not found' });
+  }
+
+  const coinDelta = updated.coins - previousCoins;
+  if (coinDelta !== 0 && ['male', 'female'].includes(updated.role)) {
+    const io = req.app.get('io');
+    void notifyCoinBalanceChange(io, {
+      userId: updated._id,
+      delta: coinDelta,
+      newBalance: updated.coins,
+      reason: 'Balance updated by an administrator',
+    });
   }
 
   res.json({ user: serializeUser(updated) });

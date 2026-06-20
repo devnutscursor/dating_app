@@ -1,10 +1,17 @@
 import { Activity } from '../models/Activity.model.js';
 import { serializeUser } from '../utils/serializeUser.js';
+import {
+  femaleNeedsVideoVerification,
+  VIDEO_VERIFICATION_REQUIRED_BODY,
+} from '../utils/femaleVideoVerification.js';
 
 const ACTOR_SELECT =
   '-password -email -emailVerificationOtpHash -emailVerificationOtpExpires';
 
 export async function listActivities(req, res) {
+  if (femaleNeedsVideoVerification(req.user)) {
+    return res.json({ activities: [], ...VIDEO_VERIFICATION_REQUIRED_BODY });
+  }
   const rows = await Activity.find({ recipientId: req.user._id })
     .sort({ createdAt: -1 })
     .limit(100)

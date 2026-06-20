@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import type { CoinPack, Transaction } from '@/types';
 import { createCoinPurchase, fetchCoinPacks, fetchMyTransactions } from '@/lib/payments';
+import TransactionHistoryList from '@/components/wallet/TransactionHistoryList';
 
 export default function ManWallet() {
   const { user: currentUser, refreshUser } = useAuth();
@@ -219,65 +220,12 @@ export default function ManWallet() {
           </div>
         </div>
       ) : (
-        <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
-          {loadingHistory ? (
-            <div className="flex justify-center py-12 text-gray-500">
-              <Loader2 className="w-8 h-8 animate-spin" />
-            </div>
-          ) : transactions.length === 0 ? (
-            <p className="p-8 text-center text-gray-500">No transactions yet.</p>
-          ) : (
-            <div className="divide-y divide-gray-100">
-              {transactions.map((transaction) => (
-                <div key={transaction.id} className="p-4 flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div
-                      className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                        transaction.type === 'purchase'
-                          ? 'bg-green-100'
-                          : transaction.type === 'unlock'
-                            ? 'bg-blue-100'
-                            : transaction.type === 'videoCall'
-                              ? 'bg-purple-100'
-                              : 'bg-yellow-100'
-                      }`}
-                    >
-                      {transaction.type === 'purchase' && (
-                        <Coins className="w-5 h-5 text-green-600" />
-                      )}
-                      {transaction.type === 'unlock' && (
-                        <CreditCard className="w-5 h-5 text-blue-600" />
-                      )}
-                      {transaction.type === 'videoCall' && (
-                        <History className="w-5 h-5 text-purple-600" />
-                      )}
-                      {transaction.type === 'gift' && <Gift className="w-5 h-5 text-yellow-600" />}
-                    </div>
-                    <div>
-                      <p className="font-medium text-gray-900">{transaction.description}</p>
-                      <p className="text-sm text-gray-500">
-                        {transaction.timestamp}
-                        {transaction.status === 'pending' && (
-                          <span className="ml-2 text-amber-600">· Pending</span>
-                        )}
-                        {transaction.status === 'failed' && (
-                          <span className="ml-2 text-red-600">· Failed</span>
-                        )}
-                      </p>
-                    </div>
-                  </div>
-                  <div
-                    className={`font-semibold ${
-                      transaction.type === 'purchase' ? 'text-green-600' : 'text-red-600'
-                    }`}
-                  >
-                    {transaction.type === 'purchase' ? '+' : '-'}
-                    {transaction.amount} coins
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
+        <div className="overflow-hidden rounded-2xl bg-white shadow-sm">
+          <TransactionHistoryList
+            transactions={transactions}
+            role="male"
+            loading={loadingHistory}
+          />
         </div>
       )}
     </div>

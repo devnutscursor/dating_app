@@ -5,6 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { fetchMyPayouts, requestPayout, type AdminPayout } from '@/lib/payouts';
 import { fetchMyTransactions } from '@/lib/payments';
 import type { Transaction } from '@/types';
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '@/lib/supportContact';
 
 export default function WomanPayouts() {
   const { user: currentWomanUser, refreshUser, setCoins } = useAuth();
@@ -261,7 +262,11 @@ export default function WomanPayouts() {
                 <p className="mt-2 text-sm leading-6 text-blue-800">
                   Your coins will be credited to your account within 48 hours. Please make sure your crypto wallet
                   address is entered correctly below. If you have any issues with the funds being credited to your
-                  account, please contact the website&apos;s support team.
+                  account, please contact us at{' '}
+                  <a href={SUPPORT_MAILTO} className="font-medium text-blue-900 underline hover:no-underline">
+                    {SUPPORT_EMAIL}
+                  </a>
+                  .
                 </p>
               </div>
             </div>

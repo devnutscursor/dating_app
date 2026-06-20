@@ -6,6 +6,8 @@ import { layoutConversationToolbarClass } from '@/config/design';
 import { Heart, Gift, Eye, MessageCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchActivities } from '@/lib/activities';
+import { needsVideoVerification } from '@/lib/memberVerification';
+import VideoVerificationRequiredBanner from '@/components/profile/VideoVerificationRequiredBanner';
 import { formatRelativeTime } from '@/lib/formatRelativeTime';
 import { profileReturnState } from '@/lib/profileNavigation';
 import type { ActivityFeedItem, User } from '@/types';
@@ -37,6 +39,8 @@ export default function ActivityPanel() {
     window.addEventListener('focus', onFocus);
     return () => window.removeEventListener('focus', onFocus);
   }, [refresh]);
+
+  const verificationLocked = needsVideoVerification(me);
 
   const getIcon = (type: ActivityFeedItem['type']) => {
     switch (type) {
@@ -96,10 +100,13 @@ export default function ActivityPanel() {
       </div>
 
       <div className="min-h-0 flex-1 space-y-4 overflow-auto p-4">
-        {loading && (
+        {verificationLocked ? (
+          <VideoVerificationRequiredBanner compact />
+        ) : loading ? (
           <p className="text-center text-sm text-gray-500 py-6">Loading…</p>
-        )}
-        {!loading &&
+        ) : items.length === 0 ? (
+          <p className="text-center text-sm text-gray-500 py-6">No recent activity</p>
+        ) : (
           items.map((activity) => {
             const profilePath = `/${area}/view-profile/${activity.actor.id}`;
             const nameEl = actorCanOpenProfile(activity.actor) ? (
@@ -129,13 +136,7 @@ export default function ActivityPanel() {
                 </div>
               </div>
             );
-          })}
-
-        {!loading && items.length === 0 && (
-          <div className="py-8 text-center">
-            <Heart className="mx-auto mb-3 h-12 w-12 text-gray-300" />
-            <p className="text-gray-500">No recent activity</p>
-          </div>
+          })
         )}
       </div>
     </div>

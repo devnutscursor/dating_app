@@ -11,6 +11,7 @@ import {
   withdrawalFeeCoins,
 } from '../config/payouts.js';
 import { createInAppNotification } from '../services/inAppNotifications.js';
+import { notifyCoinBalanceChange } from '../services/coinBalanceNotifications.js';
 
 function serializePayout(doc, user) {
   const p = doc.toObject ? doc.toObject() : doc;
@@ -109,6 +110,12 @@ export async function requestPayout(req, res) {
     amountCoins,
     walletAddress,
   }).catch(() => {});
+  void notifyCoinBalanceChange(io, {
+    userId: user._id,
+    delta: -amountCoins,
+    newBalance: user.coins,
+    reason: `Withdrawal request — ${amountCoins} coins`,
+  });
 
   res.status(201).json({
     payout: serializePayout(payout, user),
@@ -275,8 +282,8 @@ export async function patchPayoutAdmin(req, res) {
     kind: 'system',
     title: 'Payout rejected',
     body: note
-      ? `Your withdrawal was rejected: ${note}. Coins were returned to your balance.`
-      : 'Your withdrawal was rejected. Coins were returned to your balance.',
+      ? `Your withdrawal was rejected: ${note}. ${payout.amountCoins} coins were returned to your balance (new balance: ${user.coins} coins).`
+      : `Your withdrawal was rejected. ${payout.amountCoins} coins were returned to your balance (new balance: ${user.coins} coins).`,
     subtitle: note || undefined,
   });
 

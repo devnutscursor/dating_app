@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '@/lib/supportContact';
 
 export default function RefundPage() {
   return (
@@ -71,7 +72,7 @@ export default function RefundPage() {
                 To request a refund:
               </p>
               <ol className="list-decimal list-inside text-gray-600 space-y-2 ml-4">
-                <li>Contact our support team within 14 days of the transaction</li>
+                <li>Contact us at {SUPPORT_EMAIL} within 14 days of the transaction</li>
                 <li>Provide your transaction ID and reason for the refund</li>
                 <li>Our team will review your request within 3-5 business days</li>
                 <li>If approved, refunds will be sent to the same cryptocurrency wallet or payment used for the purchase, where technically possible</li>
@@ -99,8 +100,11 @@ export default function RefundPage() {
             <section>
               <h2 className="text-xl font-semibold text-gray-900 mb-4">7. Contact</h2>
               <p className="text-gray-600 leading-relaxed">
-                For refund requests or questions about this policy, please contact us at 
-                support@memberdate.com with the subject line &quot;Refund Request&quot;.
+                For refund requests or questions about this policy, please contact us at{' '}
+                <a href={SUPPORT_MAILTO} className="text-green-600 hover:underline">
+                  {SUPPORT_EMAIL}
+                </a>{' '}
+                with the subject line &quot;Refund Request&quot;.
               </p>
             </section>
           </div>

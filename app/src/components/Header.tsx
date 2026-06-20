@@ -12,6 +12,7 @@ import { useSearchFilters } from '@/contexts/SearchFiltersContext';
 import { profileReturnState } from '@/lib/profileNavigation';
 import { resolveSearchQuery } from '@/lib/resolveSearchQuery';
 import ProfileAvatar from '@/components/profile/ProfileAvatar';
+import { needsVideoVerification } from '@/lib/memberVerification';
 import { toast } from 'sonner';
 
 interface HeaderProps {
@@ -30,9 +31,13 @@ export default function Header({ userType, onMenuClick, onActivityClick }: Heade
   const [idQuery, setIdQuery] = useState(userIdSearch);
   const [unreadCount, setUnreadCount] = useState(0);
   const coins = user?.coins ?? 0;
+  const notificationsLocked = userType === 'woman' && needsVideoVerification(user);
 
   useEffect(() => {
-    if (!user || user.role === 'moderator' || user.role === 'admin') return;
+    if (!user || user.role === 'moderator' || user.role === 'admin' || notificationsLocked) {
+      setUnreadCount(0);
+      return;
+    }
     let cancelled = false;
     const loadCount = async () => {
       try {
@@ -50,7 +55,7 @@ export default function Header({ userType, onMenuClick, onActivityClick }: Heade
       cancelled = true;
       unsub();
     };
-  }, [user]);
+  }, [user, notificationsLocked]);
 
   useEffect(() => {
     setIdQuery(userIdSearch);
@@ -151,10 +156,19 @@ export default function Header({ userType, onMenuClick, onActivityClick }: Heade
             variant="ghost"
             size="icon"
             className="relative"
-            onClick={() => setNotificationsOpen(true)}
+            onClick={() => {
+              if (notificationsLocked) {
+                toast.info(
+                  'Only after completing video verification will you be able to receive notifications and send messages.'
+                );
+                navigate('/woman/profile/verify');
+                return;
+              }
+              setNotificationsOpen(true);
+            }}
           >
             <Bell className="w-5 h-5" />
-            {unreadCount > 0 && (
+            {!notificationsLocked && unreadCount > 0 && (
               <span className="absolute right-1 top-1 flex h-2 min-w-2 rounded-full bg-red-500 px-0.5" />
             )}
           </Button>
