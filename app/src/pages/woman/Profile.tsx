@@ -157,7 +157,9 @@ export default function WomanProfile() {
                 </div>
                 <div>
                   <p className="font-semibold text-blue-950">Get verified</p>
-                  <p className="text-sm text-blue-900/75">Record a short video saying on-screen numbers</p>
+                  <p className="text-sm text-blue-900/75">
+                    Complete video verification to send messages and receive notifications
+                  </p>
                 </div>
               </div>
               <ChevronRight className="h-5 w-5 shrink-0 text-blue-600" />

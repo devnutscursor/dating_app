@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { Navigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '@/lib/supportContact';
 
 type Role = 'male' | 'female' | 'admin' | 'moderator';
 
@@ -13,8 +14,11 @@ function SuspendedMemberScreen({ reason }: { reason?: string }) {
         <h1 className="text-xl font-semibold text-gray-900">Account suspended</h1>
         <p className="mt-3 text-sm leading-relaxed text-gray-600">
           Your access to MemberDate dating features has been suspended for violating our Terms of Service or Community
-          Guidelines. If you believe this is a mistake, contact support through the email on our website — do not create
-          another account to bypass this suspension.
+          Guidelines. If you believe this is a mistake, contact us at{' '}
+          <a href={SUPPORT_MAILTO} className="font-medium text-green-600 hover:underline">
+            {SUPPORT_EMAIL}
+          </a>{' '}
+          — do not create another account to bypass this suspension.
         </p>
         {reason?.trim() ? (
           <p className="mt-4 rounded-lg bg-gray-50 p-3 text-sm text-gray-800">

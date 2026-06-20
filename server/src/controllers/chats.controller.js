@@ -8,6 +8,10 @@ import { emitChatUpdatedToParticipants } from '../realtime/emitChatUpdate.js';
 import { createActivity } from '../services/activityLog.js';
 import { createInAppNotification } from '../services/inAppNotifications.js';
 import { getPlatformSettings } from '../services/siteSettings.js';
+import {
+  femaleNeedsVideoVerification,
+  VIDEO_VERIFICATION_REQUIRED_BODY,
+} from '../utils/femaleVideoVerification.js';
 import { notifyAdminsNewReport } from '../services/adminAlerts.js';
 
 function otherParticipantId(chat, selfId) {
@@ -138,8 +142,23 @@ async function persistGiftMessage(req, res, chat, amt, giftLabel, giftNoteRaw) {
       details: giftNote,
     });
 
-    const populated = await Chat.findById(chat._id).populate('participants', '-password');
     const io = req.app.get('io');
+    const giftBody = giftNote
+      ? `${senderName} sent you ${label} (${amt} coins): ${giftNote}`
+      : `${senderName} sent you ${label} (${amt} coins)`;
+    try {
+      await createInAppNotification(io, {
+        userId: recipientId,
+        kind: 'gift',
+        title: 'You received a gift',
+        body: giftBody,
+        relatedUserId: req.user._id,
+      });
+    } catch (notifyErr) {
+      console.error('Gift in-app notification failed', notifyErr);
+    }
+
+    const populated = await Chat.findById(chat._id).populate('participants', '-password');
     emitChatUpdatedToParticipants(io, populated);
     return res.status(201).json({
       chat: serializeChatDoc(populated, req.user._id),
@@ -306,6 +325,9 @@ export async function sendMessage(req, res) {
   }
   if (chat.isBlocked) {
     return res.status(403).json({ error: 'This conversation has been blocked' });
+  }
+  if (femaleNeedsVideoVerification(req.user) && chat.chatKind !== 'moderator_support') {
+    return res.status(403).json(VIDEO_VERIFICATION_REQUIRED_BODY);
   }
   const msgType = type && ['text', 'image', 'video', 'gift'].includes(type) ? type : 'text';
 

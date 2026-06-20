@@ -14,6 +14,8 @@ import { cn } from '@/lib/utils';
 import { profileReturnState } from '@/lib/profileNavigation';
 import type { User } from '@/types';
 
+const SWIPE_ANIMATION_MS = 200;
+
 export default function ManSwipes() {
   const location = useLocation();
   const profileNavState = profileReturnState(location.pathname + location.search);
@@ -69,8 +71,10 @@ export default function ManSwipes() {
       });
   };
 
+  const isAnimating = direction !== null;
+
   const handleSwipe = (dir: 'left' | 'right') => {
-    if (!currentUser) return;
+    if (!currentUser || isAnimating) return;
     const id = currentUser.id;
     setDirection(dir);
     const advanceDeck = () => {
@@ -78,19 +82,16 @@ export default function ManSwipes() {
       setUsers((prev) => (prev ?? []).filter((u) => u.id !== id));
       setCurrentIndex(0);
     };
-    if (dir === 'left') {
-      setTimeout(advanceDeck, 300);
-      return;
+    window.setTimeout(advanceDeck, SWIPE_ANIMATION_MS);
+    if (dir === 'right') {
+      void sendLike(id)
+        .then((res) => {
+          if (res.liked) toast('Like sent');
+        })
+        .catch((e) => {
+          toast.error(e instanceof Error ? e.message : 'Like failed');
+        });
     }
-    void sendLike(id)
-      .then((res) => {
-        if (res.liked) toast('Like sent');
-        setTimeout(advanceDeck, 300);
-      })
-      .catch((e) => {
-        toast.error(e instanceof Error ? e.message : 'Like failed');
-        setDirection(null);
-      });
   };
 
   if (loading) {
@@ -140,13 +141,11 @@ export default function ManSwipes() {
 
       <div className="flex flex-1 items-center justify-center p-4">
         <div
-          className={`relative w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl transition-transform duration-300 ${
-            direction === 'left'
-              ? '-translate-x-full rotate-[-10deg] opacity-0'
-              : direction === 'right'
-                ? 'translate-x-full rotate-[10deg] opacity-0'
-                : ''
-          }`}
+          className={cn(
+            'relative w-full max-w-sm overflow-hidden rounded-3xl bg-white shadow-2xl will-change-transform transition-[transform,opacity] duration-200 ease-out',
+            direction === 'left' && '-translate-x-[120%] -rotate-12 opacity-0',
+            direction === 'right' && 'translate-x-[120%] rotate-12 opacity-0'
+          )}
         >
           <div className="relative aspect-[3/4]">
             <Link
@@ -204,7 +203,8 @@ export default function ManSwipes() {
         <button
           type="button"
           onClick={() => handleSwipe('left')}
-          className="flex h-16 w-16 items-center justify-center rounded-full border border-gray-200 bg-white shadow-lg transition-colors hover:bg-gray-50"
+          disabled={isAnimating}
+          className="flex h-16 w-16 items-center justify-center rounded-full border border-gray-200 bg-white shadow-lg transition-colors hover:bg-gray-50 disabled:pointer-events-none disabled:opacity-50"
           aria-label="Pass"
         >
           <X className="h-8 w-8 text-red-500" />
@@ -213,7 +213,8 @@ export default function ManSwipes() {
         <button
           type="button"
           onClick={() => handleSwipe('right')}
-          className="flex h-20 w-20 items-center justify-center rounded-full bg-green-500 shadow-lg transition-colors hover:bg-green-600"
+          disabled={isAnimating}
+          className="flex h-20 w-20 items-center justify-center rounded-full bg-green-500 shadow-lg transition-colors hover:bg-green-600 disabled:pointer-events-none disabled:opacity-50"
           aria-label="Like"
         >
           <Heart className="h-10 w-10 fill-white text-white" />

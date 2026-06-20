@@ -24,6 +24,7 @@ import ReportUserModal from '@/components/modals/ReportUserModal';
 import SendGiftModal from '@/components/modals/SendGiftModal';
 import MediaPreviewModal from '@/components/modals/MediaPreviewModal';
 import VideoCallConfirmModal from '@/components/modals/VideoCallConfirmModal';
+import CallRatesWarning from '@/components/call/CallRatesWarning';
 import { useCallPricing } from '@/lib/callPricing';
 import type { CallType } from '@/lib/chatSocket';
 import { useChatDetailLoader } from '@/hooks/useChatDetailLoader';
@@ -398,6 +399,8 @@ export default function ManChatDetail() {
             actions are turned off here.
           </div>
         )}
+
+        {!isModSupport && <CallRatesWarning compact className="mx-3 mt-2 shrink-0 sm:mx-4" />}
 
         {/* Messages */}
         <div

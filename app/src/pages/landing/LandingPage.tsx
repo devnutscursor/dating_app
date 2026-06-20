@@ -4,6 +4,7 @@ import { Users, MessageCircle, Video, Shield, Check, Star, ChevronDown, ChevronU
 import { Button } from '@/components/ui/button';
 import { coinPacks, mockUsers } from '@/data/mockData';
 import BrandLogo from '@/components/BrandLogo';
+import { SUPPORT_MAILTO } from '@/lib/supportContact';
 
 const features = [
   {
@@ -485,7 +486,11 @@ export default function LandingPage() {
               <ul className="space-y-2 text-amber-50/50">
                 <li><Link to="/rules" className="transition-colors hover:text-amber-100">Community Rules</Link></li>
                 <li><a href="#faq" className="transition-colors hover:text-amber-100">FAQ</a></li>
-                <li><a href="#" className="transition-colors hover:text-amber-100">Contact Us</a></li>
+                <li>
+                  <a href={SUPPORT_MAILTO} className="transition-colors hover:text-amber-100">
+                    Contact Us
+                  </a>
+                </li>
               </ul>
             </div>
           </div>

@@ -23,6 +23,8 @@ import { EmojiPickerButton } from '@/components/chat/EmojiPickerButton';
 import BlockUserModal from '@/components/modals/BlockUserModal';
 import ReportUserModal from '@/components/modals/ReportUserModal';
 import MediaPreviewModal from '@/components/modals/MediaPreviewModal';
+import VideoVerificationRequiredBanner from '@/components/profile/VideoVerificationRequiredBanner';
+import { needsVideoVerification, VIDEO_VERIFICATION_REQUIRED_MESSAGE } from '@/lib/memberVerification';
 
 export default function WomanChatDetail() {
   const { chatId } = useParams();
@@ -57,6 +59,7 @@ export default function WomanChatDetail() {
   const user = chat?.participant;
   const messages = chat?.messages ?? [];
   const isModSupport = Boolean(chat?.chatKind === 'moderator_support');
+  const messagingLocked = needsVideoVerification(me) && !isModSupport;
 
   const coinsFromPeer = useMemo(() => {
     if (chat?.coinsReceivedFromPeer != null) return chat.coinsReceivedFromPeer;
@@ -124,6 +127,10 @@ export default function WomanChatDetail() {
 
   const handleSend = async () => {
     if (!message.trim() || !chatId) return;
+    if (messagingLocked) {
+      toast.error(VIDEO_VERIFICATION_REQUIRED_MESSAGE);
+      return;
+    }
     try {
       const { chat: nextChat } = await postChatMessage(chatId, { content: message.trim(), type: 'text' });
       applyChatResponse(nextChat);
@@ -152,6 +159,10 @@ export default function WomanChatDetail() {
     const file = e.target.files?.[0];
     e.target.value = '';
     if (!file || !chatId) return;
+    if (messagingLocked) {
+      toast.error(VIDEO_VERIFICATION_REQUIRED_MESSAGE);
+      return;
+    }
     setImageBusy(true);
     try {
       const { url } = await apiUploadFile<{ url: string }>('/uploads/image', file);
@@ -429,6 +440,7 @@ export default function WomanChatDetail() {
 
         {/* Input */}
         <div className="shrink-0 border-t border-gray-200 bg-white px-3 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:p-4 sm:pb-[max(1rem,env(safe-area-inset-bottom))]">
+          {messagingLocked ? <VideoVerificationRequiredBanner compact className="mb-3" /> : null}
           <div className="flex min-w-0 items-center gap-1 sm:gap-2">
             <input
               ref={imageInputRef}
@@ -449,7 +461,7 @@ export default function WomanChatDetail() {
             <div className="flex shrink-0 items-center">
               <button
                 type="button"
-                disabled={imageBusy || !chatId}
+                disabled={imageBusy || !chatId || messagingLocked}
                 onClick={() => imageInputRef.current?.click()}
                 className="rounded-full p-1.5 hover:bg-gray-100 disabled:opacity-50 sm:p-2"
                 aria-label="Send photo"
@@ -467,15 +479,20 @@ export default function WomanChatDetail() {
                   <Clapperboard className="h-5 w-5 text-gray-500" />
                 </button>
               )}
-              <EmojiPickerButton onPick={(em) => setMessage((m) => m + em)} disabled={!chatId} />
+              <EmojiPickerButton onPick={(em) => setMessage((m) => m + em)} disabled={!chatId || messagingLocked} />
             </div>
             <input
               type="text"
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               onKeyDown={handleKeyDown}
+              disabled={messagingLocked}
               placeholder={
-                isModSupport ? 'Message — attach a photo or video if helpful' : 'Type a message...'
+                messagingLocked
+                  ? 'Complete video verification to send messages'
+                  : isModSupport
+                    ? 'Message — attach a photo or video if helpful'
+                    : 'Type a message...'
               }
               className={`min-w-0 flex-1 rounded-full px-3 py-2 text-sm outline-none focus:ring-2 sm:px-4 ${
                 isModSupport
@@ -486,7 +503,7 @@ export default function WomanChatDetail() {
             <Button
               type="button"
               onClick={() => void handleSend()}
-              disabled={!message.trim()}
+              disabled={!message.trim() || messagingLocked}
               size="icon"
               aria-label="Send message"
               className={`size-9 shrink-0 rounded-full ${

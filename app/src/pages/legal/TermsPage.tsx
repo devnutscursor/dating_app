@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ArrowLeft } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '@/lib/supportContact';
 
 export default function TermsPage() {
   return (
@@ -147,8 +148,8 @@ export default function TermsPage() {
               <h2 className="text-xl font-semibold text-gray-900 mb-4">10. Contact</h2>
               <p className="text-gray-600 leading-relaxed">
                 Questions about these Terms:{' '}
-                <a href="mailto:memberdate.info@gmail.com" className="text-green-600 hover:underline">
-                  memberdate.info@gmail.com
+                <a href={SUPPORT_MAILTO} className="text-green-600 hover:underline">
+                  {SUPPORT_EMAIL}
                 </a>
               </p>
             </section>

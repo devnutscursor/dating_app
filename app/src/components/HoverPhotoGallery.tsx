@@ -45,11 +45,17 @@ export default function HoverPhotoGallery({
   const leaveRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const touchStartRef = useRef<{ x: number; y: number; t: number } | null>(null);
   const suppressClickRef = useRef(false);
+  const blockMouseScrubRef = useRef(false);
 
   const activeIndex = controlledIndex ?? internalIndex;
   const activeIndexRef = useRef(activeIndex);
   activeIndexRef.current = activeIndex;
   const autoCycle = controlledIndex === undefined && gallery.length > 1;
+  /** Profile-style galleries: one tap = one photo step. Discover desktop keeps hover scrub. */
+  const useTapStepNavigation =
+    controlledIndex !== undefined ||
+    (typeof window !== 'undefined' &&
+      (window.matchMedia('(pointer: coarse)').matches || 'ontouchstart' in window));
 
   const setActiveIndex = useCallback(
     (index: number) => {
@@ -94,7 +100,7 @@ export default function HoverPhotoGallery({
 
   const updateIndexFromPointer = useCallback(
     (clientX: number, target: HTMLDivElement) => {
-      if (gallery.length <= 1) return;
+      if (useTapStepNavigation || gallery.length <= 1) return;
       const rect = target.getBoundingClientRect();
       const width = rect.width || 1;
       const x = Math.max(0, Math.min(clientX - rect.left, width));
@@ -102,10 +108,11 @@ export default function HoverPhotoGallery({
       setActiveIndex(zone);
       if (isHovering && autoCycle) startAdvance();
     },
-    [gallery.length, setActiveIndex, isHovering, autoCycle, startAdvance]
+    [gallery.length, setActiveIndex, isHovering, autoCycle, startAdvance, useTapStepNavigation]
   );
 
-  const handleZoneTap = useCallback(
+  /** Left = previous, right = next (one step). Center opens preview when provided. */
+  const handleStepTap = useCallback(
     (clientX: number, target: HTMLDivElement) => {
       if (gallery.length <= 1) {
         onClick?.();
@@ -132,6 +139,7 @@ export default function HoverPhotoGallery({
   };
 
   const handleMouseEnter = (e: MouseEvent<HTMLDivElement>) => {
+    if (useTapStepNavigation || blockMouseScrubRef.current) return;
     if (leaveRef.current) {
       clearTimeout(leaveRef.current);
       leaveRef.current = null;
@@ -142,12 +150,14 @@ export default function HoverPhotoGallery({
   };
 
   const handleMouseLeave = () => {
+    if (useTapStepNavigation) return;
     setIsHovering(false);
     clearAdvance();
     leaveRef.current = setTimeout(() => setActiveIndex(0), LEAVE_RESET_MS);
   };
 
   const handleTouchStart = (e: TouchEvent<HTMLDivElement>) => {
+    blockMouseScrubRef.current = true;
     const touch = e.touches[0];
     if (!touch) return;
     touchStartRef.current = { x: touch.clientX, y: touch.clientY, t: Date.now() };
@@ -176,17 +186,25 @@ export default function HoverPhotoGallery({
 
     if (Math.abs(dx) <= TAP_MAX_MOVE_PX && Math.abs(dy) <= TAP_MAX_MOVE_PX && elapsed <= TAP_MAX_MS) {
       suppressClickRef.current = true;
-      handleZoneTap(touch.clientX, e.currentTarget);
+      handleStepTap(touch.clientX, e.currentTarget);
       window.setTimeout(() => {
         suppressClickRef.current = false;
+        blockMouseScrubRef.current = false;
       }, 400);
+      return;
     }
+
+    window.setTimeout(() => {
+      blockMouseScrubRef.current = false;
+    }, 400);
   };
 
   const handleClick = (e: MouseEvent<HTMLDivElement>) => {
-    if (suppressClickRef.current) return;
-    // Desktop: respect hover-selected index; click opens preview or advances via zones on touch devices emulating click.
-    if ('ontouchstart' in window) return;
+    if (suppressClickRef.current || blockMouseScrubRef.current) return;
+    if (useTapStepNavigation) {
+      handleStepTap(e.clientX, e.currentTarget);
+      return;
+    }
     if (gallery.length > 1) {
       const rect = e.currentTarget.getBoundingClientRect();
       const x = e.clientX - rect.left;
@@ -234,7 +252,11 @@ export default function HoverPhotoGallery({
       }
       role={onClick ? 'button' : undefined}
       tabIndex={onClick ? 0 : undefined}
-      aria-label={onClick ? `${alt}. Swipe or tap sides to change photo.` : alt}
+      aria-label={
+        onClick
+          ? `${alt}. Tap left or right to change photo, center to open.`
+          : `${alt}. Tap left or right to change photo.`
+      }
     >
       {gallery.length > 1 && (
         <div className="pointer-events-none absolute inset-x-3 top-3 z-10 flex gap-1">

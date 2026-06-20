@@ -7,6 +7,7 @@ import {
   isPaymentComplete,
   verifyIpnSignature,
 } from '../services/nowpayments.js';
+import { notifyCoinBalanceChange } from '../services/coinBalanceNotifications.js';
 
 function serializeTransaction(tx) {
   return {
@@ -138,9 +139,19 @@ export async function paymentWebhook(req, res) {
     if (tx.status !== 'completed') {
       tx.status = 'completed';
       await tx.save();
-      await User.findByIdAndUpdate(tx.userId, {
-        $inc: { coins: tx.amount },
-      });
+      const updated = await User.findByIdAndUpdate(
+        tx.userId,
+        { $inc: { coins: tx.amount } },
+        { new: true }
+      );
+      if (updated) {
+        void notifyCoinBalanceChange(req.app.get('io'), {
+          userId: updated._id,
+          delta: tx.amount,
+          newBalance: updated.coins,
+          reason: tx.description || 'Coin pack purchase',
+        });
+      }
     } else {
       await tx.save();
     }

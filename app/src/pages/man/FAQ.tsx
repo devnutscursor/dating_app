@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, HelpCircle, MessageCircle, Shield, Coins, Lock } from 'lucide-react';
+import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '@/lib/supportContact';
 
 const faqCategories = [
   {
@@ -37,7 +38,7 @@ const faqCategories = [
       },
       {
         question: 'Can I get a refund?',
-        answer: 'Refunds are handled on a case-by-case basis. Please contact our support team for assistance.',
+        answer: `Refunds are handled on a case-by-case basis. Please contact us at ${SUPPORT_EMAIL} for assistance.`,
       },
     ],
   },
@@ -102,11 +103,14 @@ export default function ManFAQ() {
           </div>
           <div className="flex-1">
             <h3 className="font-semibold text-lg">Need more help?</h3>
-            <p className="text-white/80">Our support team is here to assist you</p>
+            <p className="text-white/80">Email us at {SUPPORT_EMAIL}</p>
           </div>
-          <button className="px-4 py-2 bg-white text-green-600 rounded-lg font-medium hover:bg-white/90 transition-colors">
+          <a
+            href={SUPPORT_MAILTO}
+            className="px-4 py-2 bg-white text-green-600 rounded-lg font-medium hover:bg-white/90 transition-colors"
+          >
             Contact Us
-          </button>
+          </a>
         </div>
       </div>
 
