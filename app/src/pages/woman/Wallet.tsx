@@ -8,6 +8,7 @@ import { CACHE } from '@/lib/cacheKeys';
 import { fetchMyTransactions } from '@/lib/payments';
 import { earningsOverview } from '@/lib/walletTransactions';
 import { useCallPricing } from '@/lib/callPricing';
+import { coinsToUsdDisplay } from '@/lib/payouts';
 import TransactionHistoryList from '@/components/wallet/TransactionHistoryList';
 import type { Transaction } from '@/types';
 
@@ -68,7 +69,7 @@ export default function WomanWallet() {
           </div>
           <div className="text-right">
             <p className="text-sm text-white/80">Estimated Value</p>
-            <p className="text-2xl font-bold">${(currentWomanUser.coins * 0.15).toFixed(2)}</p>
+            <p className="text-2xl font-bold">${coinsToUsdDisplay(currentWomanUser.coins)}</p>
           </div>
         </div>
       </div>
@@ -173,7 +174,7 @@ export default function WomanWallet() {
               <span className="font-medium text-gray-900">Total Earnings</span>
               <span className="text-2xl font-bold text-green-600">{totalEarnings} Koins</span>
             </div>
-            <p className="mt-1 text-sm text-gray-500">≈ ${(totalEarnings * 0.15).toFixed(2)} USD</p>
+            <p className="mt-1 text-sm text-gray-500">≈ ${coinsToUsdDisplay(totalEarnings)} USD</p>
           </div>
         </div>
       ) : (
