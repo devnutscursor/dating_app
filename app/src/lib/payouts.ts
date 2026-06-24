@@ -7,6 +7,21 @@ export type PayoutConfig = {
   feeRate: number;
 };
 
+/** Coin → USD display rate ($5 per 100 coins). */
+export const COIN_TO_USD = 0.05;
+
+/** @deprecated Use COIN_TO_USD */
+export const FEMALE_COIN_TO_USD = COIN_TO_USD;
+
+export function coinsToUsdDisplay(coins: number): string {
+  return (Math.round(coins * COIN_TO_USD * 100) / 100).toFixed(2);
+}
+
+/** @deprecated Use coinsToUsdDisplay */
+export function femaleCoinsToUsd(coins: number): string {
+  return coinsToUsdDisplay(coins);
+}
+
 export type AdminPayout = PayoutRequest & {
   userName?: string;
   userEmail?: string;

@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import type { CoinPack, Transaction } from '@/types';
 import { createCoinPurchase, fetchCoinPacks, fetchMyTransactions } from '@/lib/payments';
+import { coinsToUsdDisplay } from '@/lib/payouts';
 import TransactionHistoryList from '@/components/wallet/TransactionHistoryList';
 
 export default function ManWallet() {
@@ -107,7 +108,7 @@ export default function ManWallet() {
           </div>
           <div className="text-right">
             <p className="text-white/80 text-sm">Estimated Value</p>
-            <p className="text-2xl font-bold">${(currentUser.coins * 0.15).toFixed(2)}</p>
+            <p className="text-2xl font-bold">${coinsToUsdDisplay(currentUser.coins)}</p>
           </div>
         </div>
       </div>

@@ -1,5 +1,5 @@
-/** Coins → USD list rate (display / minimum checks). */
-export const COIN_TO_USD = 0.15;
+/** Coins → USD rate for all members ($5 per 100 coins). */
+export const COIN_TO_USD = 0.05;
 
 /** Minimum withdrawal value in USD after fee. */
 export const MIN_WITHDRAWAL_USD = 60;

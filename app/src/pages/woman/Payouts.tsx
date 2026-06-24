@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Coins, CreditCard, DollarSign, History, Gift, Video, Copy, Check, Wallet, TrendingUp, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchMyPayouts, requestPayout, type AdminPayout } from '@/lib/payouts';
+import { fetchMyPayouts, requestPayout, COIN_TO_USD, type AdminPayout } from '@/lib/payouts';
 import { fetchMyTransactions } from '@/lib/payments';
 import type { Transaction } from '@/types';
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '@/lib/supportContact';
@@ -18,7 +18,7 @@ export default function WomanPayouts() {
   const [submitting, setSubmitting] = useState(false);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
-  const [coinToUsdRate, setCoinToUsdRate] = useState(0.15);
+  const [coinToUsdRate, setCoinToUsdRate] = useState(COIN_TO_USD);
   const [minWithdrawalUsd, setMinWithdrawalUsd] = useState(60);
 
   const loadHistory = useCallback(async () => {
@@ -103,7 +103,7 @@ export default function WomanPayouts() {
               <p className="text-3xl font-bold">{currentWomanUser.coins} coins</p>
             </div>
           </div>
-          <p className="text-white/70 text-sm">≈ ${(currentWomanUser.coins * 0.15).toFixed(2)} USD</p>
+          <p className="text-white/70 text-sm">≈ ${(currentWomanUser.coins * coinToUsdRate).toFixed(2)} USD</p>
         </div>
 
         <div className="bg-gradient-to-r from-purple-500 to-pink-500 rounded-2xl p-6 text-white">
@@ -116,7 +116,7 @@ export default function WomanPayouts() {
               <p className="text-3xl font-bold">{totalEarnings} coins</p>
             </div>
           </div>
-          <p className="text-white/70 text-sm">≈ ${(totalEarnings * 0.15).toFixed(2)} USD</p>
+          <p className="text-white/70 text-sm">≈ ${(totalEarnings * coinToUsdRate).toFixed(2)} USD</p>
         </div>
       </div>
 
@@ -189,7 +189,7 @@ export default function WomanPayouts() {
                 </div>
                 <div className="text-right">
                   <p className="font-semibold text-purple-600">+{videoCallEarnings} coins</p>
-                  <p className="text-sm text-gray-500">≈ ${(videoCallEarnings * 0.15).toFixed(2)}</p>
+                  <p className="text-sm text-gray-500">≈ ${(videoCallEarnings * coinToUsdRate).toFixed(2)}</p>
                 </div>
               </div>
 
@@ -205,7 +205,7 @@ export default function WomanPayouts() {
                 </div>
                 <div className="text-right">
                   <p className="font-semibold text-pink-600">+{giftEarnings} coins</p>
-                  <p className="text-sm text-gray-500">≈ ${(giftEarnings * 0.15).toFixed(2)}</p>
+                  <p className="text-sm text-gray-500">≈ ${(giftEarnings * coinToUsdRate).toFixed(2)}</p>
                 </div>
               </div>
             </div>
