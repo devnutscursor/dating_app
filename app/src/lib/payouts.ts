@@ -50,10 +50,23 @@ export async function requestPayout(body: {
   return apiPost('/payouts/request', body);
 }
 
+export type EarningsBreakdownItem = { coins: number; count: number };
+
+export type EarningsSummary = {
+  totalEarnings: number;
+  breakdown: {
+    gift: EarningsBreakdownItem;
+    videoCall: EarningsBreakdownItem;
+    unlock: EarningsBreakdownItem;
+    tip: EarningsBreakdownItem;
+  };
+};
+
 export async function fetchMyPayouts(): Promise<{
   payouts: AdminPayout[];
   walletAddress: string;
   config: PayoutConfig;
+  earnings: EarningsSummary;
 }> {
   return apiGet('/payouts/mine');
 }

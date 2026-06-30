@@ -26,6 +26,7 @@ import MediaPreviewModal from '@/components/modals/MediaPreviewModal';
 import VideoCallConfirmModal from '@/components/modals/VideoCallConfirmModal';
 import CallRatesWarning from '@/components/call/CallRatesWarning';
 import { useCallPricing } from '@/lib/callPricing';
+import { useBuyCoins } from '@/contexts/BuyCoinsContext';
 import type { CallType } from '@/lib/chatSocket';
 import { useChatDetailLoader } from '@/hooks/useChatDetailLoader';
 
@@ -34,6 +35,7 @@ export default function ManChatDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user: me, refreshUser } = useAuth();
+  const { promptBuyCoinsIfNeeded } = useBuyCoins();
   const callPricing = useCallPricing();
   const { initiateCall, callStatus } = useCall();
   const [callConfirmType, setCallConfirmType] = useState<CallType | null>(null);
@@ -73,7 +75,9 @@ export default function ManChatDetail() {
       await initiateCall(user.id, chatId, callConfirmType, user.name, user.profilePicture);
       setCallConfirmType(null);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not start call');
+      if (!promptBuyCoinsIfNeeded(e)) {
+        toast.error(e instanceof Error ? e.message : 'Could not start call');
+      }
     } finally {
       setCallStartBusy(false);
     }
@@ -140,7 +144,9 @@ export default function ManChatDetail() {
       setMessage('');
       setChatDraft(chatId, '');
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not send message');
+      if (!promptBuyCoinsIfNeeded(e)) {
+        toast.error(e instanceof Error ? e.message : 'Could not send message');
+      }
     }
   };
 
@@ -184,7 +190,9 @@ export default function ManChatDetail() {
       const { chat: next } = await postChatMessage(chatId, { type: 'image', mediaUrl: url, content: '' });
       applyChatResponse(next);
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Could not send photo');
+      if (!promptBuyCoinsIfNeeded(err)) {
+        toast.error(err instanceof Error ? err.message : 'Could not send photo');
+      }
     } finally {
       setImageBusy(false);
     }
@@ -400,7 +408,9 @@ export default function ManChatDetail() {
           </div>
         )}
 
-        {!isModSupport && <CallRatesWarning compact className="mx-3 mt-2 shrink-0 sm:mx-4" />}
+        {!isModSupport && (
+          <CallRatesWarning compact dismissible userId={me?.id} className="mx-3 mt-2 shrink-0 sm:mx-4" />
+        )}
 
         {/* Messages */}
         <div

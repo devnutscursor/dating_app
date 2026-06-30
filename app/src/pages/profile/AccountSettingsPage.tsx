@@ -3,8 +3,15 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ArrowLeft, ChevronRight, Eye, EyeOff, LogOut, Mail, Shield, User } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiPost } from '@/lib/api';
+
+function focusMobileInput(e: React.FocusEvent<HTMLInputElement>) {
+  requestAnimationFrame(() => {
+    e.currentTarget.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  });
+}
 
 export default function AccountSettingsPage() {
   const navigate = useNavigate();
@@ -131,7 +138,7 @@ export default function AccountSettingsPage() {
         <div className="border-b border-gray-100 px-6 py-4">
           <h2 className="text-lg font-semibold text-gray-900">Change password</h2>
         </div>
-        <form onSubmit={handleChangePassword} autoComplete="off" className="space-y-4 p-6">
+        <form onSubmit={handleChangePassword} className="space-y-4 p-6">
           <p className="text-xs text-gray-500">
             We never store or show your password on this page. Type the password you use to sign in to MemberDate.
           </p>
@@ -140,27 +147,25 @@ export default function AccountSettingsPage() {
               Current password
             </label>
             <div className="relative">
-              <input
+              <Input
                 id="settings-current-password"
                 name="settings-current-password"
                 type={showCurrent ? 'text' : 'password'}
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
-                autoComplete="off"
+                onFocus={focusMobileInput}
+                autoComplete="current-password"
                 autoCorrect="off"
                 autoCapitalize="off"
                 spellCheck={false}
-                data-lpignore="true"
-                data-1p-ignore="true"
-                readOnly
-                onFocus={(e) => e.currentTarget.removeAttribute('readOnly')}
                 placeholder="Enter your current login password"
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-10 text-sm outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400"
+                className="pr-10 text-base"
               />
               <button
                 type="button"
+                tabIndex={-1}
                 onClick={() => setShowCurrent((v) => !v)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-2 top-1/2 z-10 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
                 aria-label={showCurrent ? 'Hide password' : 'Show password'}
               >
                 {showCurrent ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -172,24 +177,26 @@ export default function AccountSettingsPage() {
               New password
             </label>
             <div className="relative">
-              <input
+              <Input
                 id="settings-new-password"
                 name="settings-new-password"
                 type={showNew ? 'text' : 'password'}
                 value={newPassword}
                 onChange={(e) => setNewPassword(e.target.value)}
+                onFocus={focusMobileInput}
                 autoComplete="new-password"
                 autoCorrect="off"
                 autoCapitalize="off"
                 spellCheck={false}
                 minLength={8}
                 placeholder="At least 8 characters"
-                className="w-full rounded-lg border border-gray-200 px-3 py-2 pr-10 text-sm outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400"
+                className="pr-10 text-base"
               />
               <button
                 type="button"
+                tabIndex={-1}
                 onClick={() => setShowNew((v) => !v)}
-                className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                className="absolute right-2 top-1/2 z-10 -translate-y-1/2 p-1 text-gray-400 hover:text-gray-600"
                 aria-label={showNew ? 'Hide password' : 'Show password'}
               >
                 {showNew ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
@@ -200,18 +207,19 @@ export default function AccountSettingsPage() {
             <label htmlFor="settings-confirm-password" className="mb-1 block text-sm font-medium text-gray-700">
               Confirm new password
             </label>
-            <input
+            <Input
               id="settings-confirm-password"
               name="settings-confirm-password"
               type="password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
+              onFocus={focusMobileInput}
               autoComplete="new-password"
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck={false}
               placeholder="Repeat new password"
-              className="w-full rounded-lg border border-gray-200 px-3 py-2 text-sm outline-none focus:border-rose-400 focus:ring-1 focus:ring-rose-400"
+              className="text-base"
             />
           </div>
           <Button type="submit" disabled={savingPassword} className="w-full bg-rose-600 hover:bg-rose-700">

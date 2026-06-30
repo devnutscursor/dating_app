@@ -14,6 +14,7 @@ import {
   subscribeCallCoinsUpdated,
 } from '@/lib/chatSocket';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBuyCoinsOptional } from '@/contexts/BuyCoinsContext';
 import { toast } from 'sonner';
 import { apiGet } from '@/lib/api';
 import type { User } from '@/types';
@@ -44,6 +45,7 @@ const CallContext = createContext<CallContextValue | null>(null);
 
 export function CallProvider({ children }: { children: ReactNode }) {
   const { user, setCoins, refreshUser } = useAuth();
+  const buyCoins = useBuyCoinsOptional();
   const rtc = useWebRTCCall();
 
   const [incomingCallInfo, setIncomingCallInfo] = useState<IncomingCallInfo | null>(null);
@@ -82,9 +84,11 @@ export function CallProvider({ children }: { children: ReactNode }) {
       const text =
         message ||
         (reason === 'insufficient'
-          ? 'Not enough coins for this call. Voice calls are 5 coins/min; video chats are 10 coins/min.'
+          ? 'Insufficient coins to continue this call.'
           : 'Could not bill this call.');
-      toast.error(text);
+      if (!buyCoins?.promptBuyCoinsIfNeeded(new Error(text))) {
+        toast.error(text);
+      }
       rtc.endCall();
     });
 
@@ -101,7 +105,7 @@ export function CallProvider({ children }: { children: ReactNode }) {
       unsubBilling();
       unsubCoins();
     };
-  }, [user, rtc.chatId, rtc.endCall, setCoins, refreshUser]);
+  }, [user, rtc.chatId, rtc.callStatus, rtc.endCall, setCoins, refreshUser, buyCoins]);
 
   // Subscribe to incoming call socket events
   useEffect(() => {

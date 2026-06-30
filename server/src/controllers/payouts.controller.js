@@ -39,6 +39,40 @@ function maskWallet(addr) {
   return `${s.slice(0, 6)}…${s.slice(-4)}`;
 }
 
+const INCOME_TX_TYPES = ['gift', 'videoCall', 'unlock', 'tip'];
+
+async function summarizeEarnings(userId) {
+  const oid = new mongoose.Types.ObjectId(String(userId));
+  const rows = await Transaction.aggregate([
+    {
+      $match: {
+        userId: oid,
+        type: { $in: INCOME_TX_TYPES },
+        status: 'completed',
+      },
+    },
+    { $group: { _id: '$type', coins: { $sum: '$amount' }, count: { $sum: 1 } } },
+  ]);
+
+  const breakdown = {
+    gift: { coins: 0, count: 0 },
+    videoCall: { coins: 0, count: 0 },
+    unlock: { coins: 0, count: 0 },
+    tip: { coins: 0, count: 0 },
+  };
+
+  let totalEarnings = 0;
+  for (const row of rows) {
+    const key = row._id;
+    if (breakdown[key]) {
+      breakdown[key] = { coins: row.coins, count: row.count };
+      totalEarnings += row.coins;
+    }
+  }
+
+  return { totalEarnings, breakdown };
+}
+
 /** POST /api/payouts/request — woman requests withdrawal */
 export async function requestPayout(req, res) {
   if (req.user.gender !== 'female' || req.user.role !== 'female') {
@@ -132,11 +166,13 @@ export async function listMyPayouts(req, res) {
 
   const user = await User.findById(req.user._id).select('usdtWalletAddress name email').lean();
   const rows = await PayoutRequest.find({ userId: req.user._id }).sort({ createdAt: -1 }).limit(50).lean();
+  const earnings = await summarizeEarnings(req.user._id);
 
   res.json({
     payouts: rows.map((p) => serializePayout(p, user || req.user)),
     walletAddress: user?.usdtWalletAddress || '',
     config: { coinToUsd: COIN_TO_USD, minWithdrawalUsd: MIN_WITHDRAWAL_USD, feeRate: WITHDRAWAL_FEE_RATE },
+    earnings,
   });
 }
 

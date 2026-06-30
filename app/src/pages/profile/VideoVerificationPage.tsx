@@ -29,7 +29,8 @@ export default function VideoVerificationPage({ area }: Props) {
   const [recording, setRecording] = useState(false);
   const [recordedBlob, setRecordedBlob] = useState<Blob | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [submitBusy, setSubmitBusy] = useState(false);
+  const [challengeBusy, setChallengeBusy] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
 
   const stopCamera = useCallback(() => {
@@ -73,7 +74,7 @@ export default function VideoVerificationPage({ area }: Props) {
   }, [loadStatus, stopCamera]);
 
   const startChallenge = async () => {
-    setBusy(true);
+    setChallengeBusy(true);
     try {
       const data = await createVerificationChallenge();
       setChallengeNumbers(data.challengeNumbers);
@@ -85,7 +86,7 @@ export default function VideoVerificationPage({ area }: Props) {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not start verification');
     } finally {
-      setBusy(false);
+      setChallengeBusy(false);
     }
   };
 
@@ -135,7 +136,7 @@ export default function VideoVerificationPage({ area }: Props) {
 
   const submitVideo = async () => {
     if (!recordedBlob || !requestId) return;
-    setBusy(true);
+    setSubmitBusy(true);
     try {
       const file = new File([recordedBlob], 'verification.webm', { type: 'video/webm' });
       const { url } = await apiUploadFile<{ url: string }>('/uploads/video', file);
@@ -147,7 +148,7 @@ export default function VideoVerificationPage({ area }: Props) {
     } catch (e) {
       toast.error(e instanceof Error ? e.message : 'Could not submit verification');
     } finally {
-      setBusy(false);
+      setSubmitBusy(false);
     }
   };
 
@@ -211,8 +212,19 @@ export default function VideoVerificationPage({ area }: Props) {
           <p className="mb-4 text-sm text-gray-600">
             We&apos;ll show you five random digits. Say them aloud while your face is visible on camera.
           </p>
-          <Button onClick={() => void startChallenge()} disabled={busy} className="w-full bg-green-500 hover:bg-green-600">
-            {busy ? 'Starting…' : 'Get my numbers'}
+          <Button
+            onClick={() => void startChallenge()}
+            disabled={challengeBusy}
+            className="w-full bg-green-500 hover:bg-green-600"
+          >
+            {challengeBusy ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Starting…
+              </>
+            ) : (
+              'Get my numbers'
+            )}
           </Button>
         </div>
       ) : (
@@ -260,7 +272,8 @@ export default function VideoVerificationPage({ area }: Props) {
                   <Button
                     type="button"
                     variant="outline"
-                    className="flex-1"
+                    className="flex-1 min-w-0"
+                    disabled={submitBusy}
                     onClick={() => {
                       setRecordedBlob(null);
                       setPreviewUrl(null);
@@ -271,12 +284,21 @@ export default function VideoVerificationPage({ area }: Props) {
                   </Button>
                   <Button
                     type="button"
-                    className="flex-1 gap-2 bg-green-500 hover:bg-green-600"
-                    disabled={busy}
+                    className="flex-1 min-w-0 bg-green-500 hover:bg-green-600"
+                    disabled={submitBusy}
                     onClick={() => void submitVideo()}
                   >
-                    <Upload className="h-4 w-4" />
-                    {busy ? 'Uploading…' : 'Submit for review'}
+                    {submitBusy ? (
+                      <>
+                        <Loader2 className="h-4 w-4 shrink-0 animate-spin" />
+                        <span>Uploading…</span>
+                      </>
+                    ) : (
+                      <>
+                        <Upload className="h-4 w-4 shrink-0" />
+                        <span>Submit for review</span>
+                      </>
+                    )}
                   </Button>
                 </div>
               </>

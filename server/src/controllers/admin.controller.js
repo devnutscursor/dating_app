@@ -352,7 +352,7 @@ export async function patchUser(req, res) {
     return res.status(400).json({ error: 'You cannot modify your own account from this list' });
   }
 
-  const { name, coins, coinsDelta, isVerified, isBlocked } = req.body;
+  const { name, coins, coinsDelta, isVerified, isBlocked, newPassword } = req.body;
 
   if (coins !== undefined && coinsDelta !== undefined) {
     return res.status(400).json({ error: 'Use either coins or coinsDelta, not both' });
@@ -373,6 +373,16 @@ export async function patchUser(req, res) {
   }
   if (isBlocked !== undefined) {
     setFields.isBlocked = Boolean(isBlocked);
+  }
+
+  if (newPassword !== undefined && String(newPassword).trim() !== '') {
+    if (String(newPassword).length < 8) {
+      return res.status(400).json({ error: 'Password must be at least 8 characters' });
+    }
+    if (user.role === 'admin') {
+      return res.status(403).json({ error: 'Cannot reset admin passwords from the user list' });
+    }
+    setFields.password = await bcrypt.hash(String(newPassword), SALT_ROUNDS);
   }
 
   if (coinsDelta !== undefined) {

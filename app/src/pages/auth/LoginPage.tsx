@@ -110,7 +110,7 @@ export default function LoginPage() {
                 <input type="checkbox" className="w-4 h-4 text-green-500 rounded" />
                 <span className="text-sm text-gray-600">Remember me</span>
               </label>
-              <Link to="#" className="text-sm text-green-500 hover:text-green-600">
+              <Link to="/forgot-password" className="text-sm text-green-500 hover:text-green-600">
                 Forgot password?
               </Link>
             </div>
@@ -120,6 +120,7 @@ export default function LoginPage() {
             </Button>
           </form>
 
+          {/* Social sign-in — hidden until OAuth is wired up
           <div className="relative my-6">
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-gray-200" />
@@ -164,6 +165,7 @@ export default function LoginPage() {
               <span className="text-sm font-medium">Facebook</span>
             </button>
           </div>
+          */}
         </div>
 
         <p className="text-center mt-6 text-gray-600">

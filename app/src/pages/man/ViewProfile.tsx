@@ -26,6 +26,7 @@ import type { Photo, Video as VideoMedia } from '@/types';
 import { unlockMemberMedia } from '@/lib/social';
 import { createOrGetChat } from '@/lib/chats';
 import { useCall } from '@/contexts/CallContext';
+import { useBuyCoins } from '@/contexts/BuyCoinsContext';
 import VideoCallConfirmModal from '@/components/modals/VideoCallConfirmModal';
 import CallRatesWarning from '@/components/call/CallRatesWarning';
 import { useCallPricing } from '@/lib/callPricing';
@@ -66,6 +67,7 @@ export default function ManViewProfile() {
   const [videoConfirmOpen, setVideoConfirmOpen] = useState(false);
   const callPricing = useCallPricing();
   const { initiateCall, callStatus } = useCall();
+  const { promptBuyCoinsIfNeeded } = useBuyCoins();
 
   useEffect(() => {
     const tab = (location.state as ProfileLocationState | null)?.mediaTab;
@@ -123,7 +125,9 @@ export default function ManViewProfile() {
       toast.success(result.alreadyUnlocked ? 'Already unlocked' : 'Content unlocked');
       setUnlockModal((m) => ({ ...m, open: false }));
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not unlock content');
+      if (!promptBuyCoinsIfNeeded(e)) {
+        toast.error(e instanceof Error ? e.message : 'Could not unlock content');
+      }
     } finally {
       setUnlockBusy(false);
     }
@@ -219,7 +223,7 @@ export default function ManViewProfile() {
             {userId ? <ProfileLikeButton userId={userId} /> : null}
           </div>
 
-          <CallRatesWarning />
+          <CallRatesWarning dismissible userId={me?.id} />
 
           {/* About */}
           <div className="bg-white rounded-2xl p-6 shadow-sm">

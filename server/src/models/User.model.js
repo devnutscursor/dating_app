@@ -43,6 +43,8 @@ const userSchema = new mongoose.Schema(
     emailVerified: { type: Boolean, default: false },
     emailVerificationOtpHash: { type: String, select: false },
     emailVerificationOtpExpires: Date,
+    passwordResetOtpHash: { type: String, select: false },
+    passwordResetOtpExpires: Date,
     profileSetupComplete: { type: Boolean, default: false },
 
     name: { type: String, required: true, trim: true },
