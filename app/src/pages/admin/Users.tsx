@@ -100,6 +100,8 @@ export default function AdminUsers() {
   const [coinAdjustMode, setCoinAdjustMode] = useState<'add' | 'subtract'>('add');
   const [coinAdjustAmount, setCoinAdjustAmount] = useState('');
   const [editVerified, setEditVerified] = useState(false);
+  const [editNewPassword, setEditNewPassword] = useState('');
+  const [editConfirmPassword, setEditConfirmPassword] = useState('');
   const [editSaving, setEditSaving] = useState(false);
 
   useEffect(() => {
@@ -223,6 +225,8 @@ export default function AdminUsers() {
     setCoinAdjustMode('add');
     setCoinAdjustAmount('');
     setEditVerified(Boolean(user.isVerified));
+    setEditNewPassword('');
+    setEditConfirmPassword('');
   };
 
   const applyCoinPreset = (amount: number) => {
@@ -239,14 +243,32 @@ export default function AdminUsers() {
       return;
     }
 
+    const passwordRaw = editNewPassword.trim();
+    const confirmRaw = editConfirmPassword.trim();
+    if (passwordRaw || confirmRaw) {
+      if (passwordRaw.length < 8) {
+        toast.error('New password must be at least 8 characters');
+        return;
+      }
+      if (passwordRaw !== confirmRaw) {
+        toast.error('Passwords do not match');
+        return;
+      }
+    }
+
     const payload: {
       name: string;
       isVerified: boolean;
       coinsDelta?: number;
+      newPassword?: string;
     } = {
       name: editName,
       isVerified: editVerified,
     };
+
+    if (passwordRaw) {
+      payload.newPassword = passwordRaw;
+    }
 
     if (adjustNum > 0) {
       payload.coinsDelta = coinAdjustMode === 'add' ? adjustNum : -adjustNum;
@@ -260,6 +282,8 @@ export default function AdminUsers() {
         const verb = payload.coinsDelta > 0 ? 'Added' : 'Subtracted';
         const abs = Math.abs(payload.coinsDelta);
         toast.success(`${verb} ${abs} coins — new balance: ${data.user.coins}`);
+      } else if (payload.newPassword) {
+        toast.success('Password updated — the user must sign in with the new password');
       } else {
         toast.success('User updated');
       }
@@ -634,13 +658,14 @@ export default function AdminUsers() {
       </Dialog>
 
       <Dialog open={!!editUser} onOpenChange={(o) => !o && setEditUser(null)}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
+        <DialogContent className="flex max-h-[min(90vh,calc(100dvh-2rem))] flex-col gap-0 overflow-hidden p-0 sm:max-w-md">
+          <DialogHeader className="shrink-0 px-6 pt-6 pb-2">
             <DialogTitle>Edit user</DialogTitle>
           </DialogHeader>
           {editUser && (
             <>
-              <div className="grid gap-3 py-2">
+              <div className="min-h-0 flex-1 overflow-y-auto px-6 py-2">
+                <div className="grid gap-3">
                 <div className="grid gap-2">
                   <Label htmlFor="edit-name">Name</Label>
                   <Input id="edit-name" value={editName} onChange={(e) => setEditName(e.target.value)} />
@@ -726,8 +751,39 @@ export default function AdminUsers() {
                   />
                   Profile verified
                 </label>
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                  <p className="text-sm font-medium text-amber-900">
+                    {editUser.role === 'moderator' ? 'Reset moderator password' : 'Reset password'}
+                  </p>
+                  <p className="mt-1 text-xs text-amber-800">
+                    {editUser.role === 'moderator'
+                      ? 'Set a new password to revoke the moderator’s current login. Leave blank to keep their existing password.'
+                      : 'Leave blank to keep the current password.'}
+                  </p>
+                  <div className="mt-3 grid gap-2">
+                    <Label htmlFor="edit-new-password">New password</Label>
+                    <Input
+                      id="edit-new-password"
+                      type="password"
+                      value={editNewPassword}
+                      onChange={(e) => setEditNewPassword(e.target.value)}
+                      autoComplete="new-password"
+                      placeholder="Min 8 characters"
+                    />
+                    <Label htmlFor="edit-confirm-password">Confirm new password</Label>
+                    <Input
+                      id="edit-confirm-password"
+                      type="password"
+                      value={editConfirmPassword}
+                      onChange={(e) => setEditConfirmPassword(e.target.value)}
+                      autoComplete="new-password"
+                      placeholder="Repeat new password"
+                    />
+                  </div>
+                </div>
+                </div>
               </div>
-              <DialogFooter>
+              <DialogFooter className="shrink-0 border-t border-gray-100 bg-white px-6 py-4">
                 <Button type="button" variant="outline" onClick={() => setEditUser(null)}>
                   Cancel
                 </Button>

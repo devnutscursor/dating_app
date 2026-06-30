@@ -1,6 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from '@/components/ui/sonner';
 import { AuthProvider } from '@/contexts/AuthContext';
+import { BuyCoinsProvider } from '@/contexts/BuyCoinsContext';
 import { CallProvider } from '@/contexts/CallContext';
 import { ProtectedRoute } from '@/components/ProtectedRoute';
 import ChatInboxPage from '@/pages/shared/ChatInboxPage';
@@ -11,6 +12,7 @@ import AgeVerificationGate from '@/components/AgeVerificationGate';
 // Landing Pages
 import LandingPage from '@/pages/landing/LandingPage';
 import LoginPage from '@/pages/auth/LoginPage';
+import ForgotPasswordPage from '@/pages/auth/ForgotPasswordPage';
 import RegisterPage from '@/pages/auth/RegisterPage';
 import EmailVerificationPage from '@/pages/auth/EmailVerificationPage';
 import ProfileSetupPage from '@/pages/auth/ProfileSetupPage';
@@ -75,11 +77,13 @@ function App() {
     <Router>
       <AgeVerificationGate>
       <AuthProvider>
+        <BuyCoinsProvider>
         <CallProvider>
         <Routes>
           {/* Landing & Auth Routes */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/forgot-password" element={<ForgotPasswordPage />} />
           <Route path="/register" element={<RegisterPage />} />
           <Route path="/verify-email" element={<EmailVerificationPage />} />
           <Route path="/profile-setup" element={<ProfileSetupPage />} />
@@ -187,6 +191,7 @@ function App() {
         <IncomingCallOverlay />
         <GlobalCallModal />
         </CallProvider>
+        </BuyCoinsProvider>
       </AuthProvider>
       </AgeVerificationGate>
     </Router>

@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { Save, Coins, Video, Shield, Bell, Loader2 } from 'lucide-react';
+import { Save, Coins, Video, Shield, Bell, Loader2, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { apiGet, apiPatch } from '@/lib/api';
+import AdminChangePasswordForm from '@/components/admin/AdminChangePasswordForm';
 
 interface PlatformSettings {
   coinPricing: {
@@ -254,6 +255,20 @@ export default function AdminSettings() {
             </p>
           </div>
         </div>
+      </div>
+
+      {/* Admin account password */}
+      <div className="rounded-2xl bg-white p-6 shadow-sm">
+        <div className="mb-6 flex items-center gap-3">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-100">
+            <KeyRound className="h-5 w-5 text-amber-600" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-gray-900">Admin Password</h2>
+            <p className="text-sm text-gray-500">Change your admin login password</p>
+          </div>
+        </div>
+        <AdminChangePasswordForm />
       </div>
 
       {/* Notification Settings */}

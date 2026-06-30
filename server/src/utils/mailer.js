@@ -197,6 +197,60 @@ export async function sendVerificationEmail({ to, code, name }) {
 }
 
 /**
+ * Sends a 6-digit password reset code.
+ */
+export async function sendPasswordResetEmail({ to, code, name }) {
+  const greeting = name ? `Hi ${name},` : 'Hi,';
+  const subject = 'Reset your MemberDate password';
+  const text = `${greeting}\n\nYour password reset code is: ${code}\n\nIt expires in 15 minutes.\nIf you did not request this, you can ignore this email.\n`;
+  const html = `<p>${greeting}</p><p>Your password reset code is:</p><p style="font-size:24px;font-weight:bold;letter-spacing:4px">${code}</p><p>This code expires in 15 minutes.</p><p>If you did not request this, you can ignore this email.</p>`;
+
+  if (isEmailConfigured()) {
+    return sendOutboundMail({ to, subject, text, html, logLabel: 'mail:reset' });
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    console.error(
+      '[mail] No email transport configured. Set RESEND_API_KEY (recommended) or SMTP_* in production.'
+    );
+    return { sent: false, reason: 'email_not_configured' };
+  }
+
+  if (envTrim('DISABLE_ETHEREAL_FALLBACK') === 'true') {
+    console.warn(`[mail] Email not configured. Password reset code for ${to}: ${code}`);
+    return { sent: false, reason: 'email_not_configured' };
+  }
+
+  try {
+    const account = await getEtherealAccount();
+    const transporter = nodemailer.createTransport({
+      host: account.smtp.host,
+      port: account.smtp.port,
+      secure: account.smtp.secure,
+      auth: { user: account.user, pass: account.pass },
+    });
+    const info = await transporter.sendMail({
+      from: `"MemberDate Dev" <${account.user}>`,
+      to,
+      subject,
+      text,
+      html,
+    });
+    const previewUrl = nodemailer.getTestMessageUrl(info);
+    if (previewUrl) {
+      console.warn('[mail] Ethereal — open this URL in your browser to read the reset email:', previewUrl);
+    }
+    return { sent: true, transport: 'ethereal', previewUrl: previewUrl || undefined };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    console.error('[mail] Ethereal reset send failed:', message);
+  }
+
+  console.warn(`[mail] Email not configured. Password reset code for ${to}: ${code}`);
+  return { sent: false, reason: 'email_not_configured' };
+}
+
+/**
  * Admin alert email — Resend or SMTP (no Ethereal fallback).
  */
 export async function sendAdminAlertEmail({ to, subject, text, html }) {

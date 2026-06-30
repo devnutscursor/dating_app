@@ -12,6 +12,7 @@ import {
   type GiftSendPayload,
 } from '@/lib/gifts';
 import { useAuth } from '@/contexts/AuthContext';
+import { useBuyCoins } from '@/contexts/BuyCoinsContext';
 
 interface SendGiftModalProps {
   open: boolean;
@@ -29,6 +30,7 @@ const CARD_STYLES: Record<string, { bg: string; selected: string }> = {
 
 export default function SendGiftModal({ open, onClose, userName, onSendGift }: SendGiftModalProps) {
   const { user } = useAuth();
+  const { openBuyCoins, promptBuyCoinsIfNeeded } = useBuyCoins();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [comment, setComment] = useState('');
   const [customCoins, setCustomCoins] = useState('');
@@ -82,7 +84,9 @@ export default function SendGiftModal({ open, onClose, userName, onSendGift }: S
       });
       onClose();
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not send gift');
+      if (!promptBuyCoinsIfNeeded(e)) {
+        toast.error(e instanceof Error ? e.message : 'Could not send gift');
+      }
     } finally {
       setSending(false);
     }
@@ -206,7 +210,21 @@ export default function SendGiftModal({ open, onClose, userName, onSendGift }: S
           </div>
 
           {resolvedCoins != null && resolvedCoins > balance && (
-            <p className="text-sm text-red-600">Not enough coins for this gift.</p>
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-3">
+              <p className="text-sm text-amber-900">Not enough coins for this gift.</p>
+              <Button
+                type="button"
+                size="sm"
+                className="mt-2 bg-green-500 hover:bg-green-600"
+                onClick={() =>
+                  openBuyCoins({
+                    reason: `You need ${resolvedCoins} coins for this gift but only have ${balance}.`,
+                  })
+                }
+              >
+                Buy coins
+              </Button>
+            </div>
           )}
         </div>
 

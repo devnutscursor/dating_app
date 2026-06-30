@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Coins, CreditCard, DollarSign, History, Gift, Video, Copy, Check, Wallet, TrendingUp, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
-import { fetchMyPayouts, requestPayout, COIN_TO_USD, type AdminPayout } from '@/lib/payouts';
+import { fetchMyPayouts, requestPayout, COIN_TO_USD, type AdminPayout, type EarningsSummary } from '@/lib/payouts';
 import { fetchMyTransactions } from '@/lib/payments';
 import type { Transaction } from '@/types';
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '@/lib/supportContact';
@@ -20,6 +20,15 @@ export default function WomanPayouts() {
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [coinToUsdRate, setCoinToUsdRate] = useState(COIN_TO_USD);
   const [minWithdrawalUsd, setMinWithdrawalUsd] = useState(60);
+  const [earnings, setEarnings] = useState<EarningsSummary>({
+    totalEarnings: 0,
+    breakdown: {
+      gift: { coins: 0, count: 0 },
+      videoCall: { coins: 0, count: 0 },
+      unlock: { coins: 0, count: 0 },
+      tip: { coins: 0, count: 0 },
+    },
+  });
 
   const loadHistory = useCallback(async () => {
     try {
@@ -28,6 +37,17 @@ export default function WomanPayouts() {
       setWalletAddress((prev) => prev || payoutsRes.walletAddress || '');
       setCoinToUsdRate(payoutsRes.config.coinToUsd);
       setMinWithdrawalUsd(payoutsRes.config.minWithdrawalUsd);
+      setEarnings(
+        payoutsRes.earnings ?? {
+          totalEarnings: 0,
+          breakdown: {
+            gift: { coins: 0, count: 0 },
+            videoCall: { coins: 0, count: 0 },
+            unlock: { coins: 0, count: 0 },
+            tip: { coins: 0, count: 0 },
+          },
+        }
+      );
       setTxHistory(txs);
       setLoadError(null);
     } catch (e) {
@@ -53,10 +73,8 @@ export default function WomanPayouts() {
     setTimeout(() => setCopied(false), 2000);
   };
 
-  // Calculate earnings
-  const videoCallEarnings = 700;
-  const giftEarnings = 150;
-  const totalEarnings = videoCallEarnings + giftEarnings;
+  const { gift, videoCall, unlock, tip } = earnings.breakdown;
+  const totalEarnings = earnings.totalEarnings;
   const minWithdrawalCoins = Math.ceil(minWithdrawalUsd / coinToUsdRate);
   const withdrawCoins = Number(withdrawAmount) || 0;
   const withdrawFeeCoins = Math.floor(withdrawCoins * 0.05);
@@ -176,39 +194,91 @@ export default function WomanPayouts() {
           {/* Earnings Breakdown */}
           <div className="bg-white rounded-2xl shadow-sm p-6">
             <h3 className="font-semibold text-gray-900 mb-4">Earnings Breakdown</h3>
-            <div className="space-y-4">
-              <div className="flex items-center justify-between p-4 bg-purple-50 rounded-xl">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                    <Video className="w-5 h-5 text-purple-600" />
+            {totalEarnings === 0 ? (
+              <p className="text-sm text-gray-500 text-center py-6">No earnings yet. Video calls, gifts, and unlocks will appear here.</p>
+            ) : (
+              <div className="space-y-4">
+                {videoCall.count > 0 && (
+                <div className="flex items-center justify-between p-4 bg-purple-50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                      <Video className="w-5 h-5 text-purple-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Video Calls</p>
+                      <p className="text-sm text-gray-500">
+                        {videoCall.count} minute{videoCall.count === 1 ? '' : 's'} total
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Video Calls</p>
-                    <p className="text-sm text-gray-500">60 minutes total</p>
+                  <div className="text-right">
+                    <p className="font-semibold text-purple-600">+{videoCall.coins} coins</p>
+                    <p className="text-sm text-gray-500">≈ ${(videoCall.coins * coinToUsdRate).toFixed(2)}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-semibold text-purple-600">+{videoCallEarnings} coins</p>
-                  <p className="text-sm text-gray-500">≈ ${(videoCallEarnings * coinToUsdRate).toFixed(2)}</p>
-                </div>
-              </div>
+                )}
 
-              <div className="flex items-center justify-between p-4 bg-pink-50 rounded-xl">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center">
-                    <Gift className="w-5 h-5 text-pink-600" />
+                {gift.count > 0 && (
+                <div className="flex items-center justify-between p-4 bg-pink-50 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-pink-100 rounded-full flex items-center justify-center">
+                      <Gift className="w-5 h-5 text-pink-600" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-gray-900">Gifts Received</p>
+                      <p className="text-sm text-gray-500">
+                        {gift.count} gift{gift.count === 1 ? '' : 's'}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium text-gray-900">Gifts Received</p>
-                    <p className="text-sm text-gray-500">3 gifts</p>
+                  <div className="text-right">
+                    <p className="font-semibold text-pink-600">+{gift.coins} coins</p>
+                    <p className="text-sm text-gray-500">≈ ${(gift.coins * coinToUsdRate).toFixed(2)}</p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="font-semibold text-pink-600">+{giftEarnings} coins</p>
-                  <p className="text-sm text-gray-500">≈ ${(giftEarnings * coinToUsdRate).toFixed(2)}</p>
-                </div>
+                )}
+
+                {unlock.count > 0 && (
+                  <div className="flex items-center justify-between p-4 bg-blue-50 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                        <CreditCard className="w-5 h-5 text-blue-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">Media Unlocks</p>
+                        <p className="text-sm text-gray-500">
+                          {unlock.count} unlock{unlock.count === 1 ? '' : 's'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-blue-600">+{unlock.coins} coins</p>
+                      <p className="text-sm text-gray-500">≈ ${(unlock.coins * coinToUsdRate).toFixed(2)}</p>
+                    </div>
+                  </div>
+                )}
+
+                {tip.count > 0 && (
+                  <div className="flex items-center justify-between p-4 bg-amber-50 rounded-xl">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 bg-amber-100 rounded-full flex items-center justify-center">
+                        <Coins className="w-5 h-5 text-amber-600" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-gray-900">Tips</p>
+                        <p className="text-sm text-gray-500">
+                          {tip.count} tip{tip.count === 1 ? '' : 's'}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="font-semibold text-amber-600">+{tip.coins} coins</p>
+                      <p className="text-sm text-gray-500">≈ ${(tip.coins * coinToUsdRate).toFixed(2)}</p>
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            )}
           </div>
 
           {/* Referral Program */}
@@ -399,12 +469,20 @@ export default function WomanPayouts() {
                 </div>
                 <div
                   className={`font-semibold ${
-                    transaction.type === 'gift' || transaction.type === 'tip'
+                    transaction.type === 'gift' ||
+                    transaction.type === 'tip' ||
+                    transaction.type === 'videoCall' ||
+                    transaction.type === 'unlock'
                       ? 'text-green-600'
                       : 'text-gray-700'
                   }`}
                 >
-                  {transaction.type === 'gift' || transaction.type === 'tip' ? '+' : ''}
+                  {transaction.type === 'gift' ||
+                  transaction.type === 'tip' ||
+                  transaction.type === 'videoCall' ||
+                  transaction.type === 'unlock'
+                    ? '+'
+                    : ''}
                   {transaction.amount} coins
                 </div>
               </div>

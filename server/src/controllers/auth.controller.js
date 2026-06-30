@@ -4,7 +4,7 @@ import validator from 'validator';
 import { User } from '../models/User.model.js';
 import { signAccessToken } from '../utils/jwt.js';
 import { serializeUserForClient, memberNeedsEmailVerification } from '../utils/enrichMemberUser.js';
-import { sendVerificationEmail } from '../utils/mailer.js';
+import { sendVerificationEmail, sendPasswordResetEmail } from '../utils/mailer.js';
 import { forceUserOffline } from '../services/presence.js';
 import { notifyAdminsNewSignup } from '../services/adminAlerts.js';
 import { getPlatformSettings } from '../services/siteSettings.js';
@@ -228,8 +228,8 @@ export async function changePassword(req, res) {
     return res.status(400).json({ error: 'Password must be at least 8 characters' });
   }
   const role = req.user.role;
-  if (role !== 'male' && role !== 'female') {
-    return res.status(403).json({ error: 'Password change is only available for member accounts' });
+  if (!['male', 'female', 'admin', 'moderator'].includes(role)) {
+    return res.status(403).json({ error: 'Password change is not available for this account' });
   }
   const user = await User.findById(req.user._id).select('+password');
   if (!user) {
@@ -251,4 +251,71 @@ export async function logout(req, res) {
     message: 'Logged out. Clear the token on the client.',
     user: user ? await serializeUserForClient(user) : undefined,
   });
+}
+
+const PASSWORD_RESET_OK =
+  'If an account exists for that email, we sent a 6-digit reset code. Check your inbox.';
+
+export async function requestPasswordReset(req, res) {
+  const { email } = req.body;
+  if (!email || !validator.isEmail(String(email))) {
+    return res.status(400).json({ error: 'Enter a valid email address' });
+  }
+
+  const user = await User.findOne({ email: String(email).toLowerCase() });
+  if (user && !user.isBlocked) {
+    const plain = generateSixDigitOtp();
+    const hash = await bcrypt.hash(plain, OTP_ROUNDS);
+    user.passwordResetOtpHash = hash;
+    user.passwordResetOtpExpires = new Date(Date.now() + OTP_TTL_MS);
+    await user.save();
+    const mailResult = await sendPasswordResetEmail({ to: user.email, code: plain, name: user.name });
+    if (!mailResult.sent && process.env.NODE_ENV === 'production') {
+      user.passwordResetOtpHash = undefined;
+      user.passwordResetOtpExpires = undefined;
+      await user.save();
+      return res.status(503).json({ error: 'Could not send reset email. Try again later.' });
+    }
+  }
+
+  res.json({ message: PASSWORD_RESET_OK });
+}
+
+export async function resetPassword(req, res) {
+  const { email, code, newPassword } = req.body;
+  if (!email || !validator.isEmail(String(email))) {
+    return res.status(400).json({ error: 'Enter a valid email address' });
+  }
+  if (!code || String(code).replace(/\s/g, '').length !== 6) {
+    return res.status(400).json({ error: 'Enter the 6-digit code' });
+  }
+  if (!newPassword || String(newPassword).length < 8) {
+    return res.status(400).json({ error: 'Password must be at least 8 characters' });
+  }
+
+  const user = await User.findOne({ email: String(email).toLowerCase() }).select('+passwordResetOtpHash');
+  if (!user) {
+    return res.status(400).json({ error: 'Invalid code or email' });
+  }
+  if (user.isBlocked) {
+    return res.status(403).json({ error: 'This account has been suspended' });
+  }
+  if (!user.passwordResetOtpHash) {
+    return res.status(400).json({ error: 'No reset code on file. Request a new code.' });
+  }
+  if (!user.passwordResetOtpExpires || user.passwordResetOtpExpires.getTime() < Date.now()) {
+    return res.status(400).json({ error: 'Code expired. Request a new code.' });
+  }
+
+  const match = await bcrypt.compare(String(code).replace(/\s/g, ''), user.passwordResetOtpHash);
+  if (!match) {
+    return res.status(400).json({ error: 'Invalid code or email' });
+  }
+
+  user.password = await bcrypt.hash(String(newPassword), SALT_ROUNDS);
+  user.passwordResetOtpHash = undefined;
+  user.passwordResetOtpExpires = undefined;
+  await user.save();
+
+  res.json({ message: 'Password updated. You can sign in with your new password.' });
 }
