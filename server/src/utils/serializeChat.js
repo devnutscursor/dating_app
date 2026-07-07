@@ -42,6 +42,9 @@ export function serializeMessage(m) {
     mediaUrl: o.mediaUrl,
     giftAmount: o.giftAmount,
     giftNote: o.giftNote,
+    callDurationSeconds: o.callDurationSeconds,
+    callCoinsTotal: o.callCoinsTotal,
+    callKind: o.callKind,
   };
 }
 

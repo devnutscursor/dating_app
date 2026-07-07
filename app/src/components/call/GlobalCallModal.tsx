@@ -1,13 +1,20 @@
+import { useState } from 'react';
+import { toast } from 'sonner';
 import { useCall } from '@/contexts/CallContext';
+import { useAuth } from '@/contexts/AuthContext';
+import { useBuyCoins } from '@/contexts/BuyCoinsContext';
 import CallModal from '@/components/call/CallModal';
+import SendGiftModal from '@/components/modals/SendGiftModal';
+import { postChatMessage } from '@/lib/chats';
+import type { GiftSendPayload } from '@/lib/gifts';
 
 /**
  * Renders the full-screen call overlay globally so it persists even when the
  * user navigates away from ChatDetail while a call is in progress.
- * ChatDetail also renders CallModal for the outgoing flow; both share the same
- * CallContext state so they are always in sync.
  */
 export default function GlobalCallModal() {
+  const { user, refreshUser } = useAuth();
+  const { promptBuyCoinsIfNeeded } = useBuyCoins();
   const {
     callStatus,
     callType,
@@ -18,6 +25,7 @@ export default function GlobalCallModal() {
     micOn,
     cameraOn,
     callDuration,
+    chatId,
     acceptCall,
     rejectCall,
     endCall,
@@ -25,28 +33,61 @@ export default function GlobalCallModal() {
     toggleCamera,
   } = useCall();
 
-  // Only render when a call is active and the user is NOT in the idle state.
-  // ChatDetail renders its own CallModal for the outgoing/incoming states so we
-  // only pick up calls that have reached 'connecting' or 'connected' here (or
-  // when the user has navigated away from ChatDetail entirely).
+  const [giftModalOpen, setGiftModalOpen] = useState(false);
+
   if (callStatus === 'idle') return null;
 
+  const canSendGift =
+    user?.role === 'male' &&
+    callStatus === 'connected' &&
+    Boolean(chatId) &&
+    callType === 'video';
+
+  const handleGiftSend = async (gift: GiftSendPayload) => {
+    if (!chatId) return;
+    try {
+      await postChatMessage(chatId, {
+        type: 'gift',
+        content: gift.name,
+        giftAmount: gift.coins,
+        ...(gift.comment ? { giftComment: gift.comment } : {}),
+      });
+      await refreshUser();
+      toast.success('Gift sent');
+    } catch (e) {
+      if (promptBuyCoinsIfNeeded(e)) return;
+      throw e instanceof Error ? e : new Error('Could not send gift');
+    }
+  };
+
   return (
-    <CallModal
-      callStatus={callStatus}
-      callType={callType}
-      localStream={localStream}
-      remoteStream={remoteStream}
-      peerName={activePeerName}
-      peerPicture={activePeerPicture}
-      micOn={micOn}
-      cameraOn={cameraOn}
-      duration={callDuration}
-      onAccept={() => void acceptCall()}
-      onReject={rejectCall}
-      onEnd={endCall}
-      onToggleMic={toggleMic}
-      onToggleCamera={toggleCamera}
-    />
+    <>
+      <CallModal
+        callStatus={callStatus}
+        callType={callType}
+        localStream={localStream}
+        remoteStream={remoteStream}
+        peerName={activePeerName}
+        peerPicture={activePeerPicture}
+        micOn={micOn}
+        cameraOn={cameraOn}
+        duration={callDuration}
+        onAccept={() => void acceptCall()}
+        onReject={rejectCall}
+        onEnd={endCall}
+        onToggleMic={toggleMic}
+        onToggleCamera={toggleCamera}
+        showGiftButton={canSendGift}
+        onOpenGift={() => setGiftModalOpen(true)}
+      />
+
+      <SendGiftModal
+        open={giftModalOpen}
+        onClose={() => setGiftModalOpen(false)}
+        userName={activePeerName}
+        onSendGift={handleGiftSend}
+        overlayClassName="z-[60]"
+      />
+    </>
   );
 }

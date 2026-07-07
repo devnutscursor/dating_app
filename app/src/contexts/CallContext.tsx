@@ -53,14 +53,15 @@ export function CallProvider({ children }: { children: ReactNode }) {
   const [activePeerPicture, setActivePeerPicture] = useState<string | undefined>(undefined);
   const [callDuration, setCallDuration] = useState(0);
 
-  // Tick the duration counter while connected
+  // Tick the duration counter while connected; keep value on the brief "ended" screen
   useEffect(() => {
-    if (rtc.callStatus !== 'connected') {
-      setCallDuration(0);
-      return;
+    if (rtc.callStatus === 'connected') {
+      const interval = setInterval(() => setCallDuration((d) => d + 1), 1000);
+      return () => clearInterval(interval);
     }
-    const interval = setInterval(() => setCallDuration((d) => d + 1), 1000);
-    return () => clearInterval(interval);
+    if (rtc.callStatus === 'idle') {
+      setCallDuration(0);
+    }
   }, [rtc.callStatus]);
 
   // Clear incoming info when the call moves past the incoming state

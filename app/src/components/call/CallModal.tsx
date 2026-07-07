@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Mic, MicOff, Camera, CameraOff, PhoneOff, Clock, Phone } from 'lucide-react';
+import { Mic, MicOff, Camera, CameraOff, PhoneOff, Clock, Phone, Gift } from 'lucide-react';
 import type { CallStatus, CallType } from '@/hooks/useWebRTCCall';
 import ProfileAvatar from '@/components/profile/ProfileAvatar';
 
@@ -18,6 +18,8 @@ interface CallModalProps {
   onEnd: () => void;
   onToggleMic: () => void;
   onToggleCamera: () => void;
+  showGiftButton?: boolean;
+  onOpenGift?: () => void;
 }
 
 function formatDuration(seconds: number) {
@@ -52,6 +54,8 @@ export default function CallModal({
   onEnd,
   onToggleMic,
   onToggleCamera,
+  showGiftButton = false,
+  onOpenGift,
 }: CallModalProps) {
   // true  → remote is main / local is pip  (default, same as WhatsApp)
   // false → local is main / remote is pip
@@ -306,6 +310,17 @@ export default function CallModal({
         >
           <PhoneOff className="w-6 h-6 text-white" />
         </button>
+
+        {showGiftButton && onOpenGift && (
+          <button
+            type="button"
+            onClick={onOpenGift}
+            className="w-14 h-14 rounded-full flex items-center justify-center bg-pink-500 hover:bg-pink-600 transition-colors touch-manipulation"
+            aria-label="Send gift"
+          >
+            <Gift className="w-6 h-6 text-white" />
+          </button>
+        )}
       </div>
     </div>
   );

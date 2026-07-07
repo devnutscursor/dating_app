@@ -8,7 +8,6 @@ import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import type { CoinPack, Transaction } from '@/types';
 import { createCoinPurchase, fetchCoinPacks, fetchMyTransactions } from '@/lib/payments';
-import { coinsToUsdDisplay } from '@/lib/payouts';
 import TransactionHistoryList from '@/components/wallet/TransactionHistoryList';
 
 export default function ManWallet() {
@@ -96,20 +95,12 @@ export default function ManWallet() {
       </div>
 
       <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl p-6 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-white/80 mb-1">Current Balance</p>
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
-                <Coins className="w-6 h-6" />
-              </div>
-              <span className="text-4xl font-bold">{currentUser.coins}</span>
-            </div>
+        <p className="text-white/80 mb-1">Current Balance</p>
+        <div className="flex items-center gap-3">
+          <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center">
+            <Coins className="w-6 h-6" />
           </div>
-          <div className="text-right">
-            <p className="text-white/80 text-sm">Estimated Value</p>
-            <p className="text-2xl font-bold">${coinsToUsdDisplay(currentUser.coins)}</p>
-          </div>
+          <span className="text-4xl font-bold">{currentUser.coins}</span>
         </div>
       </div>
 

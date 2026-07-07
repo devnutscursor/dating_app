@@ -17,6 +17,14 @@ export function chatPreviewLine(lastMessage: Chat['lastMessage'] | undefined): s
       if (label) return label;
       return 'Sent a gift';
     }
+    case 'call': {
+      const kind = lastMessage.callKind === 'audio' ? 'Voice call' : 'Video call';
+      const duration = lastMessage.callDurationSeconds ?? 0;
+      const m = Math.floor(duration / 60);
+      const s = duration % 60;
+      const dur = `${m}:${String(s).padStart(2, '0')}`;
+      return `${kind} ended · ${dur}`;
+    }
     default:
       return 'Message';
   }

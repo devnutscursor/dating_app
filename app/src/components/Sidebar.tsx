@@ -88,7 +88,7 @@ export default function Sidebar({ userType, onClose }: SidebarProps) {
     <div className="flex h-full min-h-0 w-64 flex-col border-r border-gray-200 bg-white">
       {/* Logo — height matches main Header for a continuous top border line */}
       <div className={layoutTopBarRowClass}>
-        <Link to="/" className="inline-flex">
+        <Link to={`${basePath}/home`} className="inline-flex" onClick={onClose}>
           <BrandLogo size="sm" tone="dark" />
         </Link>
         {onClose && (
