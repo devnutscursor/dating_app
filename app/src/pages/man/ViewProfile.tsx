@@ -29,7 +29,7 @@ import { useCall } from '@/contexts/CallContext';
 import { useBuyCoins } from '@/contexts/BuyCoinsContext';
 import VideoCallConfirmModal from '@/components/modals/VideoCallConfirmModal';
 import CallRatesWarning from '@/components/call/CallRatesWarning';
-import { useCallPricing } from '@/lib/callPricing';
+import { useCallPricing, insufficientCoinsForCallMessage } from '@/lib/callPricing';
 import type { ProfileLocationState } from '@/lib/profileNavigation';
 
 type PreviewState =
@@ -215,7 +215,14 @@ export default function ManViewProfile() {
               variant="outline"
               className="flex-1 gap-2"
               disabled={videoCallBusy || callStatus !== 'idle' || !user}
-              onClick={() => setVideoConfirmOpen(true)}
+              onClick={() => {
+                const cpm = callPricing.videoCallPerMinute;
+                if ((me?.coins ?? 0) < cpm) {
+                  promptBuyCoinsIfNeeded(new Error(insufficientCoinsForCallMessage('video', cpm)));
+                  return;
+                }
+                setVideoConfirmOpen(true);
+              }}
             >
               <Video className="w-5 h-5" />
               {videoCallBusy ? 'Starting…' : 'Video Call'}
@@ -426,6 +433,11 @@ export default function ManViewProfile() {
         onClose={() => !videoCallBusy && setVideoConfirmOpen(false)}
         onConfirm={() => {
           if (!user || videoCallBusy || callStatus !== 'idle') return;
+          const cpm = callPricing.videoCallPerMinute;
+          if ((me?.coins ?? 0) < cpm) {
+            promptBuyCoinsIfNeeded(new Error(insufficientCoinsForCallMessage('video', cpm)));
+            return;
+          }
           setVideoCallBusy(true);
           void createOrGetChat(user.id)
             .then((chat) =>
@@ -433,7 +445,11 @@ export default function ManViewProfile() {
                 setVideoConfirmOpen(false);
               })
             )
-            .catch((e) => toast.error(e instanceof Error ? e.message : 'Could not start video call'))
+            .catch((e) => {
+              if (!promptBuyCoinsIfNeeded(e)) {
+                toast.error(e instanceof Error ? e.message : 'Could not start video call');
+              }
+            })
             .finally(() => setVideoCallBusy(false));
         }}
         peerName={user.name}

@@ -39,6 +39,11 @@ export function coinsPerMinuteForType(rates: CallPricingRates, callType: CallTyp
   return callType === 'audio' ? rates.audioCallPerMinute : rates.videoCallPerMinute;
 }
 
+export function insufficientCoinsForCallMessage(callType: CallType, coinsPerMinute: number): string {
+  const label = callType === 'audio' ? 'voice call' : 'video chat';
+  return `You need at least ${coinsPerMinute} coins to start a ${label}.`;
+}
+
 export function invalidateCallPricingCache() {
   cached = null;
 }

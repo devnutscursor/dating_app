@@ -6,5 +6,12 @@ export function getErrorMessage(error: unknown): string {
 
 /** Server/API messages when the member cannot afford a coin action. */
 export function isInsufficientCoinsError(message: string): boolean {
-  return /insufficient coins/i.test(message);
+  const m = message.trim().toLowerCase();
+  if (!m) return false;
+  return (
+    /insufficient coins/i.test(m) ||
+    /need at least \d+ coins/i.test(m) ||
+    /not enough coins/i.test(m) ||
+    /cannot afford/i.test(m)
+  );
 }

@@ -17,6 +17,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useBuyCoinsOptional } from '@/contexts/BuyCoinsContext';
 import { toast } from 'sonner';
 import { apiGet } from '@/lib/api';
+import { isInsufficientCoinsError } from '@/lib/coinErrors';
 import type { User } from '@/types';
 
 interface IncomingCallInfo {
@@ -87,7 +88,10 @@ export function CallProvider({ children }: { children: ReactNode }) {
         (reason === 'insufficient'
           ? 'Insufficient coins to continue this call.'
           : 'Could not bill this call.');
-      if (!buyCoins?.promptBuyCoinsIfNeeded(new Error(text))) {
+      const insufficient = reason === 'insufficient' || isInsufficientCoinsError(text);
+      if (insufficient && buyCoins) {
+        buyCoins.openBuyCoins({ reason: text });
+      } else if (!buyCoins?.promptBuyCoinsIfNeeded(new Error(text))) {
         toast.error(text);
       }
       rtc.endCall();

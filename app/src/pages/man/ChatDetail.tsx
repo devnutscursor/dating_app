@@ -25,7 +25,7 @@ import SendGiftModal from '@/components/modals/SendGiftModal';
 import MediaPreviewModal from '@/components/modals/MediaPreviewModal';
 import VideoCallConfirmModal from '@/components/modals/VideoCallConfirmModal';
 import CallRatesWarning from '@/components/call/CallRatesWarning';
-import { useCallPricing } from '@/lib/callPricing';
+import { useCallPricing, coinsPerMinuteForType, insufficientCoinsForCallMessage } from '@/lib/callPricing';
 import { useBuyCoins } from '@/contexts/BuyCoinsContext';
 import type { CallType } from '@/lib/chatSocket';
 import { useChatDetailLoader } from '@/hooks/useChatDetailLoader';
@@ -70,6 +70,11 @@ export default function ManChatDetail() {
 
   const startConfirmedCall = async () => {
     if (!user || !chatId || !callConfirmType || callStartBusy || callStatus !== 'idle') return;
+    const cpm = coinsPerMinuteForType(callPricing, callConfirmType);
+    if ((me?.coins ?? 0) < cpm) {
+      promptBuyCoinsIfNeeded(new Error(insufficientCoinsForCallMessage(callConfirmType, cpm)));
+      return;
+    }
     setCallStartBusy(true);
     try {
       await initiateCall(user.id, chatId, callConfirmType, user.name, user.profilePicture);
@@ -135,6 +140,16 @@ export default function ManChatDetail() {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  const requestCallConfirm = (type: CallType) => {
+    if (callStatus !== 'idle') return;
+    const cpm = coinsPerMinuteForType(callPricing, type);
+    if ((me?.coins ?? 0) < cpm) {
+      promptBuyCoinsIfNeeded(new Error(insufficientCoinsForCallMessage(type, cpm)));
+      return;
+    }
+    setCallConfirmType(type);
+  };
 
   const handleSend = async () => {
     if (!message.trim() || !chatId) return;
@@ -326,7 +341,7 @@ export default function ManChatDetail() {
             {!isModSupport && (
               <>
                 <button
-                  onClick={() => setCallConfirmType('video')}
+                  onClick={() => requestCallConfirm('video')}
                   disabled={callStatus !== 'idle'}
                   className="p-2 hover:bg-gray-100 rounded-full disabled:opacity-40"
                   type="button"
@@ -335,7 +350,7 @@ export default function ManChatDetail() {
                   <Video className="w-5 h-5 text-gray-600" />
                 </button>
                 <button
-                  onClick={() => setCallConfirmType('audio')}
+                  onClick={() => requestCallConfirm('audio')}
                   disabled={callStatus !== 'idle'}
                   className="p-2 hover:bg-gray-100 rounded-full disabled:opacity-40"
                   type="button"
