@@ -19,6 +19,8 @@ interface SendGiftModalProps {
   onClose: () => void;
   userName: string;
   onSendGift: (gift: GiftSendPayload) => Promise<void>;
+  /** Use z-[60] when opening above the in-call overlay (z-50). */
+  overlayClassName?: string;
 }
 
 const CARD_STYLES: Record<string, { bg: string; selected: string }> = {
@@ -28,7 +30,13 @@ const CARD_STYLES: Record<string, { bg: string; selected: string }> = {
   custom: { bg: 'bg-amber-50', selected: 'border-amber-500 ring-amber-200' },
 };
 
-export default function SendGiftModal({ open, onClose, userName, onSendGift }: SendGiftModalProps) {
+export default function SendGiftModal({
+  open,
+  onClose,
+  userName,
+  onSendGift,
+  overlayClassName = 'z-50',
+}: SendGiftModalProps) {
   const { user } = useAuth();
   const { openBuyCoins, promptBuyCoinsIfNeeded } = useBuyCoins();
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -93,7 +101,7 @@ export default function SendGiftModal({ open, onClose, userName, onSendGift }: S
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className={`fixed inset-0 ${overlayClassName} flex items-center justify-center p-4`}>
       <div className="absolute inset-0 bg-black/50" onClick={onClose} />
       <div className="relative flex max-h-[min(100dvh-2rem,640px)] w-full max-w-md flex-col rounded-2xl bg-white shadow-2xl">
         <div className="flex shrink-0 items-center justify-between border-b border-gray-200 p-4">

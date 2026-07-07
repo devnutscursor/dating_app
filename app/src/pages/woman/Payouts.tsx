@@ -1,17 +1,21 @@
-import { useCallback, useEffect, useState } from 'react';
-import { Coins, CreditCard, DollarSign, History, Gift, Video, Copy, Check, Wallet, TrendingUp, Users } from 'lucide-react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { Coins, CreditCard, DollarSign, History, Gift, Video, Copy, Check, Wallet, TrendingUp, Users, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchMyPayouts, requestPayout, COIN_TO_USD, type AdminPayout, type EarningsSummary } from '@/lib/payouts';
 import { fetchMyTransactions } from '@/lib/payments';
 import type { Transaction } from '@/types';
 import { SUPPORT_EMAIL, SUPPORT_MAILTO } from '@/lib/supportContact';
+import { canNativeShare, copyToClipboard } from '@/lib/copyToClipboard';
+import { toast } from 'sonner';
 
 export default function WomanPayouts() {
   const { user: currentWomanUser, refreshUser, setCoins } = useAuth();
   const [activeTab, setActiveTab] = useState<'overview' | 'withdraw' | 'history'>('overview');
   const [walletAddress, setWalletAddress] = useState('');
   const [copied, setCopied] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const referralInputRef = useRef<HTMLInputElement>(null);
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [payoutHistory, setPayoutHistory] = useState<AdminPayout[]>([]);
   const [txHistory, setTxHistory] = useState<Transaction[]>([]);
@@ -66,11 +70,44 @@ export default function WomanPayouts() {
   }
 
   const referralLink = `https://memberdate.com/ref/${currentWomanUser.id}`;
+  const showShareButton = canNativeShare();
 
-  const copyReferralLink = () => {
-    navigator.clipboard.writeText(referralLink);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const selectReferralLink = () => {
+    const el = referralInputRef.current;
+    if (!el) return;
+    el.focus();
+    el.select();
+    el.setSelectionRange(0, referralLink.length);
+  };
+
+  const copyReferralLink = async () => {
+    selectReferralLink();
+    const ok = await copyToClipboard(referralLink);
+    if (ok) {
+      setCopied(true);
+      toast.success('Referral link copied');
+      setTimeout(() => setCopied(false), 2000);
+    } else {
+      toast.error('Could not copy automatically — tap the link, then choose Copy');
+    }
+  };
+
+  const shareReferralLink = async () => {
+    if (!showShareButton) return;
+    setSharing(true);
+    try {
+      await navigator.share({
+        title: 'Join MemberDate',
+        text: 'Sign up with my referral link:',
+        url: referralLink,
+      });
+    } catch (err) {
+      if (err instanceof Error && err.name !== 'AbortError') {
+        toast.error('Could not open share menu');
+      }
+    } finally {
+      setSharing(false);
+    }
   };
 
   const { gift, videoCall, unlock, tip } = earnings.breakdown;
@@ -292,17 +329,39 @@ export default function WomanPayouts() {
                 <p className="text-white/80 text-sm mb-4">
                   Invite friends and earn 10% of their first purchase!
                 </p>
-                <div className="flex items-center gap-2">
-                  <div className="flex-1 bg-white/20 rounded-lg px-3 py-2 text-sm truncate">
-                    {referralLink}
+                <div className="space-y-3">
+                  <input
+                    ref={referralInputRef}
+                    type="text"
+                    readOnly
+                    value={referralLink}
+                    onClick={selectReferralLink}
+                    onFocus={selectReferralLink}
+                    aria-label="Referral link"
+                    className="w-full rounded-lg bg-white/20 px-3 py-3 text-sm text-white break-all select-all cursor-text"
+                  />
+                  <div className={`grid gap-2 ${showShareButton ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                    <button
+                      type="button"
+                      onClick={() => void copyReferralLink()}
+                      className="min-h-[44px] px-4 py-2.5 bg-white text-blue-600 rounded-lg font-medium hover:bg-white/90 transition-colors flex items-center justify-center gap-2 touch-manipulation"
+                    >
+                      {copied ? <Check className="w-4 h-4 shrink-0" /> : <Copy className="w-4 h-4 shrink-0" />}
+                      {copied ? 'Copied!' : 'Copy link'}
+                    </button>
+                    {showShareButton && (
+                      <button
+                        type="button"
+                        disabled={sharing}
+                        onClick={() => void shareReferralLink()}
+                        className="min-h-[44px] px-4 py-2.5 bg-white/20 text-white rounded-lg font-medium hover:bg-white/30 transition-colors flex items-center justify-center gap-2 touch-manipulation disabled:opacity-60"
+                      >
+                        <Share2 className="w-4 h-4 shrink-0" />
+                        Share
+                      </button>
+                    )}
                   </div>
-                  <button
-                    onClick={copyReferralLink}
-                    className="px-4 py-2 bg-white text-blue-600 rounded-lg font-medium hover:bg-white/90 transition-colors flex items-center gap-2"
-                  >
-                    {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                    {copied ? 'Copied!' : 'Copy'}
-                  </button>
+                  <p className="text-white/60 text-xs">Tap the link to select it, or use Copy / Share.</p>
                 </div>
               </div>
             </div>

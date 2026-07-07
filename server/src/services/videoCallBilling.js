@@ -2,6 +2,7 @@ import { Chat } from '../models/Chat.model.js';
 import { User } from '../models/User.model.js';
 import { Transaction } from '../models/Transaction.model.js';
 import { getPlatformSettings } from './siteSettings.js';
+import { persistCallEndedMessage } from './callChatMessages.js';
 
 /** @type {Map<string, 'audio' | 'video'>} */
 const pendingCallTypesByChat = new Map();
@@ -45,8 +46,34 @@ export async function getConfiguredCoinsPerMinute(callType = 'video') {
 /** @deprecated use getConfiguredCoinsPerMinute('video') */
 export const COINS_PER_MINUTE = 10;
 
-/** @type {Map<string, { timer: NodeJS.Timeout; payerId: string; earnerId: string; payerName: string; earnerName: string; callType: 'audio' | 'video' }>} */
+/** @type {Map<string, object>} */
 const activeSessions = new Map();
+
+function recordSessionCharge(chatId, amount) {
+  const session = activeSessions.get(sessionKey(chatId));
+  if (!session) return;
+  session.totalCoinsCharged = (session.totalCoinsCharged || 0) + amount;
+  session.minutesBilled = (session.minutesBilled || 0) + 1;
+}
+
+async function finalizeCallSession(chatId) {
+  const key = sessionKey(chatId);
+  const session = activeSessions.get(key);
+  if (!session) {
+    clearPendingCallType(chatId);
+    return;
+  }
+  if (session.timer) {
+    clearInterval(session.timer);
+  }
+  try {
+    await persistCallEndedMessage(session.io, chatId, session);
+  } catch (err) {
+    console.error('[call] persist ended message failed', err);
+  }
+  activeSessions.delete(key);
+  clearPendingCallType(chatId);
+}
 
 /**
  * Male pays, female earns. Returns null when billing does not apply.
@@ -150,12 +177,13 @@ function emitBillingFailed(io, chatId, payerId, earnerId, reason) {
 async function tickMinute(io, chatId, parties) {
   const result = await chargeVideoCallMinute(parties);
   if (!result.ok) {
-    stopVideoCallBilling(chatId);
+    await finalizeCallSession(chatId);
     emitBillingFailed(io, chatId, parties.payerId, parties.earnerId, result.reason);
     io.to(`user:${parties.payerId}`).emit('call:ended', { from: parties.earnerId, chatId, reason: 'billing' });
     io.to(`user:${parties.earnerId}`).emit('call:ended', { from: parties.payerId, chatId, reason: 'billing' });
     return;
   }
+  recordSessionCharge(chatId, result.amount);
   emitBillingUpdate(io, { ...parties, chatId }, result);
 }
 
@@ -163,7 +191,7 @@ async function tickMinute(io, chatId, parties) {
  * Charge first minute on accept, then every 60s while the call stays active.
  */
 export async function startVideoCallBilling(io, chatId, parties, callType = 'video') {
-  stopVideoCallBilling(chatId);
+  await finalizeCallSession(chatId);
 
   const key = sessionKey(chatId);
   const sessionParties = { ...parties, chatId, callType };
@@ -173,6 +201,15 @@ export async function startVideoCallBilling(io, chatId, parties, callType = 'vid
     emitBillingFailed(io, chatId, parties.payerId, parties.earnerId, first.reason);
     return false;
   }
+
+  activeSessions.set(key, {
+    timer: null,
+    io,
+    startedAt: Date.now(),
+    totalCoinsCharged: first.amount,
+    minutesBilled: 1,
+    ...sessionParties,
+  });
   emitBillingUpdate(io, sessionParties, first);
 
   let minutesElapsed = 1;
@@ -182,7 +219,7 @@ export async function startVideoCallBilling(io, chatId, parties, callType = 'vid
     const maxMin = Math.max(1, Math.floor(Number(s?.videoCall?.maxDuration) || 120));
     minutesElapsed += 1;
     if (minutesElapsed > maxMin) {
-      stopVideoCallBilling(chatId);
+      await finalizeCallSession(chatId);
       io.to(`user:${parties.payerId}`).emit('call:ended', { from: parties.earnerId, chatId, reason: 'maxDuration' });
       io.to(`user:${parties.earnerId}`).emit('call:ended', { from: parties.payerId, chatId, reason: 'maxDuration' });
       return;
@@ -190,26 +227,28 @@ export async function startVideoCallBilling(io, chatId, parties, callType = 'vid
     void tickMinute(io, chatId, sessionParties);
   }, 60_000);
 
-  activeSessions.set(key, { timer, ...sessionParties });
+  const session = activeSessions.get(key);
+  if (session) session.timer = timer;
+
   return true;
 }
 
-export function stopVideoCallBilling(chatId) {
-  const key = sessionKey(chatId);
-  const session = activeSessions.get(key);
-  if (session?.timer) {
-    clearInterval(session.timer);
-  }
-  activeSessions.delete(key);
-  clearPendingCallType(chatId);
+export async function stopVideoCallBilling(chatId) {
+  await finalizeCallSession(chatId);
 }
 
-export function stopVideoCallBillingForUser(userId) {
+export async function stopVideoCallBillingForUser(userId) {
   const uid = String(userId);
   for (const [key, session] of activeSessions.entries()) {
     if (session.payerId === uid || session.earnerId === uid) {
       if (session.timer) clearInterval(session.timer);
+      try {
+        await persistCallEndedMessage(session.io, key, session);
+      } catch (err) {
+        console.error('[call] persist ended message failed', err);
+      }
       activeSessions.delete(key);
+      clearPendingCallType(key);
     }
   }
 }

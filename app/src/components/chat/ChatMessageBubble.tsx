@@ -1,4 +1,4 @@
-import { AlertTriangle, Coins, Play } from 'lucide-react';
+import { AlertTriangle, Coins, Play, Video, Phone } from 'lucide-react';
 import type { Message } from '@/types';
 import { cn } from '@/lib/utils';
 import { getGiftVisualTheme, giftIconKindForLabel } from '@/lib/giftVisualThemes';
@@ -10,9 +10,55 @@ type Props = {
   showAvatar: boolean;
   peerPicture: string;
   peerName: string;
+  viewerGender?: 'male' | 'female';
   /** Opens full-screen preview for image/video messages */
   onMediaPreview?: (url: string, kind: 'photo' | 'video') => void;
 };
+
+function formatCallDuration(seconds: number) {
+  const total = Math.max(0, Math.floor(seconds));
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
+
+function CallEndedMessageCard({
+  msg,
+  viewerGender,
+}: {
+  msg: Message;
+  viewerGender?: 'male' | 'female';
+}) {
+  const kind = msg.callKind === 'audio' ? 'audio' : 'video';
+  const label = kind === 'audio' ? 'Voice call ended' : 'Video call ended';
+  const duration = formatCallDuration(msg.callDurationSeconds ?? 0);
+  const coins = msg.callCoinsTotal ?? 0;
+  const coinLine =
+    viewerGender === 'male'
+      ? `${coins} coins spent`
+      : viewerGender === 'female'
+        ? `${coins} coins earned`
+        : `${coins} coins`;
+
+  return (
+    <div className="flex justify-center px-1">
+      <div className="w-full max-w-[min(100%,22rem)] rounded-xl border border-purple-200 bg-gradient-to-b from-purple-50 to-indigo-50 px-4 py-3 text-center shadow-sm">
+        <div className="mx-auto mb-2 flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 text-purple-600">
+          {kind === 'audio' ? <Phone className="h-5 w-5" /> : <Video className="h-5 w-5" />}
+        </div>
+        <p className="text-sm font-semibold text-purple-900">{label}</p>
+        <p className="mt-1 text-sm text-purple-800">Duration · {duration}</p>
+        {coins > 0 && (
+          <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-white/80 px-2.5 py-1 text-xs font-semibold text-purple-700 ring-1 ring-purple-200">
+            <Coins className="h-3.5 w-3.5" />
+            {coinLine}
+          </div>
+        )}
+        <span className="mt-2 block text-xs text-purple-700/70">{msg.timestamp}</span>
+      </div>
+    </div>
+  );
+}
 
 function GiftMessageCard({ msg, isMe }: { msg: Message; isMe: boolean }) {
   const name = msg.content?.trim() || 'Gift';
@@ -143,6 +189,7 @@ export function ChatMessageBubble({
   showAvatar,
   peerPicture,
   peerName,
+  viewerGender,
   onMediaPreview,
 }: Props) {
   if (msg.isPrivateNotice) {
@@ -163,6 +210,10 @@ export function ChatMessageBubble({
         </div>
       </div>
     );
+  }
+
+  if (msg.type === 'call') {
+    return <CallEndedMessageCard msg={msg} viewerGender={viewerGender} />;
   }
 
   if (msg.type === 'gift') {

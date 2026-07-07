@@ -79,13 +79,17 @@ export interface Message {
   id: string;
   senderId: string;
   content: string;
-  type: 'text' | 'image' | 'video' | 'gift';
+  type: 'text' | 'image' | 'video' | 'gift' | 'call';
   timestamp: string;
   isRead: boolean;
   mediaUrl?: string;
   giftAmount?: number;
   /** Optional personal note from the gift sender */
   giftNote?: string;
+  /** Call summary (type === 'call') */
+  callDurationSeconds?: number;
+  callCoinsTotal?: number;
+  callKind?: 'audio' | 'video';
   /** Reporter-only moderation confirmation bubble (never shown to the peer). */
   isPrivateNotice?: boolean;
 }

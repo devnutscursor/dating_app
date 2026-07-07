@@ -4,7 +4,7 @@ const messageSchema = new mongoose.Schema(
   {
     senderId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
     content: { type: String, default: '' },
-    type: { type: String, enum: ['text', 'image', 'video', 'gift'], default: 'text' },
+    type: { type: String, enum: ['text', 'image', 'video', 'gift', 'call'], default: 'text' },
     /** If `sender_only`, only the sender sees this row (used for reporter-only confirmations). */
     visibility: {
       type: String,
@@ -16,6 +16,10 @@ const messageSchema = new mongoose.Schema(
     giftAmount: Number,
     /** Optional note from the sender (gift messages only) */
     giftNote: { type: String, maxlength: 500 },
+    /** Call summary messages */
+    callDurationSeconds: Number,
+    callCoinsTotal: Number,
+    callKind: { type: String, enum: ['audio', 'video'] },
     timestamp: { type: String, default: () => new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) },
   },
   { timestamps: { createdAt: true, updatedAt: false } }

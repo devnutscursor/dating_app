@@ -430,6 +430,7 @@ export default function WomanChatDetail() {
                   showAvatar={showAvatar}
                   peerPicture={user.profilePicture ?? ''}
                   peerName={user.name ?? ''}
+                  viewerGender={me?.gender}
                   onMediaPreview={(url, kind) => setMediaPreview({ url, kind })}
                 />
               );

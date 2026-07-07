@@ -113,10 +113,10 @@ export function initSocketIO(httpServer) {
       io.to(`user:${targetUserId}`).emit('call:accepted', { from: uid, chatId });
     });
 
-    socket.on('call:rejected', ({ targetUserId, chatId }) => {
+    socket.on('call:rejected', async ({ targetUserId, chatId }) => {
       if (!targetUserId || !chatId) return;
       clearPendingCallType(chatId);
-      stopVideoCallBilling(chatId);
+      await stopVideoCallBilling(chatId);
       io.to(`user:${targetUserId}`).emit('call:rejected', { from: uid, chatId });
     });
 
@@ -125,9 +125,9 @@ export function initSocketIO(httpServer) {
       io.to(`user:${targetUserId}`).emit('call:signal', { from: uid, chatId, signal });
     });
 
-    socket.on('call:ended', ({ targetUserId, chatId }) => {
+    socket.on('call:ended', async ({ targetUserId, chatId }) => {
       if (!targetUserId || !chatId) return;
-      stopVideoCallBilling(chatId);
+      await stopVideoCallBilling(chatId);
       io.to(`user:${targetUserId}`).emit('call:ended', { from: uid, chatId });
     });
     // ─────────────────────────────────────────────────────────────────────────
