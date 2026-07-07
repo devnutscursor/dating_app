@@ -233,15 +233,14 @@ export default function LandingPage() {
                   </div>
                 </div>
                 <div className="relative overflow-hidden rounded-xl">
-                  <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-10 bg-gradient-to-r from-[#141414]/95 to-transparent sm:w-14" />
-                  <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-10 bg-gradient-to-l from-[#141414]/95 to-transparent sm:w-14" />
+                  <div
+                    className="[mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.12)_4%,rgba(0,0,0,0.45)_10%,rgba(0,0,0,0.82)_20%,#000_34%,#000_66%,rgba(0,0,0,0.82)_80%,rgba(0,0,0,0.45)_90%,rgba(0,0,0,0.12)_96%,transparent_100%)] [-webkit-mask-image:linear-gradient(to_right,transparent_0%,rgba(0,0,0,0.12)_4%,rgba(0,0,0,0.45)_10%,rgba(0,0,0,0.82)_20%,#000_34%,#000_66%,rgba(0,0,0,0.82)_80%,rgba(0,0,0,0.45)_90%,rgba(0,0,0,0.12)_96%,transparent_100%)]"
+                  >
                   <div className="flex w-max gap-3 py-0.5 motion-reduce:animate-none animate-member-feed-marquee will-change-transform">
                     {marqueeTrack.map((src, index) => (
                       <div
                         key={`${src}-${index}`}
-                        className={`relative h-[4.25rem] w-[4.25rem] shrink-0 overflow-hidden rounded-xl border border-white/15 shadow-[0_4px_16px_rgba(0,0,0,0.35)] sm:h-[5.25rem] sm:w-[5.25rem] ${
-                          index % 7 !== 3 ? 'opacity-75 blur-[1px]' : 'opacity-100 blur-0 ring-1 ring-amber-200/35'
-                        }`}
+                        className="relative h-[4.25rem] w-[4.25rem] shrink-0 overflow-hidden rounded-xl border border-white/15 shadow-[0_4px_16px_rgba(0,0,0,0.35)] sm:h-[5.25rem] sm:w-[5.25rem]"
                       >
                         <img
                           src={src}
@@ -256,6 +255,9 @@ export default function LandingPage() {
                       </div>
                     ))}
                   </div>
+                  </div>
+                  <div className="pointer-events-none absolute inset-y-0 left-0 z-10 w-[38%] max-w-[9rem] rounded-l-xl bg-[linear-gradient(to_right,rgba(20,20,20,0.92)_0%,rgba(20,20,20,0.55)_45%,rgba(20,20,20,0.12)_80%,transparent_100%)] sm:max-w-[11rem]" />
+                  <div className="pointer-events-none absolute inset-y-0 right-0 z-10 w-[38%] max-w-[9rem] rounded-r-xl bg-[linear-gradient(to_left,rgba(20,20,20,0.92)_0%,rgba(20,20,20,0.55)_45%,rgba(20,20,20,0.12)_80%,transparent_100%)] sm:max-w-[11rem]" />
                 </div>
               </div>
             </div>
