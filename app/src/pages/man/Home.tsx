@@ -8,7 +8,8 @@ import DiscoverProfileCardImage from '@/components/profile/DiscoverProfileCardIm
 import DiscoverCardActionButtons from '@/components/profile/DiscoverCardActionButtons';
 import DiscoverOnlineBadge from '@/components/profile/DiscoverOnlineBadge';
 import { useCall } from '@/contexts/CallContext';
-import { useCallPricing } from '@/lib/callPricing';
+import { useCallPricing, insufficientCoinsForCallMessage } from '@/lib/callPricing';
+import { useBuyCoins } from '@/contexts/BuyCoinsContext';
 import { formatProfileLocation } from '@/lib/formatProfileLocation';
 import { fetchDiscoverUsers, sendLike } from '@/lib/social';
 import AppliedSearchFiltersBar from '@/components/AppliedSearchFiltersBar';
@@ -50,6 +51,7 @@ export default function ManHome() {
   });
   const callPricing = useCallPricing();
   const { initiateCall, callStatus } = useCall();
+  const { promptBuyCoinsIfNeeded } = useBuyCoins();
   const [videoConfirmUserId, setVideoConfirmUserId] = useState<string | null>(null);
   const [videoCallBusy, setVideoCallBusy] = useState(false);
   const [openingChatUserId, setOpeningChatUserId] = useState<string | null>(null);
@@ -66,16 +68,32 @@ export default function ManHome() {
 
   const startVideoCall = async () => {
     if (!videoPeer || videoCallBusy || callStatus !== 'idle') return;
+    const cpm = callPricing.videoCallPerMinute;
+    if ((me?.coins ?? 0) < cpm) {
+      promptBuyCoinsIfNeeded(new Error(insufficientCoinsForCallMessage('video', cpm)));
+      return;
+    }
     setVideoCallBusy(true);
     try {
       const chat = await createOrGetChat(videoPeer.id);
       await initiateCall(videoPeer.id, chat.id, 'video', videoPeer.name, videoPeer.profilePicture);
       setVideoConfirmUserId(null);
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : 'Could not start video call');
+      if (!promptBuyCoinsIfNeeded(e)) {
+        toast.error(e instanceof Error ? e.message : 'Could not start video call');
+      }
     } finally {
       setVideoCallBusy(false);
     }
+  };
+
+  const requestVideoCall = (user: User) => {
+    const cpm = callPricing.videoCallPerMinute;
+    if ((me?.coins ?? 0) < cpm) {
+      promptBuyCoinsIfNeeded(new Error(insufficientCoinsForCallMessage('video', cpm)));
+      return;
+    }
+    setVideoConfirmUserId(user.id);
   };
 
   const openChatWith = async (user: User) => {
@@ -154,7 +172,7 @@ export default function ManHome() {
                         toast.message('Finish or end your current call first');
                         return;
                       }
-                      setVideoConfirmUserId(user.id);
+                      requestVideoCall(user);
                     }}
                     messageDisabled={openingChatUserId === user.id}
                     videoDisabled={callStatus !== 'idle'}
