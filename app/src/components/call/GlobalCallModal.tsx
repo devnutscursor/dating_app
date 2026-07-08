@@ -4,7 +4,7 @@ import { useCall } from '@/contexts/CallContext';
 import { useAuth } from '@/contexts/AuthContext';
 import { useBuyCoins } from '@/contexts/BuyCoinsContext';
 import CallModal from '@/components/call/CallModal';
-import CallGiftNotification, { type CallGiftNotificationData } from '@/components/call/CallGiftNotification';
+import type { CallGiftNotificationData } from '@/components/call/CallGiftNotification';
 import SendGiftModal from '@/components/modals/SendGiftModal';
 import { postChatMessage } from '@/lib/chats';
 import { subscribeChatUpdate } from '@/lib/chatSocket';
