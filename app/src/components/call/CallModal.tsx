@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Mic, MicOff, Camera, CameraOff, PhoneOff, Clock, Phone, Gift } from 'lucide-react';
 import type { CallStatus, CallType } from '@/hooks/useWebRTCCall';
 import ProfileAvatar from '@/components/profile/ProfileAvatar';
+import CallGiftNotification, { type CallGiftNotificationData } from '@/components/call/CallGiftNotification';
 
 interface CallModalProps {
   callStatus: CallStatus;
@@ -20,6 +21,7 @@ interface CallModalProps {
   onToggleCamera: () => void;
   showGiftButton?: boolean;
   onOpenGift?: () => void;
+  giftNotice?: CallGiftNotificationData | null;
 }
 
 function formatDuration(seconds: number) {
@@ -56,6 +58,7 @@ export default function CallModal({
   onToggleCamera,
   showGiftButton = false,
   onOpenGift,
+  giftNotice = null,
 }: CallModalProps) {
   // true  → remote is main / local is pip  (default, same as WhatsApp)
   // false → local is main / remote is pip
@@ -259,6 +262,7 @@ export default function CallModal({
       )}
 
       {/* ── Header: peer name + timer ──────────────────────────────── */}
+      <CallGiftNotification notice={giftNotice} />
       <div className="absolute top-4 left-4 right-36 flex items-center gap-2 pointer-events-none">
         <div className="bg-black/50 backdrop-blur-sm rounded-full px-3 py-1.5 flex items-center gap-2">
           <ProfileAvatar
