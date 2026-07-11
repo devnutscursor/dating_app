@@ -85,7 +85,7 @@ export default function WomanHome() {
 
   const handleQuickLike = async (user: User) => {
     try {
-      const res = await sendLike(user.id);
+      const res = await sendLike(user.id, { unlike: Boolean(user.likedByMe) });
       toast.success(res.liked ? 'Like sent' : 'Like removed');
       setUsers((prev) =>
         (prev ?? []).map((u) => (u.id === user.id ? { ...u, likedByMe: res.liked } : u))

@@ -4,7 +4,7 @@ import { createApp } from './app.js';
 import { connectDb } from './config/db.js';
 import { User } from './models/User.model.js';
 import { initSocketIO } from './realtime/socket.js';
-import { getNowPaymentsApiBaseUrl, getNowPaymentsApiKey } from './services/nowpayments.js';
+import { getNowPaymentsApiBaseUrl, getNowPaymentsApiKey, getPaymentUrls, isNowPaymentsSandbox } from './services/nowpayments.js';
 import { ensureDefaultSettings } from './services/siteSettings.js';
 
 /** Default 5001: macOS often binds 5000 to AirPlay (Control Center). Override with PORT=. */
@@ -33,7 +33,11 @@ async function main() {
   server.listen(PORT, () => {
     console.log(`API + Socket.IO listening on http://localhost:${PORT}`);
     if (getNowPaymentsApiKey()) {
-      console.log(`NOWPayments: ${getNowPaymentsApiBaseUrl()}`);
+      const mode = isNowPaymentsSandbox() ? 'SANDBOX (test — no real money)' : 'LIVE (production — real payments)';
+      const urls = getPaymentUrls();
+      console.log(`NOWPayments: ${mode}`);
+      console.log(`NOWPayments API: ${getNowPaymentsApiBaseUrl()}`);
+      console.log(`NOWPayments IPN webhook (give this to client): ${urls.ipnCallbackUrl}`);
     }
   });
 }

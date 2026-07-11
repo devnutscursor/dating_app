@@ -12,7 +12,7 @@ export function formatTransactionDate(timestamp: string): string {
 export function isTransactionCredit(tx: Transaction, role: MemberRole): boolean {
   if (tx.status !== 'completed') return false;
   if (role === 'female') {
-    return tx.type === 'videoCall' || tx.type === 'gift' || tx.type === 'tip';
+    return tx.type === 'videoCall' || tx.type === 'gift' || tx.type === 'tip' || tx.type === 'unlock';
   }
   return tx.type === 'purchase';
 }
@@ -25,7 +25,8 @@ export function earningsOverview(transactions: Transaction[]) {
   const videoCallEarnings = sum('videoCall');
   const giftEarnings = sum('gift');
   const tipEarnings = sum('tip');
-  const totalEarnings = videoCallEarnings + giftEarnings + tipEarnings;
+  const unlockEarnings = sum('unlock');
+  const totalEarnings = videoCallEarnings + giftEarnings + tipEarnings + unlockEarnings;
 
-  return { videoCallEarnings, giftEarnings, tipEarnings, totalEarnings };
+  return { videoCallEarnings, giftEarnings, tipEarnings, unlockEarnings, totalEarnings };
 }

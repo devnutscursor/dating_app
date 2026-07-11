@@ -34,7 +34,7 @@ export default function ProfileLikeButton({ userId, className }: ProfileLikeButt
     if (busy) return;
     setBusy(true);
     try {
-      const res = await sendLike(userId);
+      const res = await sendLike(userId, { unlike: liked });
       setLiked(res.liked);
       toast.success(res.liked ? 'Like sent' : 'Like removed');
     } catch (e) {
