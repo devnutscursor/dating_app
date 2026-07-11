@@ -403,12 +403,21 @@ export async function createLike(req, res) {
     return res.status(400).json({ error: 'Invalid like target' });
   }
   const existing = await Like.findOne({ fromUser: req.user._id, toUser: toUserId });
-  if (existing) {
+  const unlike = req.body?.unlike === true;
+
+  if (unlike) {
+    if (!existing) {
+      return res.json({ ok: true, liked: false });
+    }
     await Like.deleteOne({ _id: existing._id });
     const owner = await User.findById(toUserId).select('likesReceivedCount').lean();
     const nextCount = Math.max(0, (owner?.likesReceivedCount ?? 0) - 1);
     await User.findByIdAndUpdate(toUserId, { $set: { likesReceivedCount: nextCount } });
     return res.json({ ok: true, liked: false });
+  }
+
+  if (existing) {
+    return res.json({ ok: true, liked: true });
   }
   await Like.create({ fromUser: req.user._id, toUser: toUserId });
   await User.findByIdAndUpdate(toUserId, { $inc: { likesReceivedCount: 1 } });

@@ -40,9 +40,15 @@ export async function fetchLikes(tab: 'received' | 'sent'): Promise<LikesRespons
 
 export type LikeToggleResult = { ok: boolean; liked: boolean };
 
-/** Like or unlike (toggle). Liked profiles stay on Discover. */
-export async function sendLike(userId: string): Promise<LikeToggleResult> {
-  const result = await apiPost<LikeToggleResult>('/users/likes', { userId });
+/** Send a like. Re-liking someone already liked is a no-op. Pass `unlike: true` to remove. */
+export async function sendLike(
+  userId: string,
+  options?: { unlike?: boolean }
+): Promise<LikeToggleResult> {
+  const result = await apiPost<LikeToggleResult>('/users/likes', {
+    userId,
+    ...(options?.unlike ? { unlike: true } : {}),
+  });
   invalidateLikesCache();
   return result;
 }

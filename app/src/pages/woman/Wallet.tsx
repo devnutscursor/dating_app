@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Coins, History, Gift, Video, TrendingUp, ArrowRight, Loader2 } from 'lucide-react';
+import { Coins, History, Gift, Video, TrendingUp, ArrowRight, Loader2, ImageIcon } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useAuth } from '@/contexts/AuthContext';
@@ -46,7 +46,7 @@ export default function WomanWallet() {
     );
   }
 
-  const { videoCallEarnings, giftEarnings, tipEarnings, totalEarnings } =
+  const { videoCallEarnings, giftEarnings, tipEarnings, unlockEarnings, totalEarnings } =
     earningsOverview(transactions);
 
   return (
@@ -158,6 +158,21 @@ export default function WomanWallet() {
             </div>
             <p className="font-semibold text-pink-600">+{giftEarnings} Koins</p>
           </div>
+
+          {unlockEarnings > 0 ? (
+            <div className="flex items-center justify-between rounded-xl bg-blue-50 p-4">
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-full bg-blue-100">
+                  <ImageIcon className="h-5 w-5 text-blue-600" />
+                </div>
+                <div>
+                  <p className="font-medium text-gray-900">Media Unlocks</p>
+                  <p className="text-sm text-gray-500">Private photos & videos sold</p>
+                </div>
+              </div>
+              <p className="font-semibold text-blue-600">+{unlockEarnings} Koins</p>
+            </div>
+          ) : null}
 
           {tipEarnings > 0 ? (
             <div className="flex items-center justify-between rounded-xl bg-cyan-50 p-4">
