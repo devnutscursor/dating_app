@@ -56,38 +56,40 @@ export default function WomanWallet() {
         <p className="text-gray-500">Track your earnings and balance</p>
       </div>
 
-      <div className="rounded-2xl bg-gradient-to-r from-green-500 to-emerald-500 p-6 text-white">
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="mb-1 text-white/80">Available Balance</p>
-            <div className="flex items-center gap-3">
-              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
-                <Coins className="h-6 w-6" />
-              </div>
-              <span className="text-4xl font-bold">{currentWomanUser.coins}</span>
-            </div>
-          </div>
-          <div className="text-right">
-            <p className="text-sm text-white/80">Estimated Value</p>
-            <p className="text-2xl font-bold">${coinsToUsdDisplay(currentWomanUser.coins)}</p>
-          </div>
-        </div>
-      </div>
-
-      <Link to="/woman/payouts">
-        <div className="flex cursor-pointer items-center justify-between rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 p-6 text-white transition-shadow hover:shadow-lg">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
-              <TrendingUp className="h-6 w-6" />
-            </div>
+      <div className="space-y-4">
+        <div className="rounded-2xl bg-gradient-to-r from-green-500 to-emerald-500 p-6 text-white">
+          <div className="flex items-center justify-between">
             <div>
-              <p className="text-lg font-semibold">Go to Payouts</p>
-              <p className="text-sm text-white/80">Withdraw your earnings</p>
+              <p className="mb-1 text-white/80">Available Balance</p>
+              <div className="flex items-center gap-3">
+                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
+                  <Coins className="h-6 w-6" />
+                </div>
+                <span className="text-4xl font-bold">{currentWomanUser.coins}</span>
+              </div>
+            </div>
+            <div className="text-right">
+              <p className="text-sm text-white/80">Estimated Value</p>
+              <p className="text-2xl font-bold">${coinsToUsdDisplay(currentWomanUser.coins)}</p>
             </div>
           </div>
-          <ArrowRight className="h-6 w-6" />
         </div>
-      </Link>
+
+        <Link to="/woman/payouts" className="block">
+          <div className="flex cursor-pointer items-center justify-between rounded-2xl bg-gradient-to-r from-purple-500 to-pink-500 p-6 text-white transition-shadow hover:shadow-lg">
+            <div className="flex items-center gap-4">
+              <div className="flex h-12 w-12 items-center justify-center rounded-full bg-white/20">
+                <TrendingUp className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="text-lg font-semibold">Go to Payouts</p>
+                <p className="text-sm text-white/80">Withdraw your earnings</p>
+              </div>
+            </div>
+            <ArrowRight className="h-6 w-6" />
+          </div>
+        </Link>
+      </div>
 
       <div className="flex gap-4 border-b border-gray-200">
         <button
