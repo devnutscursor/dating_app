@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { X, Coins, Loader2, Zap, Wallet } from 'lucide-react';
+import { X, Coins, Loader2, Zap, Wallet, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -42,6 +42,7 @@ export default function BuyCoinsModal({ open, onClose, reason }: BuyCoinsModalPr
   if (!open) return null;
 
   const balance = user?.coins ?? 0;
+  const minPackUsd = packs.length ? Math.min(...packs.map((p) => p.price)) : 14.99;
 
   const handlePurchase = async (pack: CoinPack) => {
     setPurchasingPackId(pack.id);
@@ -71,7 +72,15 @@ export default function BuyCoinsModal({ open, onClose, reason }: BuyCoinsModalPr
           </Button>
         </div>
 
-        <div className="flex items-center gap-3 border-b border-gray-100 bg-amber-50 px-5 py-3">
+        <div className="flex shrink-0 items-start gap-2 border-b border-amber-200 bg-amber-50 px-5 py-3">
+          <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-amber-600" />
+          <p className="text-xs text-amber-800">
+            Pay the full invoice amount (from ${minPackUsd.toFixed(2)}). Underpayments are not
+            credited and may not be refundable.
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3 border-b border-gray-100 bg-amber-50/50 px-5 py-3">
           <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white">
             <Coins className="h-5 w-5 text-amber-600" />
           </div>

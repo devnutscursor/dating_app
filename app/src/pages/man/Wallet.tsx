@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useCachedQuery } from '@/hooks/useCachedQuery';
 import { CACHE } from '@/lib/cacheKeys';
 import { useSearchParams } from 'react-router-dom';
-import { Coins, CreditCard, History, Gift, Check, Zap, Loader2 } from 'lucide-react';
+import { Coins, CreditCard, History, Gift, Check, Zap, Loader2, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
@@ -87,11 +87,26 @@ export default function ManWallet() {
     );
   }
 
+  const minPackUsd = packs.length ? Math.min(...packs.map((p) => p.price)) : 14.99;
+
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900">My Wallet</h1>
         <p className="text-gray-500">Manage your coins and transactions</p>
+      </div>
+
+      <div className="flex items-start gap-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
+        <AlertTriangle className="mt-0.5 h-5 w-5 shrink-0 text-amber-600" />
+        <div>
+          <p className="text-sm font-medium text-amber-900">Important payment notice</p>
+          <p className="mt-1 text-sm text-amber-800">
+            Coin packs start at ${minPackUsd.toFixed(2)}. You must pay the{' '}
+            <strong>full invoice amount</strong> on the NOWPayments checkout page. Sending less than
+            required will not credit coins. Due to blockchain network fees, underpayments may not be
+            refundable. MemberDate does not hold cryptocurrency directly.
+          </p>
+        </div>
       </div>
 
       <div className="bg-gradient-to-r from-yellow-400 to-orange-500 rounded-2xl p-6 text-white">
