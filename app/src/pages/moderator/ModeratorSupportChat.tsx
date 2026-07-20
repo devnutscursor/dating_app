@@ -119,7 +119,7 @@ export default function ModeratorSupportChatPage() {
   };
 
   if (!chatId) {
-    navigate('/moderator/reports');
+    navigate('/moderator/chats');
     return null;
   }
 
@@ -135,8 +135,8 @@ export default function ModeratorSupportChatPage() {
     return (
       <div className="mx-auto max-w-lg space-y-4 py-12 text-center">
         <p className="text-gray-700">This moderation thread is not available.</p>
-        <Button type="button" variant="outline" onClick={() => navigate('/moderator/reports')}>
-          Back to reports
+        <Button type="button" variant="outline" onClick={() => navigate('/moderator/chats')}>
+          Back to support chats
         </Button>
       </div>
     );
@@ -151,7 +151,7 @@ export default function ModeratorSupportChatPage() {
             variant="ghost"
             size="icon"
             className="shrink-0"
-            onClick={() => navigate('/moderator/reports')}
+            onClick={() => navigate('/moderator/chats')}
           >
             <ArrowLeft className="h-5 w-5" />
           </Button>

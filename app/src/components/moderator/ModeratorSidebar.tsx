@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
-  LayoutDashboard, Image, Flag, UserCheck, LogOut, X 
+  LayoutDashboard, Image, Flag, UserCheck, LogOut, X, MessageCircle 
 } from 'lucide-react';
 import BrandLogo from '@/components/BrandLogo';
 import { useAuth } from '@/contexts/AuthContext';
 import { apiGet } from '@/lib/api';
-import { fetchModeratorVerifications, fetchPendingFemaleContent } from '@/lib/moderator';
+import { fetchModeratorSupportChats, fetchModeratorVerifications, fetchPendingFemaleContent } from '@/lib/moderator';
 import type { Report } from '@/types';
 
 interface ModeratorSidebarProps {
@@ -17,6 +17,7 @@ const moderatorNavItems = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, href: '/moderator/dashboard' },
   { id: 'content', label: 'Content Review', icon: Image, href: '/moderator/content' },
   { id: 'reports', label: 'Reports', icon: Flag, href: '/moderator/reports' },
+  { id: 'chats', label: 'Support Chats', icon: MessageCircle, href: '/moderator/chats' },
   { id: 'verifications', label: 'Verifications', icon: UserCheck, href: '/moderator/verifications' },
 ];
 
@@ -27,6 +28,7 @@ export default function ModeratorSidebar({ onClose }: ModeratorSidebarProps) {
   const [pendingReportCount, setPendingReportCount] = useState<number | null>(null);
   const [pendingContentCount, setPendingContentCount] = useState<number | null>(null);
   const [pendingVerificationCount, setPendingVerificationCount] = useState<number | null>(null);
+  const [unreadSupportCount, setUnreadSupportCount] = useState<number | null>(null);
 
   useEffect(() => {
     if (!location.pathname.startsWith('/moderator')) return;
@@ -42,9 +44,15 @@ export default function ModeratorSidebar({ onClose }: ModeratorSidebarProps) {
     void fetchModeratorVerifications()
       .then((items) => setPendingVerificationCount(items.length))
       .catch(() => setPendingVerificationCount(null));
+    void fetchModeratorSupportChats()
+      .then((rows) => setUnreadSupportCount(rows.filter((c) => c.unreadCount > 0).length))
+      .catch(() => setUnreadSupportCount(null));
   }, [location.pathname]);
 
   const isActive = (href: string) => {
+    if (href === '/moderator/chats') {
+      return location.pathname === href || location.pathname.startsWith('/moderator/support/');
+    }
     return location.pathname === href;
   };
 
@@ -90,6 +98,11 @@ export default function ModeratorSidebar({ onClose }: ModeratorSidebarProps) {
               {item.id === 'reports' && pendingReportCount != null && pendingReportCount > 0 && (
                 <span className="ml-auto rounded-full bg-orange-500 px-2 py-0.5 text-xs text-white">
                   {pendingReportCount > 99 ? '99+' : pendingReportCount}
+                </span>
+              )}
+              {item.id === 'chats' && unreadSupportCount != null && unreadSupportCount > 0 && (
+                <span className="ml-auto rounded-full bg-amber-500 px-2 py-0.5 text-xs text-white">
+                  {unreadSupportCount > 99 ? '99+' : unreadSupportCount}
                 </span>
               )}
               {item.id === 'verifications' &&

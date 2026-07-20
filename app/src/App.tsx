@@ -62,6 +62,7 @@ import ModeratorLayout from '@/layouts/ModeratorLayout';
 import ModeratorDashboard from '@/pages/moderator/Dashboard';
 import ModeratorContent from '@/pages/moderator/Content';
 import ModeratorReports from '@/pages/moderator/Reports';
+import ModeratorChatsPage from '@/pages/moderator/ModeratorChats';
 import ModeratorVerifications from '@/pages/moderator/Verifications';
 import ModeratorSupportChatPage from '@/pages/moderator/ModeratorSupportChat';
 
@@ -173,6 +174,7 @@ function App() {
             <Route path="dashboard" element={<ModeratorDashboard />} />
             <Route path="content" element={<ModeratorContent />} />
             <Route path="reports" element={<ModeratorReports />} />
+            <Route path="chats" element={<ModeratorChatsPage />} />
             <Route path="support/:chatId" element={<ModeratorSupportChatPage />} />
             <Route path="verifications" element={<ModeratorVerifications />} />
           </Route>

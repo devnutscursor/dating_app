@@ -459,3 +459,25 @@ export async function moderatorStats(req, res) {
     recentActivity,
   });
 }
+
+/** Shared moderation inbox — all member ↔ moderator support threads. */
+export async function listSupportChats(req, res) {
+  const chats = await Chat.find({
+    chatKind: 'moderator_support',
+    isBlocked: { $ne: true },
+    'messages.0': { $exists: true },
+  })
+    .populate('participants', '-password')
+    .sort({ updatedAt: -1 })
+    .limit(200);
+
+  const serialized = chats.map((c) => serializeChatDoc(c, req.user._id));
+  serialized.sort((a, b) => {
+    const aUnread = a.unreadCount > 0 ? 1 : 0;
+    const bUnread = b.unreadCount > 0 ? 1 : 0;
+    if (aUnread !== bUnread) return bUnread - aUnread;
+    return 0;
+  });
+
+  res.json({ chats: serialized });
+}

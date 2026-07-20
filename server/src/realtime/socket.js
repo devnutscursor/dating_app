@@ -45,6 +45,7 @@ export function initSocketIO(httpServer) {
       if (!user) return next(new Error('User not found'));
       if (user.isBlocked) return next(new Error('Account suspended'));
       socket.data.userId = user._id.toString();
+      socket.data.userRole = user.role;
       return next();
     } catch {
       return next(new Error('Invalid or expired token'));
@@ -54,6 +55,9 @@ export function initSocketIO(httpServer) {
   io.on('connection', (socket) => {
     const uid = socket.data.userId;
     socket.join(`user:${uid}`);
+    if (socket.data.userRole === 'moderator' || socket.data.userRole === 'admin') {
+      socket.join('role:moderator');
+    }
 
     void onSocketConnect(uid, socket.id);
 
