@@ -20,6 +20,37 @@ function otherParticipantId(chat, selfId) {
   return other || null;
 }
 
+function isStaffRole(role) {
+  return role === 'moderator' || role === 'admin';
+}
+
+/** Member id in a moderator_support thread (populated or raw ObjectIds). */
+function supportMemberParticipantId(chat) {
+  const parts = chat.participants || [];
+  for (const p of parts) {
+    if (p && typeof p === 'object' && p.role && !isStaffRole(p.role)) {
+      return p._id || p;
+    }
+  }
+  const selfStaff = parts.find((p) => p && typeof p === 'object' && isStaffRole(p.role));
+  if (selfStaff) {
+    const sid = (selfStaff._id || selfStaff).toString();
+    const other = parts.find((p) => (p._id || p).toString() !== sid);
+    return other?._id || other || null;
+  }
+  return null;
+}
+
+function chatAccessQuery(req) {
+  if (isStaffRole(req.user.role)) {
+    return {
+      _id: req.params.chatId,
+      $or: [{ participants: req.user._id }, { chatKind: 'moderator_support' }],
+    };
+  }
+  return { _id: req.params.chatId, participants: req.user._id };
+}
+
 /**
  * Debit sender, credit recipient, persist gift message + ledger rows.
  * Uses compensating updates (no multi-doc transaction) so it works on standalone MongoDB.
@@ -190,10 +221,7 @@ export async function listChats(req, res) {
 }
 
 export async function getChat(req, res) {
-  const chat = await Chat.findOne({
-    _id: req.params.chatId,
-    participants: req.user._id,
-  }).populate('participants', '-password');
+  const chat = await Chat.findOne(chatAccessQuery(req)).populate('participants', '-password');
   if (!chat) {
     return res.status(404).json({ error: 'Chat not found' });
   }
@@ -201,11 +229,20 @@ export async function getChat(req, res) {
     return res.status(403).json({ error: 'This conversation has been blocked' });
   }
   const selfStr = req.user._id.toString();
+  const staffOnSupport =
+    isStaffRole(req.user.role) && chat.chatKind === 'moderator_support';
+  const staffIds = new Set(
+    (chat.participants || [])
+      .filter((p) => p && typeof p === 'object' && isStaffRole(p.role))
+      .map((p) => (p._id || p).toString())
+  );
   let marked = false;
   for (const m of chat.messages) {
     if (!isMessageVisibleToViewer(m, selfStr)) continue;
     const sid = m.senderId?.toString?.() || String(m.senderId);
-    if (sid !== selfStr && !m.isRead) {
+    const shouldMark =
+      !m.isRead && (staffOnSupport ? !staffIds.has(sid) : sid !== selfStr);
+    if (shouldMark) {
       m.isRead = true;
       marked = true;
     }
@@ -214,7 +251,9 @@ export async function getChat(req, res) {
     if (chat.lastMessage) {
       const lmSender =
         chat.lastMessage.senderId?.toString?.() || String(chat.lastMessage.senderId);
-      if (lmSender !== selfStr) chat.lastMessage.isRead = true;
+      if (staffOnSupport ? !staffIds.has(lmSender) : lmSender !== selfStr) {
+        chat.lastMessage.isRead = true;
+      }
     }
     chat.markModified('messages');
     chat.markModified('lastMessage');
@@ -316,10 +355,7 @@ export async function setChatPinned(req, res) {
 
 export async function sendMessage(req, res) {
   const { content, type, mediaUrl, giftAmount, giftComment } = req.body;
-  const chat = await Chat.findOne({
-    _id: req.params.chatId,
-    participants: req.user._id,
-  });
+  const chat = await Chat.findOne(chatAccessQuery(req));
   if (!chat) {
     return res.status(404).json({ error: 'Chat not found' });
   }
@@ -415,7 +451,8 @@ export async function sendMessage(req, res) {
     wasEmptyBeforeSend &&
     io
   ) {
-    const other = otherParticipantId(chat, req.user._id);
+    const other =
+      supportMemberParticipantId(populated) || otherParticipantId(chat, req.user._id);
     if (other) {
       const trimmed = typeof content === 'string' ? content.trim() : '';
       let body = trimmed

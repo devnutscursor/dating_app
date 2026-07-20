@@ -68,12 +68,25 @@ export function sumCoinsReceivedFromPeer(messages, selfStr) {
   }, 0);
 }
 
+function isStaffUser(u) {
+  const role = u?.role;
+  return role === 'moderator' || role === 'admin';
+}
+
 /** Build one chat object for the authenticated viewer */
 export function serializeChatDoc(chatDoc, selfId) {
   const chat = chatDoc.toObject({ virtuals: true });
   const selfStr = selfId.toString();
   const participants = chat.participants || [];
-  const other = participants.find((p) => p._id.toString() !== selfStr) || participants[0];
+  const selfIsParticipant = participants.some((p) => p._id.toString() === selfStr);
+  // Shared moderation inbox: any staff should see the member as the peer
+  let other =
+    chat.chatKind === 'moderator_support' && !selfIsParticipant
+      ? participants.find((p) => !isStaffUser(p)) || participants[0]
+      : participants.find((p) => p._id.toString() !== selfStr) || participants[0];
+  if (chat.chatKind === 'moderator_support' && selfIsParticipant && isStaffUser(other)) {
+    other = participants.find((p) => !isStaffUser(p)) || other;
+  }
 
   const rawMessages = chat.messages || [];
   const visible = visibleMessagesForViewer(rawMessages, selfStr);
@@ -104,12 +117,24 @@ export function serializeChatDoc(chatDoc, selfId) {
     };
   }
 
+  const viewerIsStaffOnSupport =
+    chat.chatKind === 'moderator_support' &&
+    (!selfIsParticipant || isStaffUser(participants.find((p) => p._id.toString() === selfStr)));
+
+  const unreadCount = viewerIsStaffOnSupport
+    ? visible.filter((m) => {
+        const o = messagePlain(m);
+        const sid = o.senderId?.toString?.() || String(o.senderId);
+        return sid === otherIdStr && !o.isRead;
+      }).length
+    : countUnreadForViewer(visible, selfStr);
+
   const out = {
     id: chat._id.toString(),
     chatKind: chat.chatKind || 'direct',
     participant,
     messages: serializedMessages,
-    unreadCount: countUnreadForViewer(visible, selfStr),
+    unreadCount,
     isBlocked: chat.isBlocked || false,
     isReported: chat.isReported || false,
     isPinned: isPinnedForViewer(chat, selfStr),

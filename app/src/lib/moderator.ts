@@ -20,6 +20,11 @@ export async function fetchReportTranscript(
   return apiGet(`/moderator/reports/${reportId}/transcript`);
 }
 
+export async function fetchModeratorSupportChats(): Promise<Chat[]> {
+  const data = await apiGet<{ chats: Chat[] }>('/moderator/support-chats');
+  return data.chats ?? [];
+}
+
 export async function openModeratorSupportThread(
   reportId: string,
   targetUserId: string

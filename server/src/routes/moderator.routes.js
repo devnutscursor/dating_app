@@ -17,6 +17,7 @@ router.get('/reports', asyncHandler(mod.listReports));
 router.get('/reports/:reportId/transcript', asyncHandler(mod.getReportTranscript));
 router.post('/reports/:reportId/support-thread', asyncHandler(mod.openReportSupportThread));
 router.patch('/reports/:reportId', asyncHandler(mod.updateReport));
+router.get('/support-chats', asyncHandler(mod.listSupportChats));
 router.get('/verifications', asyncHandler(mod.listVerifications));
 router.patch('/verifications/:id', asyncHandler(verification.reviewVerification));
 router.get('/stats', asyncHandler(mod.moderatorStats));
