@@ -29,6 +29,14 @@ export default function AccountSettingsPage() {
     setConfirmPassword('');
   }, []);
 
+  const legalArea = user?.role === 'female' ? 'woman' : user?.role === 'male' ? 'man' : null;
+  const legalPrefix = legalArea ? `/${legalArea}` : '';
+  const legalLinks = [
+    { to: `${legalPrefix}/terms`, label: 'Terms of Service' },
+    { to: `${legalPrefix}/privacy`, label: 'Privacy Policy' },
+    { to: `${legalPrefix}/rules`, label: 'Community Rules' },
+  ];
+
   if (!user) {
     return (
       <div className="flex min-h-[40vh] items-center justify-center text-gray-500">
@@ -233,11 +241,7 @@ export default function AccountSettingsPage() {
           <h2 className="text-lg font-semibold text-gray-900">Legal</h2>
         </div>
         <div className="divide-y divide-gray-100">
-          {[
-            { to: '/terms', label: 'Terms of Service' },
-            { to: '/privacy', label: 'Privacy Policy' },
-            { to: '/rules', label: 'Community Rules' },
-          ].map((item) => (
+          {legalLinks.map((item) => (
             <Link
               key={item.to}
               to={item.to}

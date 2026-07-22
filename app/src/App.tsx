@@ -106,6 +106,9 @@ function App() {
             <Route path="favorites" element={<ManFavorites />} />
             <Route path="online" element={<ManOnline />} />
             <Route path="faq" element={<ManFAQ />} />
+            <Route path="terms" element={<TermsPage />} />
+            <Route path="privacy" element={<PrivacyPage />} />
+            <Route path="rules" element={<RulesPage />} />
             <Route path="wallet" element={<ManWallet />} />
             <Route path="profile" element={<ManProfile />} />
             <Route path="profile/edit" element={<ProfileEditPage />} />
@@ -132,6 +135,9 @@ function App() {
             <Route path="favorites" element={<WomanFavorites />} />
             <Route path="online" element={<WomanOnline />} />
             <Route path="faq" element={<WomanFAQ />} />
+            <Route path="terms" element={<TermsPage />} />
+            <Route path="privacy" element={<PrivacyPage />} />
+            <Route path="rules" element={<RulesPage />} />
             <Route path="wallet" element={<WomanWallet />} />
             <Route path="profile" element={<WomanProfile />} />
             <Route path="profile/edit" element={<ProfileEditPage />} />

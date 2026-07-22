@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Coins, CreditCard, DollarSign, History, Gift, Video, Copy, Check, Wallet, TrendingUp, Users, Share2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { ArrowLeft, Coins, CreditCard, DollarSign, History, Gift, Video, Copy, Check, Wallet, TrendingUp, Users, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useAuth } from '@/contexts/AuthContext';
 import { fetchMyPayouts, requestPayout, COIN_TO_USD, type AdminPayout, type EarningsSummary } from '@/lib/payouts';
@@ -142,6 +143,13 @@ export default function WomanPayouts() {
     <div className="space-y-6">
       {/* Header */}
       <div>
+        <Link
+          to="/woman/wallet"
+          className="mb-3 inline-flex items-center gap-2 text-sm font-medium text-gray-600 transition-colors hover:text-gray-900"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Wallet
+        </Link>
         <h1 className="text-2xl font-bold text-gray-900">Payouts</h1>
         <p className="text-gray-500">Manage your earnings and withdrawals</p>
       </div>
@@ -326,9 +334,7 @@ export default function WomanPayouts() {
               </div>
               <div className="flex-1">
                 <h3 className="font-semibold text-lg mb-1">Referral Program</h3>
-                <p className="text-white/80 text-sm mb-4">
-                  Invite friends and earn 10% of their first purchase!
-                </p>
+                <p className="text-white/80 text-sm mb-4">Invite friends!</p>
                 <div className="space-y-3">
                   <input
                     ref={referralInputRef}

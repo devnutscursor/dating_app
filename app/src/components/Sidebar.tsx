@@ -1,8 +1,19 @@
 import { useEffect, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { 
-  House, User, Mail, Heart, Star, ToggleLeft, Shield, Wallet, 
-  LogOut, X, ChevronDown, ChevronUp 
+import {
+  House,
+  User,
+  Mail,
+  Heart,
+  Star,
+  ToggleLeft,
+  Shield,
+  Wallet,
+  FileText,
+  LogOut,
+  X,
+  ChevronDown,
+  ChevronUp,
 } from 'lucide-react';
 import { navigationItems, layoutTopBarRowClass, layoutChatsListProfileBandClass } from '@/config/design';
 import BrandLogo from '@/components/BrandLogo';
@@ -17,11 +28,19 @@ interface SidebarProps {
   onClose?: () => void;
 }
 
+const LEGAL_SUBPATHS = ['terms', 'privacy', 'rules'] as const;
+
 export default function Sidebar({ userType, onClose }: SidebarProps) {
   const { user: sessionUser, logout } = useAuth();
   const location = useLocation();
-  const [faqOpen, setFaqOpen] = useState(false);
+  const basePath = `/${userType}`;
+  const onLegalPage = LEGAL_SUBPATHS.some((p) => location.pathname.startsWith(`${basePath}/${p}`));
+  const [legalOpen, setLegalOpen] = useState(onLegalPage);
   const [chatsUnreadTotal, setChatsUnreadTotal] = useState<number | null>(null);
+
+  useEffect(() => {
+    if (onLegalPage) setLegalOpen(true);
+  }, [onLegalPage]);
 
   useEffect(() => {
     if (!sessionUser) {
@@ -62,47 +81,61 @@ export default function Sidebar({ userType, onClose }: SidebarProps) {
       unsub();
     };
   }, [sessionUser]);
-  
+
   const navItems = navigationItems[userType];
-  const basePath = `/${userType}`;
 
   const getIcon = (iconName: string) => {
     switch (iconName) {
-      case 'Home': return <House className="w-5 h-5" />;
-      case 'User': return <User className="w-5 h-5" />;
-      case 'Mail': return <Mail className="w-5 h-5" />;
-      case 'Heart': return <Heart className="w-5 h-5" />;
-      case 'Star': return <Star className="w-5 h-5" />;
-      case 'ToggleLeft': return <ToggleLeft className="w-5 h-5" />;
-      case 'Shield': return <Shield className="w-5 h-5" />;
-      case 'Wallet': return <Wallet className="w-5 h-5" />;
-      default: return <User className="w-5 h-5" />;
+      case 'Home':
+        return <House className="h-5 w-5" />;
+      case 'User':
+        return <User className="h-5 w-5" />;
+      case 'Mail':
+        return <Mail className="h-5 w-5" />;
+      case 'Heart':
+        return <Heart className="h-5 w-5" />;
+      case 'Star':
+        return <Star className="h-5 w-5" />;
+      case 'ToggleLeft':
+        return <ToggleLeft className="h-5 w-5" />;
+      case 'Shield':
+        return <Shield className="h-5 w-5" />;
+      case 'FileText':
+        return <FileText className="h-5 w-5" />;
+      case 'Wallet':
+        return <Wallet className="h-5 w-5" />;
+      default:
+        return <User className="h-5 w-5" />;
     }
   };
 
-  const isActive = (href: string) => {
-    return location.pathname.startsWith(href);
+  const isActive = (href: string) => location.pathname.startsWith(href);
+
+  const legalLinkClass = (page: string) => {
+    const active = location.pathname.startsWith(`${basePath}/${page}`);
+    return `block rounded-lg px-3 py-2 text-sm ${
+      active ? 'bg-green-50 font-medium text-green-600' : 'text-gray-600 hover:text-green-600'
+    }`;
   };
 
   return (
     <div className="flex h-full min-h-0 w-64 flex-col border-r border-gray-200 bg-white">
-      {/* Logo — height matches main Header for a continuous top border line */}
       <div className={layoutTopBarRowClass}>
         <Link to={`${basePath}/home`} className="inline-flex" onClick={onClose}>
           <BrandLogo size="sm" tone="dark" />
         </Link>
         {onClose && (
-          <button onClick={onClose} className="lg:hidden p-1 hover:bg-gray-100 rounded">
-            <X className="w-5 h-5" />
+          <button type="button" onClick={onClose} className="rounded p-1 hover:bg-gray-100 lg:hidden">
+            <X className="h-5 w-5" />
           </button>
         )}
       </div>
 
-      {/* User Profile — height matches in-app “Chats + search” column header */}
       <div className={layoutChatsListProfileBandClass}>
         <Link
           to={`${basePath}/profile`}
           className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg py-0 transition-colors hover:bg-gray-50"
+          onClick={onClose}
         >
           <div className="relative shrink-0">
             <ProfileAvatar
@@ -123,39 +156,36 @@ export default function Sidebar({ userType, onClose }: SidebarProps) {
         </Link>
       </div>
 
-      {/* Navigation */}
       <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto p-4">
         {navItems.map((item) => {
           const href = item.href;
           const active = isActive(href);
-          
-          if (item.id === 'faq') {
+
+          if (item.id === 'legal') {
             return (
               <div key={item.id}>
                 <button
-                  onClick={() => setFaqOpen(!faqOpen)}
-                  className={`w-full flex items-center justify-between gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                    active ? 'bg-green-50 text-green-600' : 'text-gray-700 hover:bg-gray-50'
+                  type="button"
+                  onClick={() => setLegalOpen(!legalOpen)}
+                  className={`flex w-full items-center justify-between gap-3 rounded-lg px-3 py-2.5 transition-colors ${
+                    onLegalPage ? 'bg-green-50 text-green-600' : 'text-gray-700 hover:bg-gray-50'
                   }`}
                 >
                   <div className="flex items-center gap-3">
                     {getIcon(item.icon)}
                     <span className="font-medium">{item.label}</span>
                   </div>
-                  {faqOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                  {legalOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                 </button>
-                {faqOpen && (
+                {legalOpen && (
                   <div className="ml-8 mt-1 space-y-1">
-                    <Link to={`${basePath}/faq`} className="block px-3 py-2 text-sm text-gray-600 hover:text-green-600 rounded-lg">
-                      FAQ
-                    </Link>
-                    <Link to="/terms" className="block px-3 py-2 text-sm text-gray-600 hover:text-green-600 rounded-lg">
+                    <Link to={`${basePath}/terms`} className={legalLinkClass('terms')} onClick={onClose}>
                       Terms
                     </Link>
-                    <Link to="/privacy" className="block px-3 py-2 text-sm text-gray-600 hover:text-green-600 rounded-lg">
+                    <Link to={`${basePath}/privacy`} className={legalLinkClass('privacy')} onClick={onClose}>
                       Privacy
                     </Link>
-                    <Link to="/rules" className="block px-3 py-2 text-sm text-gray-600 hover:text-green-600 rounded-lg">
+                    <Link to={`${basePath}/rules`} className={legalLinkClass('rules')} onClick={onClose}>
                       Rules
                     </Link>
                   </div>
@@ -169,10 +199,8 @@ export default function Sidebar({ userType, onClose }: SidebarProps) {
               key={item.id}
               to={href}
               onClick={onClose}
-              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors ${
-                active 
-                  ? 'bg-green-50 text-green-600' 
-                  : 'text-gray-700 hover:bg-gray-50'
+              className={`flex items-center gap-3 rounded-lg px-3 py-2.5 transition-colors ${
+                active ? 'bg-green-50 text-green-600' : 'text-gray-700 hover:bg-gray-50'
               }`}
             >
               {getIcon(item.icon)}
@@ -187,7 +215,6 @@ export default function Sidebar({ userType, onClose }: SidebarProps) {
         })}
       </nav>
 
-      {/* Logout — pinned to bottom of sidebar (nav scrolls above) */}
       <div className="shrink-0 border-t border-gray-200 bg-white p-4">
         <button
           type="button"
@@ -195,9 +222,9 @@ export default function Sidebar({ userType, onClose }: SidebarProps) {
             logout();
             window.location.href = '/login';
           }}
-          className="flex w-full items-center gap-3 px-3 py-2.5 text-left text-gray-700 hover:bg-gray-50 rounded-lg transition-colors"
+          className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-gray-700 transition-colors hover:bg-gray-50"
         >
-          <LogOut className="w-5 h-5" />
+          <LogOut className="h-5 w-5" />
           <span className="font-medium">Log out</span>
         </button>
       </div>

@@ -200,6 +200,7 @@ export const navigationItems = {
     { id: 'favorites', label: 'Favorites', icon: 'Star', href: '/man/favorites' },
     { id: 'online', label: 'Online', icon: 'ToggleLeft', href: '/man/online' },
     { id: 'faq', label: 'FAQ', icon: 'Shield', href: '/man/faq' },
+    { id: 'legal', label: 'Legal', icon: 'FileText', href: '/man/terms' },
     { id: 'wallet', label: 'My wallet', icon: 'Wallet', href: '/man/wallet' },
   ],
   woman: [
@@ -210,6 +211,7 @@ export const navigationItems = {
     { id: 'favorites', label: 'Favorites', icon: 'Star', href: '/woman/favorites' },
     { id: 'online', label: 'Online', icon: 'ToggleLeft', href: '/woman/online' },
     { id: 'faq', label: 'FAQ', icon: 'Shield', href: '/woman/faq' },
+    { id: 'legal', label: 'Legal', icon: 'FileText', href: '/woman/terms' },
     { id: 'wallet', label: 'My wallet', icon: 'Wallet', href: '/woman/wallet' },
   ],
 };
