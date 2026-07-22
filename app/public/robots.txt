@@ -1,4 +1,19 @@
 User-agent: *
 Allow: /
+Allow: /register
+Allow: /login
+Allow: /terms
+Allow: /privacy
+Allow: /rules
+Allow: /refund
+Allow: /dmca
 
-Sitemap: https://www.memberdate.com/
+Disallow: /man/
+Disallow: /woman/
+Disallow: /admin/
+Disallow: /moderator/
+Disallow: /verify-email
+Disallow: /profile-setup
+Disallow: /forgot-password
+
+Sitemap: https://www.memberdate.com/sitemap.xml
